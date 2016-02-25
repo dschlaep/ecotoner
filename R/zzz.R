@@ -1,0 +1,37 @@
+.onAttach <- function(libname, pkgname) {
+	if (interactive()) {
+    	meta <- packageDescription("ecotoner")
+    	packageStartupMessage("Package 'ecotoner', ", meta$Version, " (", meta$Date, ") attached/loaded.")
+	}
+	
+	invisible()
+}
+
+
+.onLoad <- function(libname, pgkname) {
+	#--- Define options and set default values
+	# based on chapter "When you do need side-effects" by Wickham, H. 2015. R packages. O'Reilly and Associates.
+	op_old <- options()
+	op_ecotoner <- list()
+	toset <- !(names(op_ecotoner) %in% names(op_old))
+	if (any(toset)) options(op_ecotoner[toset])
+
+	#--- Define package level variables that should be hidden from package user and should not be changed
+	assign("transect_types", c("HighestElevation", "SteepestSlope", "Flowpath", "HomogeneousAspect"), envir = etr_vars)
+	assign("migtypes", c("AllMigration", "OnlyGoodMigration"), envir = etr_vars)
+	
+	invisible()
+}
+
+		
+
+.onUnload <- function(libpath) {
+	#--- Remove package options
+	op_old <- options()
+	op_ecotoner <- list()
+	toset <- names(op_ecotoner) %in% names(op_old)
+	if (any(toset)) options(op_ecotoner[toset])
+
+	invisible()
+
+}

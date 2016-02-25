@@ -1,0 +1,29 @@
+Package: ecotoner
+Title: ecotoner Extracts Geographic And Geometric Measures Of Ecotones
+Version: 0.0.0.9000
+Authors@R: person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre"))
+Description: ecotoner extracts geographic and geometric measures of ecotones
+Depends: 
+    R (>= 3.2.3)
+Imports: 
+    circular (>= 0.4.7),
+    sp (>= 1.2.1),
+    raster (>= 2.5.2),
+    igraph (>= 1.0.1),
+    methods
+Suggests: 
+	modeest (>= 2.1),
+	zoo (>= 1.7.12),
+	gstat (>= 1.1),
+	cluster (>= 2.0.3),
+	randomForest (>= 4.6.12),
+    testthat,
+    maptools (>= 0.8.37),
+    geosphere (>= 1.5.1),
+    spdep (>= 0.5.92)
+License: GPL (>= 3)
+LazyData: true
+ByteCompile: true
+URL: https://github.com/dschlaep/ecotoner
+BugReports: https://github.com/dschlaep/ecotoner/issues
+RoxygenNote: 5.0.1
