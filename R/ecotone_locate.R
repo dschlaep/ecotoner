@@ -449,17 +449,17 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 						etable = list()) #container combining output table results from each neighborhood
 
 	#check whether output was already generated, if so read and jump to return
-	doMore <- FALSE
+	do_more <- FALSE
 	if (exists("b")) rm(b)
 	if (exists("ipoint_status")) rm(ipoint_status)
 	if (file.exists(fname_success)) {
 		load(fname_success) #i, b, ipoint_status, and etransect loaded
-		if (b < neighbors_N(ecotoner_settings) && !ipoint_status) doMore <- TRUE #output not yet for every neighborhood generated
+		if (b < neighbors_N(ecotoner_settings) && !ipoint_status) do_more <- TRUE #output not yet for every neighborhood generated
 	} else {
-		doMore <- !file.exists(fname_fail)
+		do_more <- !file.exists(fname_fail)
 	}
 			
-	if (doMore) {
+	if (do_more) {
 		ipoint <- initpoints[i, ]
 		# Directory for temporary output
 		dir_fig <- file.path(dir_out_fig(ecotoner_settings), iflag)

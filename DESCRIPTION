@@ -1,17 +1,17 @@
 Package: ecotoner
-Title: ecotoner Extracts Geographic And Geometric Measures Of Ecotones
+Title: ecotoner - ecotones / ecological boundaries across environmental gradients
 Version: 0.0.0.9000
 Authors@R: person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre"))
-Description: ecotoner extracts geographic and geometric measures of ecotones
-Depends: 
+Description: ecotoner locates ecotones and extracts geographic and geometric measures of ecotones
+Depends:
     R (>= 3.2.3)
-Imports: 
+Imports:
     circular (>= 0.4.7),
     sp (>= 1.2.1),
     raster (>= 2.5.2),
     igraph (>= 1.0.1),
     methods
-Suggests: 
+Suggests:
 	modeest (>= 2.1),
 	zoo (>= 1.7.12),
 	gstat (>= 1.1),

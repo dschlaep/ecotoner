@@ -2,20 +2,18 @@
 if (FALSE) { # TODO(drs): conversion package
 	libraries  <- c("ecotoner", "devtools")
 	l <- lapply(libraries, FUN=function(lib) stopifnot(require(lib, character.only=TRUE, quietly=FALSE)))
-	dir.prj <- "~/Dropbox/Work_Stuff/2_Research/200907_UofWyoming_PostDoc/Product17_EcotoneGradients/3_EcotoneGradient/4_Intermountain_v6"
-	dir_init <- file.path(dir.prj, "1_Inits")
-
-	setwd(file.path(dir.prj, "ecotoner"))
-	devtools::load_all()
 	
+	dir_dev <- "~/Dropbox/Work_Stuff/2_Research/Software/GitHub_Projects"
+	setwd(file.path(dir_dev, "ecotoner"))
+	devtools::load_all()	
 }						
 
 #------------------------------------------------------------#
 ##------PROJECT NEW/CONTD
 
-prj_status <- "new"		# one of "new" and "contd"; if "contd" then bname_settings (and bname_grids if locate_transects) must exist on disk
-bname_settings <- "20160223_1915_ecotoner_settings.rds"
-bname_grids <- "20160223_1915_ecotoner_grids.rds"
+prj_status <- "contd"		# one of "new" and "contd"; if "contd" then bname_settings (and bname_grids if locate_transects) must exist on disk
+bname_settings <- "20160229_0757_ecotoner_settings.rds"
+bname_grids <- "20160229_0757_ecotoner_grids.rds"
 time_stamp <- Sys.time()
 
 
@@ -319,7 +317,7 @@ if (actions["locate_transects"]) {
 							do_figures = interactions["figures"])
 	
 	warnings()
-
+print(sessionInfo())#TODO(drs): remove
 	#---Results
 	write.csv(resultTransects, file = file_etsummary(esets))
 }
