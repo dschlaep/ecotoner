@@ -314,7 +314,7 @@ if (actions["locate_transects"]) {
 
 .Last <- function() {#TODO(drs): remove
 	sessionInfo()
-	warnings()
+	print(warnings())
 }
 	resultTransects <- parallel::parSapplyLB(cl, seq_len(transect_N(esets)), detect_ecotone_transects_from_searchpoint,
 							initpoints = initpoints,
@@ -324,7 +324,7 @@ if (actions["locate_transects"]) {
 							verbose = interactions["verbose"],
 							do_figures = interactions["figures"])
 	
-	warnings()
+	print(warnings())
 	#---Results
 	write.csv(resultTransects, file = file_etsummary(esets))
 }
@@ -341,15 +341,15 @@ if (actions["measure_transects"]) {
 	#---Loop through random points
 	cat(format(Sys.time(), format = ""), ": send ", transect_N(esets), " calls to the function 'measure_ecotone_per_transect'\n", sep = "")
 
-et_methods1 <- c("Danz2012JVegSci", "Eppinga2013Ecography", "Gastner2010AmNat")
+et_methods_choices <- c("Danz2012JVegSci_1D", "Danz2012JVegSci_2D", "Eppinga2013Ecography", "Gastner2010AmNat")
 
 	XXX <- parallel::parSapplyLB(cl, seq_len(transect_N(esets)), measure_ecotone_per_transect,
-							et_methods = XXX,
+							et_methods = c("Danz2012JVegSci_2D"),
 							ecotoner_settings = esets,
 							verbose = interactions["verbose"],
 							do_figures = interactions["figures"])
 	
-	warnings()
+	print(warnings())
 stop("TODO(drs): not implemented")	
 et_methods2 <- c("InterZoneLocation", "InterZonePatchDistr")
 	XXX <- measure_ecotones_all_transects()

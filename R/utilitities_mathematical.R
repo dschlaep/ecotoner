@@ -196,6 +196,61 @@ sigmoidal_inv <- function(y, b, c) {
 }
 
 
+m_glm <- function(family, data.) {
+	w <- if (length(unique(data.[["y"]])) == 2 || identical(family[["family"]], "gaussian")) NULL else data.[["w"]]
+	mfit <- try(stats::glm(y ~ x, data = data.[c("x", "y")], family = family, weights = w), silent = TRUE)
+			
+	if (!inherits(mfit, "try-error")) {
+		mpred <- predict(mfit, newdata = data.[["newdata"]], type = "response", se.fit = TRUE)
+		quals <- c(isConv = mfit$converged, edf = (temp <- extractAIC(mfit))[1], AIC = temp[2],
+					logLik = logLik(mfit), deviance = deviance(mfit), df.resid = df.residual(mfit))
+	} else {
+		mpred <- NULL
+		quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
+	}
+	
+	list(m = mfit, preds = mpred, quals = quals)
+}
+
+m_glmm <- function(family, data.) {
+	mfit <- try(lme4::glmer(y ~ x + (x|r), data = data.[c("x", "y", "r")], family = family), silent = TRUE)
+	
+	if (!inherits(mfit, "try-error")) {
+		# unconditional (level-0 random effect) prediction
+		mpred <- predict(mfit, newdata = data.[["newdata"]], re.form = ~ 0, type = "response")
+		quals <- c(isConv = TRUE, edf = attr(logLik(mfit), "df"),
+					lme4::llikAIC(mfit)[["AICtab"]][c("AIC", "logLik", "deviance", "df.resid")])
+	} else {
+		mpred <- NULL
+		quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
+	}
+	
+	list(m = mfit, preds = mpred, quals = quals)
+}
+
+m_sig <- function(data.) {
+	mfit <- {i <- 1
+				repeat {
+					fit <- try(nls(y ~ sigmoidal(x, b, c), data = data., start = list(b = runif(1, -1, 1), c = runif(1, -1, 1))), silent = TRUE)
+					if (i > 50 || !inherits(fit, "try-error")) break
+					i <- i + 1
+				}
+			fit}
+	
+	if (!inherits(mfit, "try-error")) {
+		mpred <- predict(mfit, newdata = data.[["newdata"]], type = "response")
+		temp <- logLik(mfit)
+		quals <- c(isConv = mfit[["convInfo"]][["isConv"]], edf = attr(temp, "df"), AIC = AIC(mfit),
+					logLik = temp, deviance = deviance(mfit), df.resid = df.residual(mfit))
+	} else {
+		mpred <- NULL
+		quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
+	}
+
+	list(m = mfit, preds = mpred, quals = quals)
+}
+
+
 
 #' Heaviside function.
 #'

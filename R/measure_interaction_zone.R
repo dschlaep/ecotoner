@@ -91,11 +91,11 @@ InterZoneLocation <- function(i, b, b_neigh, migtype, etband, etmeasure, flag_bf
 
 	if (!copy_FromMig1_TF) {
 		ends <- c(NA, NA)
-		if (!identical(class(eB_Danz[[im]]$Veg1VsDist$sigmoidal$m), "try-error")) {
-			ends[1] <- eB_Danz[[im]]$Veg1VsDist$sigmoidal$center_x
+		if (!identical(class(eB_Danz[[im]]$Veg1VsDist_1D$sigmoidal$m), "try-error")) {
+			ends[1] <- eB_Danz[[im]]$Veg1VsDist_1D$sigmoidal$center_x
 		}
-		if (!identical(class(eB_Danz[[im]]$Veg2VsDist$sigmoidal$m), "try-error")) {
-			ends[2] <- eB_Danz[[im]]$Veg2VsDist$sigmoidal$center_x
+		if (!identical(class(eB_Danz[[im]]$Veg2VsDist_1D$sigmoidal$m), "try-error")) {
+			ends[2] <- eB_Danz[[im]]$Veg2VsDist_1D$sigmoidal$center_x
 		}
 		eB_InterZone[[im]]$Danz2012 <- calc_InterZoneLocation(center = NA, start = ifelse(any(is.na(ends)), NA, min(ends)), end = ifelse(any(is.na(ends)), NA, max(ends)), dist_AlongTransect = etband$Env$DistAlongXaxis_m, elev_AlongTransect = etband$Env$elev$YMeans_ForEachX, veg1_AlongTransect = etband$Veg[[im]]$Veg1$density, veg2_AlongTransect = etband$Veg[[im]]$Veg2$density, abut_AlongTransect = etband$Veg[[im]]$Veg1ABUTVeg2$density)
 		ends <- c((opt <- eB_Eppinga[[im]]$optim$pos_m) + eB_Eppinga[[im]]$adv_veg1$deltaFrontRunners_Mean_m, opt + eB_Eppinga[[im]]$adv_veg2$deltaFrontRunners_Mean_m)

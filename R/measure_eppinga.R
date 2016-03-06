@@ -43,6 +43,55 @@ calc_Eppinga2013_advancement <- function(x, veg, end_toLeft, optBoundary_m) {
 		deltaFrontRunners_Mean_T17 = tm, deltaFrontRunners_SD_T17 = tsd)
 }
 
+#' @export
+map_front_runners_Eppinga2013 <- function(filename, eB_Env, eB_Veg, datFit) {
+	pdf(width=7, height=7, file=filename)
+	par_old <- par(mfrow=c(1, 1), mar=c(0, 0.1, 1, 1), mgp=c(2, 0.5, 0), cex=cex <- 1.5)
+	on.exit({par(par_old); dev.off()}, add = TRUE)
+
+	ext1 <- raster::extent(eB_Env$elev$grid)
+	xlim <- c(-1000, ext1@xmax)
+	ylim <- c(-1000, ext1@ymax+1000)
+	
+	raster::image(eB_Env$elev$grid, col=gray(0:255/255), xlim=xlim, ylim=ylim, main="", xlab="", ylab="", asp=1, axes=FALSE)
+	raster::image(eB_Veg$Veg1$grid, col=adjustcolor("red", alpha.f = 0.3), add=TRUE)
+	raster::image(eB_Veg$Veg2$grid, col=adjustcolor("darkgreen", alpha.f = 0.3), add=TRUE)
+	atx <- c((atx <- axTicks(1))[atx >= 0 & atx < ext1@xmax], ext1@xmax)
+	axis(1, pos=0, at=atx)
+	axis(2, pos=0, at=c(0, 2000, 4000, 6000))
+	text(x=ext1@xmax/2, y=-strheight("0", units="user", cex=cex)*(0.5+2), labels="Transect length (m)")
+	text(x=-strwidth("0", units="user", cex=cex)*(0.5+2.5), y=ext1@ymax/2, labels="Transect width (m)", srt=90)
+
+	isnotna <- !is.na(datFit$adv_veg1$deltaFrontRunners_m)
+	res_m <- raster::xres(eB_Env$elev$grid)
+	points(x=((opt <- datFit$optim$pos_m) + datFit$adv_veg1$deltaFrontRunners_m)[isnotna], y=(ys <- (length(datFit$adv_veg1$deltaFrontRunners_m):1) * res_m)[isnotna], pch=".", col="magenta")
+	isnotna <- !is.na(datFit$adv_veg2$deltaFrontRunners_m)
+	points(x=(opt + datFit$adv_veg2$deltaFrontRunners_m)[isnotna], y=ys[isnotna], pch=".", col="green")
+	segments(x0=opt, y0=ext1@ymin, x1=opt, y1=ext1@ymax, lwd=2, col="yellow")
+	segments(x0=pos1 <- opt + datFit$adv_veg1$deltaFrontRunners_Mean_m, y0=ext1@ymin, x1=pos1, y1=ext1@ymax, lwd=2, col=adjustcolor("magenta", alpha.f = 0.7))
+	segments(x0=pos2 <- opt + datFit$adv_veg2$deltaFrontRunners_Mean_m, y0=ext1@ymin, x1=pos2, y1=ext1@ymax, lwd=2, col=adjustcolor("green", alpha.f = 0.7))
+
+	if (datFit$adv_stats$FrontsAdvBeyondOptBoundary) {
+		p12 <- datFit$adv_stats$Front1Larger2_p < 0.05
+		p21 <- datFit$adv_stats$Front2Larger1_p < 0.05
+		if (p12) {
+			arrows(x0=opt, y0=ext1@ymax+30, x1=pos1, y1=ext1@ymax+30, lwd=2, col="magenta")
+			ptext <- paste0("adv(Veg1; BSE) > adv(Veg2; TF):\np < ", ifelse(datFit$adv_stats$Front1Larger2_p > 0.001, formatC(datFit$adv_stats$Front1Larger2_p, format="f", digits=3), "0.001"))
+		}
+		if (p21) {
+			arrows(x0=opt, y0=ext1@ymax+30, x1=pos2, y1=ext1@ymax+30, lwd=2, col="green")
+			ptext <- paste0("adv(Veg2; TF) > adv(Veg1; BSE):\np < ", ifelse(datFit$adv_stats$Front2Larger1_p > 0.001, formatC(datFit$adv_stats$Front2Larger1_p, format="f", digits=3), "0.001"))
+		}
+		if (!p12 & !p21) ptext <- paste0("adv(Veg1; BSE) = adv(Veg2; TF):\np > ", formatC(datFit$adv_stats$Front1Larger2_p, format="f", digits=3))
+	} else {
+		ptext <- paste0("adv() < optimal boundary")
+	}
+	text(x=ext1@xmax/2, y=ext1@ymax+strheight("0", units="user", cex=2/3*cex)*2, labels=ptext, cex=2/3)
+	
+	invisible()
+}
+
+
 
 
 #---Eppinga et al. 2013: 'Statistical analyses'

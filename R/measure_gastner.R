@@ -214,6 +214,57 @@ tabulate_Gastner2010_hulledge <- function(etable, b, data, steplength, width_N, 
 	etable
 }
 
+#' @export
+plot_Gastner2010_hulledge <- function(filename, eB_Env, eB_Veg, datFit) {
+	pdf(width=7, height=10, file=filename)
+	par_old <- par(mfrow=c(nr <- 2, 1), mar=c(0, 0.1, 1, 1), mgp=c(1.5, 0.5, 0), cex=cex <- 1.5)
+	on.exit({par(par_old); dev.off()}, add = TRUE)
+
+
+	#Panel a: map
+	ext1 <- raster::extent(eB_Env$elev$grid)
+	xlim <- c(-1000, ext1@xmax)
+	ylim <- c(-1000, ext1@ymax)
+	
+	raster::image(eB_Env$elev$grid, col=gray(0:255/255), xlim=xlim, ylim=ylim, main="", xlab="", ylab="", asp=1, axes=FALSE)
+	raster::image(eB_Veg$Veg1$grid, col=adjustcolor("red", alpha.f = 0.3), add=TRUE)
+	raster::image(datFit$Veg1$grid_LargestPatch, col=adjustcolor("red", alpha.f = 0.3), add=TRUE)
+	raster::image(eB_Veg$Veg2$grid, col=adjustcolor("darkgreen", alpha.f = 0.3), add=TRUE)
+	raster::image(datFit$Veg2$grid_LargestPatch, col=adjustcolor("darkgreen", alpha.f = 0.3), add=TRUE)
+	atx <- c((atx <- axTicks(1))[atx >= 0 & atx < ext1@xmax], ext1@xmax)
+	axis(1, pos=0, at=atx)
+	axis(2, pos=0, at=c(0, 2000, 4000, 6000))
+	text(x=ext1@xmax/2, y=-strheight("0", units="user", cex=cex)*(0.5+2), labels="Transect length (m)", xpd=NA)
+	text(x=-strwidth("0", units="user", cex=cex)*(0.5+2.5), y=ext1@ymax/2, labels="Transect width (m)", srt=90)
+
+	lines(x=coordinates(datFit$Veg1$spLine_hullEdge)[[1]][[1]], col="orange")
+	lines(x=coordinates(datFit$Veg2$spLine_hullEdge)[[1]][[1]], col="green")
+	mtext(text="(a)", line=-1, cex=cex, adj=0.01)
+
+	#Panel b: densities
+	par(mar=c(2.5, 2.5, 1, 1.5))
+	#Veg1
+	plot(eB_Env$DistAlongXaxis_m, eB_Veg$Veg1$density, lty=1, col="red", type="l", xlim=c(0, ext1@xmax), ylim=c(0, 1), xlab="Transect length (m)", ylab="Density", xaxs="i", axes=FALSE)
+	atx <- c((atx <- axTicks(1))[atx >= 0 & atx < ext1@xmax], ext1@xmax)
+	axis(1, pos=0, at=atx)
+	axis(2, pos=0)
+	include <- datFit$Veg1$density > 0
+	lines(eB_Env$DistAlongXaxis_m[include], datFit$Veg1$density[include], col="red", lwd=2)
+	arrows(x0=pos <- datFit$Veg1$stats$position_m, y0=ytemp <- 1, x1=pos, y1=0, lwd=2, col="orange", length=0.03*par()$pin[1]/nr)
+	arrows(x0=pos - datFit$Veg1$stats$width_m, y0=ytemp, x1=pos + datFit$Veg1$stats$width_m, y1=ytemp, lwd=2, col="orange", length=0.03*par()$pin[1]/nr, code=3)
+	#Veg2
+	lines(eB_Env$DistAlongXaxis_m, eB_Veg$Veg2$density, lty=1, col="darkgreen")
+	include <- datFit$Veg2$density > 0
+	lines(eB_Env$DistAlongXaxis_m[include], datFit$Veg2$density[include], col="darkgreen", lwd=2)
+	arrows(x0=pos <- datFit$Veg2$stats$position_m, y0=ytemp-0.01, x1=pos, y1=0, lwd=2, col="green", length=0.03*par()$pin[1]/nr)
+	arrows(x0=pos - datFit$Veg2$stats$width_m, y0=ytemp-0.01, x1=pos + datFit$Veg2$stats$width_m, y1=ytemp-0.01, lwd=2, col="green", length=0.03*par()$pin[1]/nr, code=3)
+
+	mtext(text="(b)", line=-0.5, cex=cex, adj=0.01)
+
+	invisible()
+}
+
+
 
 
 Gastner2010AmNat <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
