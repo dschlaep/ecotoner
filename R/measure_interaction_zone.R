@@ -67,7 +67,7 @@ calc_InterZoneLocation <- function(center, start, end, dist_AlongTransect, elev_
 
 
 #' @export
-InterZoneLocation <- function(i, b, b_neigh, migtype, etband, etmeas, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
+InterZoneLocation <- function(i, b, b_neigh, migtype, etband, etmeasure, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
 	#---4. Define location and contact/interaction zone of veg1 and veg2 for each ecological boundary
 
 	dots <- list(...)
@@ -77,17 +77,17 @@ InterZoneLocation <- function(i, b, b_neigh, migtype, etband, etmeas, flag_bfig,
 		stop("ecotoner::InterZoneLocation(): argument 'et_methods' is missing")
 	}
 
-	etmeas$gETmeas[[migtype]]$etable[b, "Transect_ID"] <- i
-	etmeas$gETmeas[[migtype]]$etable[b, "Neighbor_Cells"] <- b_neigh
+	etmeasure$gETmeas[[migtype]]$etable[b, "Transect_ID"] <- i
+	etmeasure$gETmeas[[migtype]]$etable[b, "Neighbor_Cells"] <- b_neigh
 	
 	step_names <- paste0("Step", stepsHullEdge(ecotoner_settings))
 
 	eB_InterZone[[im]] <- vector(mode = "list", length = 2+length(stepsHullEdge(ecotoner_settings)))
 	names(eB_InterZone[[im]]) <- c("Danz2012", "Eppinga2013", paste0("Gastner2009Step", stepsHullEdge(ecotoner_settings)))
 
-	etmeas$gETmeas[[migtype]] <- vector(mode = "list", length = length(step_lengths))
+	etmeasure$gETmeas[[migtype]] <- vector(mode = "list", length = length(step_lengths))
 	step_names <- paste0("Step", step_lengths)
-	names(etmeas$gETmeas[[migtype]]) <- step_names
+	names(etmeasure$gETmeas[[migtype]]) <- step_names
 
 	if (!copy_FromMig1_TF) {
 		ends <- c(NA, NA)

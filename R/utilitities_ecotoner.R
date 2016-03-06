@@ -8,11 +8,21 @@ flag_basename <- function(iflag, b, ecotoner_settings) {
 }
 
 fname_etfailed <- function(iflag, ecotoner_settings) {
-	file.path(dir_out_dat(ecotoner_settings), paste0(iflag, "_notransect.RData"))
+	file.path(dir_out_dat(ecotoner_settings), paste0(iflag, "_failed.RData"))
 }
 
 fname_etlocated <- function(iflag, ecotoner_settings) {
 	file.path(dir_out_dat(ecotoner_settings), paste0(iflag, "_etransect.RData"))
+}
+
+
+fname_etnone <- function(iflag, ecotoner_settings) {
+	file.path(dir_out_dat(ecotoner_settings), paste0(iflag, "_notransect.RData"))
+}
+
+
+fname_etsearching <- function(iflag, ecotoner_settings) {
+	file.path(dir_out_dat(ecotoner_settings), paste0(iflag, "_etsearching.RData"))
 }
 
 fname_etmeasured <- function(iflag, ecotoner_settings) {

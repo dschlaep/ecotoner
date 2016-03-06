@@ -119,7 +119,7 @@ tabulate_Eppinga2013_advance <- function(etable, b, data, flag_migtype){
 
 
 #' @export
-Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmeas, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
+Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
 	#3b. Eppinga et al. 2013 Ecography: Location of boundary and front-runner distance
 	#Objective: inference of vegetation boundary movement from one ‘snapshot’ (e.g. an aerial photograph or satellite image) in time
 	#It is assumed that the current vegetation distribution is reflecting competitive interactions between communities over a longer time period (i.e. decades). Also, it is assumed that vegetation boundary movement is relatively slow as compared to fluctuations in environmental and meteorological conditions.
@@ -128,34 +128,34 @@ Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmea
 	dots <- list(...)
 	seed <- if ("seed" %in% names(dots)) dots["seed"] else NULL
 
-	etmeas$etable[b, "Transect_ID"] <- i
-	etmeas$etable[b, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
+	etmeasure$etable[b, "Transect_ID"] <- i
+	etmeasure$etable[b, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
 	
 	if (!copy_FromMig1_TF) {
-		etmeas$gETmeas[[b]][[migtype]]$optim <- calc_Eppinga2013_optpos(x = etband$Env$DistAlongXaxis_m,
+		etmeasure$gETmeas[[b]][[migtype]]$optim <- calc_Eppinga2013_optpos(x = etband$Env$DistAlongXaxis_m,
 																Veg1 = etband$Veg[[migtype]]$Veg1$grid,
 																Veg2 = etband$Veg[[migtype]]$Veg2$grid)
-		etmeas$gETmeas[[b]][[migtype]]$adv_veg1 <- calc_Eppinga2013_advancement(x = etband$Env$DistAlongXaxis_m,
+		etmeasure$gETmeas[[b]][[migtype]]$adv_veg1 <- calc_Eppinga2013_advancement(x = etband$Env$DistAlongXaxis_m,
 																		veg = etband$Veg[[migtype]]$Veg1$grid,
 																		end_toLeft = end_to_left(type_veg1(ecotoner_settings)),
-																		optBoundary_m = etmeas$gETmeas[[b]][[migtype]]$optim$pos_m)
-		etmeas$gETmeas[[b]][[migtype]]$adv_veg2 <- calc_Eppinga2013_advancement(x = etband$Env$DistAlongXaxis_m,
+																		optBoundary_m = etmeasure$gETmeas[[b]][[migtype]]$optim$pos_m)
+		etmeasure$gETmeas[[b]][[migtype]]$adv_veg2 <- calc_Eppinga2013_advancement(x = etband$Env$DistAlongXaxis_m,
 																		veg = etband$Veg[[migtype]]$Veg2$grid,
 																		end_toLeft = end_to_left(type_veg2(ecotoner_settings)),
-																		optBoundary_m = etmeas$gETmeas[[b]][[migtype]]$optim$pos_m)
-		etmeas$gETmeas[[b]][[migtype]]$adv_stats <- calc_Eppinga2013_stats(deltaF1_T17 = etmeas$gETmeas[[b]][[migtype]]$adv_veg1$deltaFrontRunners_T17,
-																deltaF2_T17 = -etmeas$gETmeas[[b]][[migtype]]$adv_veg2$deltaFrontRunners_T17,
+																		optBoundary_m = etmeasure$gETmeas[[b]][[migtype]]$optim$pos_m)
+		etmeasure$gETmeas[[b]][[migtype]]$adv_stats <- calc_Eppinga2013_stats(deltaF1_T17 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg1$deltaFrontRunners_T17,
+																deltaF2_T17 = -etmeasure$gETmeas[[b]][[migtype]]$adv_veg2$deltaFrontRunners_T17,
 																seed = seed)
 
 		if(do_figures) map_front_runners_Eppinga2013(filename = file.path(dir_fig, paste0(flag_bfig, "Eppinga2013_FittedBoundaryAdvancement_", migtype, ".pdf")),
 													eB_Env = etband$Env,
 													eB_Veg = etband$Veg[[migtype]],
-													datFit = etmeas$gETmeas[[b]][[migtype]])				
+													datFit = etmeasure$gETmeas[[b]][[migtype]])				
 	}
 	
-	etmeas$etable <- tabulate_Eppinga2013_advance(etable = etmeas$etable, b = b,
-													data = etmeas$gETmeas[[b]][[if (copy_FromMig1_TF) 1 else migtype]],
+	etmeasure$etable <- tabulate_Eppinga2013_advance(etable = etmeasure$etable, b = b,
+													data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) 1 else migtype]],
 													flag_migtype = migtype)
 		
-	etmeas
+	etmeasure
 }

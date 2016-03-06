@@ -4,11 +4,11 @@
 \alias{establish_ecotone_transect}
 \title{Locate ecotone, prepare ecotone line and band transect, extract relevant information}
 \usage{
-establish_ecotone_transect(i, b, etbands, etable, ipoint, ecotoner_settings,
+establish_ecotone_transect(i, b, etband, etable, ipoint, ecotoner_settings,
   ecotoner_grids, elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped,
   asp201SDCropped, dir_fig, figBasename, verbose, do_figures)
 
-establish_ecotone_transect(i, b, etbands, etable, ipoint, ecotoner_settings,
+establish_ecotone_transect(i, b, etband, etable, ipoint, ecotoner_settings,
   ecotoner_grids, elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped,
   asp201SDCropped, dir_fig, figBasename, verbose, do_figures)
 }

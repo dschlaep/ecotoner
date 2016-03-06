@@ -10,8 +10,6 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 	
 	# Output containers
 	iflag <- flag_itransect(i, ecotoner_settings)
-	fname_success <- fname_etlocated(iflag, ecotoner_settings)
-	fname_meas <- fname_etmeasured(iflag, ecotoner_settings)
 	
 	temp <- vector("list", length = length(get("migtypes", envir = etr_vars)))
 	names(temp) <- get("migtypes", envir = etr_vars)
@@ -22,7 +20,7 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 	names(etmeas) <- et_methods
 	
 	do_measure <- TRUE
-	if (file.exists(fname_meas)) {
+	if (file.exists(fname_etmeasured(iflag, ecotoner_settings))) {
 		load(ftemp3) #load: i, b, etmeas
 		itemp <- et_methods %in% names(etmeas)
 #TODO(drs): check not only presence of methods, but also whether all neighborhoods and migration types have been completed
@@ -33,8 +31,8 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 		}
 	}
 	
-	if (file.exists(fname_success)) {
-		load(fname_success) #i, b, ipoint_status, and etransect loaded
+	if (file.exists(fname_etlocated(iflag, ecotoner_settings))) {
+		load(fname_etlocated(iflag, ecotoner_settings)) #i, b, and etransect loaded
 	} else {
 		do_measure <- FALSE # no suitable transect located for search point i
 	}
@@ -63,8 +61,8 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 				for (etm in et_methods) {
 					etmeas[[etm]] <- do.call(what = etm, args = list(i = i, b = b, migtype = migtype, 
 																		ecotoner_settings = ecotoner_settings,
-																		etband = etransect$etbands[[b]],
-																		etmeas = etmeas[[etm]],
+																		etband = etransect[["etbands"]][[b]],
+																		etmeasure = etmeas[[etm]],
 																		flag_bfig = flag_bfig,
 																		copy_FromMig1_TF = copy_FromMig1_TF,
 																		do_figures = do_figures,
@@ -83,7 +81,7 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 					}
 
 					# Save data to RData disk file
-					save(i, b, migtype, etmeas, file=fname_meas)
+					save(i, b, migtype, etmeas, file=fname_etmeasured(iflag, ecotoner_settings))
 				}
 			} # end loop through migtypes
 		} # end loop through neighborhoods

@@ -5,7 +5,7 @@
 establish_ecotone_transect <- function(x) x
 #TODO(drs): devtools::document() doesn't like to export the real function below; this is a hack
 
-establish_ecotone_transect <- function(i, b, etbands, etable, ipoint, ecotoner_settings, ecotoner_grids, elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped, dir_fig, figBasename, verbose, do_figures) {
+establish_ecotone_transect <- function(i, b, etband, etable, ipoint, ecotoner_settings, ecotoner_grids, elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped, dir_fig, figBasename, verbose, do_figures) {
 	if	(verbose) {
 		cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; start at ", format(Sys.time(), format = ""), "\n", sep = "")
 		idh <- 0 #counter for debug 'here' statements
@@ -19,7 +19,8 @@ gap.rat <- df_veg(ecotoner_grids)
 	#Result containers for GIS and similar data
 	# "search-transect-line = temp_stline" vs. "ecotone-transect-line = temp_etline"
 	# "search-transect-band = temp_stband" vs. "ecotone-transect-band = temp_etband"
-	temp_stline <- temp_etline <- etband <- list()	#elevation (start), linear, and band transects
+	temp_stline <- temp_etline <- list()	#elevation (start), linear, and band transects
+	status <- "searching"
 
 	template_eBTable <- data.frame(matrix(NA, nrow=1, ncol=0))
 	template_eBTable$Transect_ID <- i
@@ -190,7 +191,7 @@ gap.rat <- df_veg(ecotoner_grids)
 			#'Global' patch size distribution: calculate patches on gapCropped extent: hoping that this is as close as possible to global patches for the band transect extent
 			Veg1Cropped <- raster::calc(gapCropped, fun = function(x) ifelse(x %in% temp_etband$majorityVal_BSE, 1, NA))
 			Veg2Cropped <- raster::calc(gapCropped, fun = function(x) ifelse(x %in% temp_etband$majorityVals_TF, 1, NA))
-			temp.patches1 <- NULL
+			temp.patches1 <- list()
 			temp.patches1$Veg1_patches8 <- raster::clump(Veg1Cropped, directions = 8)
 			temp.patches1$freq_patches8_Veg1 <- data.frame(raster::freq(temp.patches1$Veg1_patches8, useNA = "no"))
 			temp.patches1$Veg2_patches8 <- raster::clump(Veg2Cropped, directions = 8)
@@ -370,25 +371,27 @@ gap.rat <- df_veg(ecotoner_grids)
 			#Sizes of vegetation patches
 			etband$Veg$AllMigration$Veg1$MedianPatch_radius_m <- sqrt(median((temp <- raster::freq(etband$Veg$AllMigration$Veg1$patches8))[!is.na(temp[, 1]), 2]) * res_m(specs_grid(ecotoner_grids))^2 / pi)
 			etband$Veg$AllMigration$Veg2$MedianPatch_radius_m <- sqrt(median((temp <- raster::freq(etband$Veg$AllMigration$Veg2$patches8))[!is.na(temp[, 1]), 2]) * res_m(specs_grid(ecotoner_grids))^2 / pi)
-		} # else not successfully located a transect
-	} # else: no candidates
+		} else { # else no transect successfully located
+			status <- "notransect"
+		}
+	} else { # else: no candidates
+		status <- "notransect"
+	}
 
 	# Return
-	etbands[[b]] <- etband
-	list(etbands = etbands, etable = etable)
+	list(etband = etband, etable = etable, status = status)
 }
 
 
 #' Identify suitably migrated vegetation patches of the ecotone band transect, extract relevant information
 #'
 #' @export
-identify_migration_patches <- function(b, ecotoner_settings, etbands, etable, dir_fig, figBasename, verbose, do_figures) {
+identify_migration_patches <- function(b, ecotoner_settings, etband, etable, dir_fig, figBasename, verbose, do_figures) {
 	if(verbose) {
 		cat("'ecotoner' migrating: neigh = ", b, "; start at ", format(Sys.time(), format = ""), "\n", sep = "")
 		idh <- 0 #counter for debug 'here' statements
 	}
 	
-	etband <- etbands[[b]]
 	seed <- if (reseed(ecotoner_settings)) get_pseed(ecotoner_settings) else NA
 	
 	#2e3ii. Veg$OnlyGoodMigration: Quality of x- vs y-axis migration routes: idea: identify patches that 'drain' out either at y=1 or at y=200; assumption: most likely migration route = flowpath
@@ -396,19 +399,21 @@ identify_migration_patches <- function(b, ecotoner_settings, etbands, etable, di
 	flowdir <- raster::terrain(etband$Env$elev$grid, opt="flowdir")
 
 	for (iveg in c("Veg1", "Veg2")) {
+		if(verbose) cat("'ecotoner' migrating: neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
+		
 		type_veg <- if (iveg == "Veg1") type_veg1(ecotoner_settings) else type_veg2(ecotoner_settings)
-		migration <- calc.MigrationRoutes_EstimateFlowpaths(elev=etband$Env$elev$grid, flowdir=flowdir, patches=etband$Veg$AllMigration[[ive]]$patches4, end_toLeft=end_to_left(type_veg), seed = seed)
+		migration <- calc.MigrationRoutes_EstimateFlowpaths(elev=etband$Env$elev$grid, flowdir=flowdir, patches=etband$Veg$AllMigration[[iveg]]$patches4, end_toLeft=end_to_left(type_veg), seed = seed)
 
 		#Identify x vs y migration
-		migration$direction <- calc.Identify_GoodvsBadMigration(patches4=etband$Veg$AllMigration[[ive]]$patches4, tally=migration$tally, paths=migration$paths, paths_success_TF=migration$paths_success_TF, end_toLeft=end_to_left(type_veg))
+		migration$direction <- calc.Identify_GoodvsBadMigration(patches4=etband$Veg$AllMigration[[iveg]]$patches4, tally=migration$tally, paths=migration$paths, paths_success_TF=migration$paths_success_TF, end_toLeft=end_to_left(type_veg))
 
 		#Get grid, patches4, patches8, and patchID_removed (patchID_removed == NULL if no patch removed)
-		etband$Veg$OnlyGoodMigration[[ive]] <- calc.RemoveBadMigration_fromVeg(patches4=etband$Veg$AllMigration[[ive]]$patches4, patches8=etband$Veg$AllMigration[[ive]]$patches8, patch4IDs_remove=migration$direction$patchIDs_GoodMigration)
-		etband$Veg$OnlyGoodMigration[[ive]]$Migration_Tally <- migration
+		etband$Veg$OnlyGoodMigration[[iveg]] <- calc.RemoveBadMigration_fromVeg(patches4=etband$Veg$AllMigration[[iveg]]$patches4, patches8=etband$Veg$AllMigration[[iveg]]$patches8, patch4IDs_remove=migration$direction$patchIDs_GoodMigration)
+		etband$Veg$OnlyGoodMigration[[iveg]]$Migration_Tally <- migration
 		#rm(flowdir, migration)
 
 		#Calculate missing variables for Veg$OnlyGoodMigration
-		etband$Veg$OnlyGoodMigration[[ive]]$density <- count_y_at_each_x(etband$Veg$OnlyGoodMigration[[ive]]$grid)
+		etband$Veg$OnlyGoodMigration[[iveg]]$density <- count_y_at_each_x(etband$Veg$OnlyGoodMigration[[iveg]]$grid)
 	}
 
 	etband$Veg$OnlyGoodMigration$diffs_amongMigTypes_TF <- !is.null(etband$Veg$OnlyGoodMigration$Veg1$patchID_removed) |
@@ -424,8 +429,7 @@ identify_migration_patches <- function(b, ecotoner_settings, etbands, etable, di
 							bse=etband$Veg$AllMigration$Veg1$grid, bse_remain=etband$Veg$OnlyGoodMigration$Veg1$grid, paths_bse=etband$Veg$OnlyGoodMigration$Veg1$Migration_Tally$paths,
 							tf=etband$Veg$AllMigration$Veg2$grid, tf_remain=etband$Veg$OnlyGoodMigration$Veg2$grid, paths_tf=etband$Veg$OnlyGoodMigration$Veg2$Migration_Tally$paths)
 	
-	etbands[[b]] <- etband
-	list(etbands = etbands, etable = etable)
+	list(etband = etband, etable = etable)
 }
 
 
@@ -441,22 +445,19 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 	if (!do_interim) raster::removeTmpFiles(h=2) #clean up old temporary raster files; assuming that no call to this function takes longer than 2 hours
 
 	iflag <- flag_itransect(i, ecotoner_settings)
-	fname_fail <- fname_etfailed(iflag, ecotoner_settings)
-	fname_success <- fname_etlocated(iflag, ecotoner_settings)
 
-	#Result container
+	# Result container
 	etransect <- list(etbands = vector(mode = "list", length = neighbors_N(ecotoner_settings)), # list for 'etband' of each neighborhood
+						status = rep("searching", neighbors_N(ecotoner_settings)), # "located", "notransect", "searching", "error"
 						etable = list()) #container combining output table results from each neighborhood
 
-	#check whether output was already generated, if so read and jump to return
-	do_more <- FALSE
-	if (exists("b")) rm(b)
-	if (exists("ipoint_status")) rm(ipoint_status)
-	if (file.exists(fname_success)) {
-		load(fname_success) #i, b, ipoint_status, and etransect loaded
-		if (b < neighbors_N(ecotoner_settings) && !ipoint_status) do_more <- TRUE #output not yet for every neighborhood generated
-	} else {
-		do_more <- !file.exists(fname_fail)
+
+	# Check if transect successfully located, none found, or error occurred, then do not continue with locating a transect from search point
+	do_more <- TRUE
+	if (file.exists(fname_etlocated(iflag, ecotoner_settings)) ||
+		file.exists(fname_etnone(iflag, ecotoner_settings)) ||
+		file.exists(fname_etfailed(iflag, ecotoner_settings))) {
+		do_more <- FALSE
 	}
 			
 	if (do_more) {
@@ -493,31 +494,36 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 		
 		elevCropped <- temp$grid_elev_cropped
 		
-		if (!is.null(elevCropped)) {
+		if (is.null(elevCropped)) {
+			etransect[["status"]] <- rep("notransect", neighbors_N(ecotoner_settings))
+			b <- 0
+
+		} else {
 			gapCropped <- temp$grid_veg_cropped
 			bseABUTtfCropped <- temp$grid_veg_abut12_cropped
 			asp201MeanCropped <- temp$grid_aspect_mean_cropped
 			asp201SDCropped <- temp$grid_aspect_sd_cropped
-		
 	
 			for (b in seq_len(neighbors_N(ecotoner_settings))) { #if no transect can be established then proceed to next initpoint
 				flag_bfig <- flag_basename(iflag, b, ecotoner_settings)
-				ipoint_status <- FALSE
+				etransect[["status"]][b] <- "searching"
 			
 				if (do.tempData1) {
 					temp <- try(establish_ecotone_transect(i, b, 
-												etbands = etransect[["etbands"]],
+												etband = etransect[["etbands"]][[b]],
 												etable = etransect[["etable"]],
 												ipoint, ecotoner_settings, ecotoner_grids,
 												elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped,
 												dir_fig, flag_bfig, verbose, do_figures), silent = TRUE)
 					
 					if (!inherits(temp, "try-error")) {
-						etransect <- temp
+						etransect[["etbands"]][[b]] <- temp[["etband"]]
+						etransect[["status"]][b] <- temp[["status"]]
+						etransect[["etable"]] <- temp[["etable"]]
 						rm(temp)
 					} else {
+						etransect[["status"]][b] <- "error"
 						warning("'detect_ecotone_transects_from_searchpoint': ", temp, immediate. = TRUE)
-						next
 					}
 			
 					if (do_interim) {
@@ -527,17 +533,18 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 					}
 				} #end of do.tempData1 == FALSE
 
-				if (do.tempData2) {
+				if (do.tempData2 && etransect[["status"]][b] == "searching") {
 					temp <- try(identify_migration_patches(b, ecotoner_settings,
-															etbands = etransect[["etbands"]],
+															etband = etransect[["etbands"]][[b]],
 															etable = etransect[["etable"]],
 															dir_fig, flag_bfig, verbose, do_figures), silent = TRUE)
 					
 					if (!inherits(temp, "try-error")) {
-						etransect <- temp
+						etransect[["etbands"]][[b]] <- temp[["etband"]]
+						etransect[["etable"]] <- temp[["etable"]]
 					} else {
+						etransect[["status"]][b] <- "error"
 						warning("'detect_ecotone_transects_from_searchpoint': ", temp, immediate. = TRUE)
-						next
 					}
 
 					if (do_interim) {
@@ -549,46 +556,72 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 
 
 				#----3. Loop through both versions of vegetation for applying the methods : Veg$AllMigration and Veg$OnlyGoodMigration
-				for (migtype in get("migtypes", envir = etr_vars)) {
-					copy_FromMig1_TF <- if (migtype == "AllMigration") FALSE else !etransect$etbands[[b]]$Veg[["OnlyGoodMigration"]]$diffs_amongMigTypes_TF
-					if (verbose) cat("'ecotoner' detecting: tr = ", i, "; neigh = ", b, ": prog: ", idh, "; mig-type: ", migtype, "\n", sep = "")
+				if (etransect[["status"]][b] == "searching") {
+					for (migtype in get("migtypes", envir = etr_vars)) {
+						copy_FromMig1_TF <- if (migtype == "AllMigration") FALSE else !etransect$etbands[[b]]$Veg[["OnlyGoodMigration"]]$diffs_amongMigTypes_TF
+						if (verbose) cat("'ecotoner' detecting: tr = ", i, "; neigh = ", b, ": prog: ", idh, "; mig-type: ", migtype, "\n", sep = "")
 					
-					if (!copy_FromMig1_TF) {
-						#Extract abutting cells between Veg1 and Veg2
-						etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$grid <- calc_abutting(Veg1=etransect$etbands[[b]]$Veg[[migtype]]$Veg1$grid, Veg2=etransect$etbands[[b]]$Veg[[migtype]]$Veg2$grid)
-						etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$density <- count_y_at_each_x(etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$grid)
+						if (!copy_FromMig1_TF) {
+							#Extract abutting cells between Veg1 and Veg2
+							etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$grid <- calc_abutting(Veg1=etransect$etbands[[b]]$Veg[[migtype]]$Veg1$grid, Veg2=etransect$etbands[[b]]$Veg[[migtype]]$Veg2$grid)
+							etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$density <- count_y_at_each_x(etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$grid)
 
-						#Store vegetation band transect data for analysis
-						etransect$etable <- get.BandTransect_TableDataVeg(etable=etransect$etable, b=b, data=etransect$etbands[[b]]$Veg[[migtype]], flag_migtype = migtype)
+							#Store vegetation band transect data for analysis
+							etransect$etable <- get.BandTransect_TableDataVeg(etable=etransect$etable, b=b, data=etransect$etbands[[b]]$Veg[[migtype]], flag_migtype = migtype)
+						} else {
+							etransect$etable <- get.BandTransect_TableDataVeg(etable=etransect$etable, b=b, data=etransect$etbands[[b]]$Veg[["AllMigration"]], flag_migtype = migtype)
+						}
+					}#end loop through migtypes
+
+					#Temporarily save data to disk file
+					if (all(sapply(etransect$etable[b, ], function(x) class(x)) %in% c("numeric", "logical", "integer", "character"))) {
+						appT <- file.exists(file_etsummary_temp(ecotoner_settings))
+						write.table(etransect$etable[b, ], file = file_etsummary_temp(ecotoner_settings),
+									append = appT, sep = ",", dec = ".", qmethod = "double",
+									row.names = FALSE, col.names = !appT)
 					} else {
-						etransect$etable <- get.BandTransect_TableDataVeg(etable=etransect$etable, b=b, data=etransect$etbands[[b]]$Veg[["AllMigration"]], flag_migtype = migtype)
+						etransect[["status"]][b] <- "error"
+						warning("'detect_ecotone_transects_from_searchpoint': ", i, " 'etransect$etable[", b, ", ]' contains unsuitable elements, e.g., a 'list'", immediate. = TRUE)
 					}
-				}#end loop through migtypes
-
-				#Temporarily save data to disk file
-				if (all(sapply(etransect$etable[b, ], function(x) class(x)) %in% c("numeric", "logical", "integer", "character"))) {
-					appT <- file.exists(file_etsummary_temp(ecotoner_settings))
-					write.table(etransect$etable[b, ], file = file_etsummary_temp(ecotoner_settings),
-								append = appT, sep = ",", dec = ".", qmethod = "double",
-								row.names = FALSE, col.names = !appT)
-				} else {
-					warning("'detect_ecotone_transects_from_searchpoint': ", i, " 'etransect$etable[", b, ", ]' contains unsuitable elements, e.g., a 'list'", immediate. = TRUE)
+				
+					if(verbose) cat("'ecotoner' detecting: tr = ", i, "; neigh = ", b, ": prog: ", idh <- idh + 1, "\n", sep = "")
 				}
 				
-				if(verbose) cat("'ecotoner' detecting: tr = ", i, "; neigh = ", b, ": prog: ", idh <- idh + 1, "\n", sep = "")
-				
 				# If code advanced until here, then transect located and characterized successfully
-				ipoint_status <- TRUE
+				if (etransect[["status"]][b] == "searching") etransect[["status"]][b] <- "located"
 				
-				# Save data to RData disk file
-				save(i, b, etransect, ipoint_status, file = fname_success)
+				# Save data to RData file
+				if (etransect[["status"]][b] == "error") {
+					break
+				} else if (b < neighbors_N(ecotoner_settings)) {
+					save(i, b, etransect, file = fname_etsearching(iflag, ecotoner_settings))
+				}
 			} # end for-loop through neighborhoods
-		
-			if(!ipoint_status){
-				unlink(dir_fig, recursive=TRUE) # delete if this ipoint did not result in an ecotone transect
-				save(i, b, etransect, ipoint_status, file = fname_fail)
+
+
+			# Save data to RData file
+			remove_fsearching <- FALSE
+			
+			if (all(etransect[["status"]] == "located")) {
+				save(i, b, etransect, file = fname_etlocated(iflag, ecotoner_settings))
+				remove_fsearching <- TRUE
+			} else {
+				unlink(dir_fig, recursive = TRUE)
+				
+				if (any(etransect[["status"]] == "error")) {
+					save(i, b, etransect, file = fname_etfailed(iflag, ecotoner_settings))
+					remove_fsearching <- TRUE
+				} else if (any(etransect[["status"]] == "notransect")) {
+					save(i, b, etransect, file = fname_etnone(iflag, ecotoner_settings))
+					remove_fsearching <- TRUE
+				}
+			}
+			
+			if (remove_fsearching && file.exists(fname_etsearching(iflag, ecotoner_settings))){
+				unlink(fname_etsearching(iflag, ecotoner_settings))
 			}
 		}
+
 	}
 	
 	if (verbose) cat("'ecotoner' detecting: tr = ", i, "; completed ", format(t2 <- Sys.time(), format = ""), " after ", round(difftime(t2, t1, units="hours"), 2), " hours\n", sep = "")

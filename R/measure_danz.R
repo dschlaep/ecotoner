@@ -70,20 +70,86 @@ calc_Danz2012_abruptness_1D <- function(x, z, seed = NULL) {
 	list(sigmoidal = lms, linear = lml, best = lb, mbest_byAIC = mbest, deltaAIC = deltaAIC, center_y = ceny, xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax)
 }
 
-calc_Danz2012_abruptness_2D <- function(x, z, seed = NULL) {
-	stopifnot(length(x) == length(z))
+calc_Danz2012_abruptness_2D <- function(x1, z1, x2, z2, seed = NULL) {
+	stopifnot(raster::compareRaster(x2, z2), length(x1) == length(z1))
+raster::origin(z2) <- raster::origin(x2)
 	
 	if (!is.na(seed)) set.seed(seed)
-
-	#Variation from published method: always use scaled and centered data
-	xmin <- min(x, na.rm = TRUE)
-	xmax <- max(x, na.rm = TRUE)
-	x <- c(scale(x, center = xmin, scale = xmax - xmin))
-	ymin <- min(z, na.rm = TRUE)
-	ymax <- max(z, na.rm = TRUE)
-	z <- c(scale(z, center = ymin, scale = ymax - ymin))
 	
-	#choice between linear vs sigmoidal only reflects how transect is defined and not necessarily how abrupt it is, i.e., whether 'shoulders' of vegetation density at low and high values are included in transect or not
+	# logistic regression on z ~ x with repeated 'rows' along the transect
+	# idea by ld; implementation by drs
+	x2p <- raster::rasterToPoints(x2)
+	if (cellStats(z2, "countNA")) z2 <- raster::calc(z2, function(z) ifelse(is.na(z), 0, z))
+	if (cellStats(x2, "countNA")) z2 <- raster::mask(z2, x2)
+	z2p <- raster::rasterToPoints(z2)
+stopifnot(x2p[, "y"] == z2p[, "y"])
+	
+	veg2 <- z2p[, "layer"]
+	grad2 <- x2p[, "layer"]
+	
+	# model fits
+	dats <- list('1d' = list(x = x1, y = z1), '2d' = list(x = x2p[, "layer"], y = z2p[, "layer"]))
+	
+	fits <- lapply(dats, function(dat) {
+				linr <- try(lm(y ~ x, data = dat), silent = TRUE)
+				# Zuur et al. 2009: binomial GLM: "We assume that Yi is binomial distributed with probability pi and ni = 1 independent trials"
+				# Zuur et al. 2009: "The logit and probit link functions assume that you have approximately an equal number of zeros and ones"
+				logr <- try(glm(y ~ x, data = dat, family = quasibinomial), silent = TRUE)
+				# Zuur et al. 2009: "The clog–log may be an option if you have consid- erably more zeros than ones, or vice versa; the sigmoidal curve is asymmetrical."
+				logr_cll <- try(glm(y ~ x, data = dat, family = quasibinomial(link = "cloglog")), silent = TRUE)
+				sigm <- {i <- 1
+							repeat {
+								fit <- try(nls(y ~ sigmoidal(x, b, c), data = dat, start = list(b = runif(1, -0.01, 0.01), c = runif(1, -0.01, 0.01))), silent = TRUE)
+								if (i > 50 || !inherits(fit, "try-error")) break
+								i <- i + 1
+							}
+							fit}
+			))
+	
+	lm_fit_1d <- lm(z1 ~ x1)
+	logr_fit_2d <- glm(veg2 ~ grad2, family = quasibinomial)
+	logr_cll_fit_2d <- glm(veg2 ~ grad2, family = quasibinomial(link = "cloglog"))
+	logr_fit_1d <- glm(z1 ~ x1, family = quasibinomial)
+
+	sig_fit_1d <- try(nls(z1 ~ sigmoidal(x1, b, c), start = list(b = 0.01, c = 0.005)), silent = TRUE)
+	reps <- 0
+	while (inherits(sig_fit_1d, "try-error") && reps <= 50) {
+		sig_fit_1d <- try(nls(z1 ~ sigmoidal(x1, b, c), start = list(b = runif(1), c = runif(1))), silent = TRUE)
+		reps <- reps + 1
+	}
+	sig_fit_2d <- try(nls(veg2 ~ sigmoidal(grad2, b, c), start = list(b = 0.01, c = 0.005)), silent = TRUE)
+	reps <- 0
+	while (inherits(sig_fit_2d, "try-error") && reps <= 50) {
+		sig_fit_2d <- try(nls(veg2 ~ sigmoidal(grad2, b, c), start = list(b = runif(1), c = runif(1))), silent = TRUE)
+		reps <- reps + 1
+	}
+
+xt <- seq(min(x2p[, "layer"]), max(x2p[, "layer"]), length.out = 100)
+logr_pred_2d <- predict(logr_fit_2d, newdata = data.frame(grad2 = xt), type = "response", se.fit = TRUE)
+#logr_cll_pred_2d <- predict(logr_cll_fit_2d, newdata = data.frame(grad2 = xt), type = "response", se.fit = TRUE)
+logr_pred_1d <- predict(logr_fit_1d, newdata = data.frame(x1 = xt), type = "response", se.fit = TRUE)
+sig_pred_1d <- predict(sig_fit_1d, newdata = data.frame(x1 = xt), type = "response")
+sig_pred_2d <- predict(sig_fit_2d, newdata = data.frame(grad2 = xt), type = "response")
+
+plot(xt, logr_pred_2d$fit, ylim = c(0, 1), type = "l")
+polygon(x = c(xt, rev(xt)), y = with(logr_pred_2d, c(fit - 2 * se.fit, rev(fit + 2 * se.fit))), border = NA, col = adjustcolor("black", alpha.f = 0.3))
+
+polygon(x = c(xt, rev(xt)), y = with(logr_pred_1d, c(fit - 2 * se.fit, rev(fit + 2 * se.fit))), border = NA, col = adjustcolor("gray", alpha.f = 0.3))
+lines(xt, logr_pred_1d$fit, lty = 2, col = "black")
+
+lines(xt, sig_pred_2d, lty = 1, col = "blue")
+lines(xt, sig_pred_1d, lty = 2, col = "lightblue")
+
+polygon(x = c(xt, rev(xt)), y = with(logr_cll_pred_2d, c(fit - 2 * se.fit, rev(fit + 2 * se.fit))), border = NA, col = adjustcolor("green", alpha.f = 0.3))
+lines(xt, logr_cll_pred_2d$fit, lty = 1, col = "darkgreen")
+
+rug(jitter(grad2[veg2 == 0]), side = 1, col = adjustcolor("lightblue", alpha.f = 0.1))
+rug(jitter(grad2[veg2 == 1]), side = 3, col = adjustcolor("orange", alpha.f = 0.1))
+temp <- density(grad2[veg2 == 0]); lines(temp$x, temp$y * 0.1 / max(temp$y), col = "lightblue")
+temp <- density(grad2[veg2 == 1]); lines(temp$x, 1 - temp$y * 0.1 / max(temp$y), col = "orange")
+lines(x1, z1, col = "red")
+	
+	# choice between linear vs sigmoidal only reflects how transect is defined and not necessarily how abrupt it is, i.e., whether 'shoulders' of vegetation density at low and high values are included in transect or not
 	ms <- try(nls(z ~ sigmoidal(x, b, c), start = list(b = 1, c = 0.5)), silent = TRUE)
 	reps <- 0
 	while (inherits(ms, "try-error") && reps <= 50) {
@@ -172,7 +238,7 @@ tabulate_Danz2012_abruptness <- function(etable, b, data, flag_migtype) {
 
 
 #' @export
-Danz2012JVegSci <- function(i, b, migtype, ecotoner_settings, etband, etmeas, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
+Danz2012JVegSci <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
 	#---3. Ecological boundaries
 	#3a. Danz et al. 2012 J.Veg.Sci.: Shape of vegetation boundary in relation to environmental conditions
 	#Objective: of our boundary analysis was to evaluate whether the transition from prairie to forest across the boundary resulted from a smooth or abrupt climatic gradient, i.e. whether the transition followed pattern ‘(a)’ or pattern ‘(b)’ in Fig. 3. We used three analytical tactics to address this objective:
@@ -184,30 +250,53 @@ Danz2012JVegSci <- function(i, b, migtype, ecotoner_settings, etband, etmeas, fl
 	dots <- list(...)
 	seed <- if ("seed" %in% names(dots)) dots["seed"] else NULL
 
-	etmeas$etable[b, "Transect_ID"] <- i
-	etmeas$etable[b, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
+	etmeasure$etable[b, "Transect_ID"] <- i
+	etmeasure$etable[b, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
 	
 	if (!copy_FromMig1_TF) {
-		etmeas$gETmeas[[b]][[migtype]]$ElevVsDist <- calc_Danz2012_abruptness_1D(x = etband$Env$DistAlongXaxis_m,
+		etmeasure$gETmeas[[b]][[migtype]]$ElevVsDist <- calc_Danz2012_abruptness_1D(x = etband$Env$DistAlongXaxis_m,
 															z = etband$Env$elev$YMeans_ForEachX, seed = seed)
-		etmeas$gETmeas[[b]][[migtype]]$Veg1VsDist <- calc_Danz2012_abruptness_1D(x = etband$Env$DistAlongXaxis_m,
+		etmeasure$gETmeas[[b]][[migtype]]$Veg1VsDist <- calc_Danz2012_abruptness_1D(x = etband$Env$DistAlongXaxis_m,
 															z = etband$Veg[[migtype]]$Veg1$density, seed = seed)
-		etmeas$gETmeas[[b]][[migtype]]$Veg2VsDist <- calc_Danz2012_abruptness_1D(x = etband$Env$DistAlongXaxis_m,
+		etmeasure$gETmeas[[b]][[migtype]]$Veg2VsDist <- calc_Danz2012_abruptness_1D(x = etband$Env$DistAlongXaxis_m,
 															z = etband$Veg[[migtype]]$Veg2$density, seed = seed)
-		etmeas$gETmeas[[b]][[migtype]]$Veg1VsElev <- calc_Danz2012_abruptness_1D(x = etband$Env$elev$YMeans_ForEachX,
+		etmeasure$gETmeas[[b]][[migtype]]$Veg1VsElev <- calc_Danz2012_abruptness_1D(x = etband$Env$elev$YMeans_ForEachX,
 															z = etband$Veg[[migtype]]$Veg1$density, seed = seed)
-		etmeas$gETmeas[[b]][[migtype]]$Veg2VsElev <- calc_Danz2012_abruptness_1D(x = etband$Env$elev$YMeans_ForEachX,
+		etmeasure$gETmeas[[b]][[migtype]]$Veg2VsElev <- calc_Danz2012_abruptness_1D(x = etband$Env$elev$YMeans_ForEachX,
 															z = etband$Veg[[migtype]]$Veg2$density, seed = seed)
+
+if (FALSE) {
+		grid_dist <- raster::raster(etband$Env$elev$grid)
+		grid_dist[] <- rep(etband$Env$DistAlongXaxis_m, times = bandTransect_width_cellN(ecotoner_settings))
+		
+		etmeasure$gETmeas[[b]][[migtype]]$Veg1VsDist_2D <- calc_Danz2012_abruptness_2D(
+															x1 = etband$Env$DistAlongXaxis_m, z1 = etband$Veg[[migtype]]$Veg1$density,
+															x2 = grid_dist, z2 = etband$Veg[[migtype]]$Veg1$grid,
+															seed = seed)
+		etmeasure$gETmeas[[b]][[migtype]]$Veg2VsDist_2D <- calc_Danz2012_abruptness_2D(
+															x1 = etband$Env$DistAlongXaxis_m, z1 = etband$Veg[[migtype]]$Veg2$density,
+															x2 = grid_dist, z2 = etband$Veg[[migtype]]$Veg2$grid,
+															seed = seed)
+		etmeasure$gETmeas[[b]][[migtype]]$Veg1VsElev_2D <- calc_Danz2012_abruptness_2D(
+															x1 = etband$Env$elev$YMeans_ForEachX, z1 = etband$Veg[[migtype]]$Veg1$density,
+															x2 = etband$Env$elev$grid, z2 = etband$Veg[[migtype]]$Veg1$grid,
+															seed = seed)
+		etmeasure$gETmeas[[b]][[migtype]]$Veg2VsElev_2D <- calc_Danz2012_abruptness_2D(
+															x1 = etband$Env$elev$YMeans_ForEachX, z1 = etband$Veg[[migtype]]$Veg2$density,
+															x2 = etband$Env$elev$grid, z2 = etband$Veg[[migtype]]$Veg2$grid,
+															seed = seed)
+}
+
 
 		if (do_figures) plot_Danz2012_abruptness(filename = file.path(dir_fig, paste0(flag_bfig, "Danz2012_FittedBoundaryShapes_", migtype, ".pdf")),
 												eB_Env = etband$Env,
 												eB_Veg = etband$Veg[[migtype]],
-												datFit = etmeas$gETmeas[[b]][[migtype]])				
+												datFit = etmeasure$gETmeas[[b]][[migtype]])				
 	} 
 	
-	etmeas$etable <- tabulate_Danz2012_abruptness(etable = etmeas$etable, b = b,
-														data = etmeas$gETmeas[[b]][[if (copy_FromMig1_TF) "AllMigration" else migtype]],
+	etmeasure$etable <- tabulate_Danz2012_abruptness(etable = etmeasure$etable, b = b,
+														data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) "AllMigration" else migtype]],
 														flag_migtype = migtype)
 
-	etmeas	
+	etmeasure	
 }

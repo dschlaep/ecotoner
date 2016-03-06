@@ -5,6 +5,7 @@ if (FALSE) { # TODO(drs): conversion package
 	
 	dir_dev <- "~/Dropbox/Work_Stuff/2_Research/Software/GitHub_Projects"
 	setwd(file.path(dir_dev, "ecotoner"))
+	devtools::document()
 	devtools::load_all()	
 }						
 
@@ -49,6 +50,7 @@ l <- lapply(libraries, function(lib) stopifnot(require(lib, character.only = TRU
 ##------PROJECT SETTINGS
 # Set path dir.prj according to your own project and system
 dir.prj <- "~/Dropbox/Work_Stuff/2_Research/200907_UofWyoming_PostDoc/Product17_EcotoneGradients/3_EcotoneGradient/4_Intermountain_v6"
+setwd(dir.prj)
 
 if (prj_status == "new") {
 	esets <- new("EcotonerSettings")
@@ -252,10 +254,11 @@ if (any(actions)) {
 		lapack <- sub("-L/", "/", (strsplit(lapack, split = " ")[[1]][1]))
 		get_ls <- if(identical(blas, lapack)) list(blas) else list(blas, lapack)
 		temp <- lapply(get_ls, FUN = function(x) print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
+		rm(temp, blas, lapack, get_ls)
 	}
 	
 	#---Verify folder setup
-	verify_project_paths(esets)
+	esets <- verify_project_paths(esets)
 
 	#---Setup: parallel, RNG, project information
 	cat(format(Sys.time(), format = ""), ": set up parallel cluster'\n", sep = "")
@@ -308,6 +311,11 @@ if (actions["locate_transects"]) {
 	cat(format(Sys.time(), format = ""), ": send ", transect_N(esets), " calls to the function 'detect_ecotone_transects_from_searchpoint'\n", sep = "")
 
 	if (do.debug) message("TODO(drs): organize output; separate action:make_summary")
+
+.Last <- function() {#TODO(drs): remove
+	sessionInfo()
+	warnings()
+}
 	resultTransects <- parallel::parSapplyLB(cl, seq_len(transect_N(esets)), detect_ecotone_transects_from_searchpoint,
 							initpoints = initpoints,
 							ecotoner_settings = esets,
@@ -317,7 +325,6 @@ if (actions["locate_transects"]) {
 							do_figures = interactions["figures"])
 	
 	warnings()
-print(sessionInfo())#TODO(drs): remove
 	#---Results
 	write.csv(resultTransects, file = file_etsummary(esets))
 }
@@ -372,7 +379,7 @@ if (actions["make_map"]){
 		
 			for(i in seq_along(transect.files)){
 				if(do.verbose) print(paste("debug", i, "out of", length(transect.files)))
-				res_neighbors <- NULL
+				res_neighbors <- list()
 				load(transect.files[i])
 				if(length(res_neighbors) > 0) for(b in seq_along(res_neighbors)){
 					if(!is.null(res_neighbors[[b]]$etline)){
