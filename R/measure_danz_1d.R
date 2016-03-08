@@ -247,7 +247,7 @@ Danz2012JVegSci_1D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 		etmeasure$gETmeas[[b]][[migtype]]$Veg2VsElev_1D <- calc_Danz2012_abruptness_1D(x = etband$Env$elev$YMeans_ForEachX,
 															z = etband$Veg[[migtype]]$Veg2$density, seed = seed)
 
-		if (do_figures) plot_Danz2012_abruptness_1D(filename = file.path(dir_fig, paste0(flag_bfig, "Danz2012_FittedBoundaryShapes_", migtype, ".pdf")),
+		if (do_figures) plot_Danz2012_abruptness_1D(filename = file.path(dir_fig, paste0(flag_bfig, "Danz2012_FittedBoundaryShapes_1D_", migtype, ".pdf")),
 												eB_Env = etband$Env,
 												eB_Veg = etband$Veg[[migtype]],
 												datFit = etmeasure$gETmeas[[b]][[migtype]])				

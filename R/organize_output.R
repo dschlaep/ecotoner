@@ -194,7 +194,7 @@ get.BandTransect_TableDataVeg <- function(etable, b, data, flag_migtype){
 }
 
 
-put.ListData1Level_TableData <- function(iz, etable, b, data, colFlag, listname, flag_migtype){
+put.ListData1Level_TableData <- function(etable, b, data, colFlag, listname, flag_migtype){
 	cname <- paste(flag_migtype, colFlag, listname, names(data), sep="_")
 	cname_exist <- match(cname, colnames(etable), nomatch=0)
 	if(any(icol <- (cname_exist > 0))){

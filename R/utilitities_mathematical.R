@@ -195,37 +195,153 @@ sigmoidal_inv <- function(y, b, c) {
 	c - 1 / b * log(1 / y - 1, base = exp(1))
 }
 
+is_binary <- function(x) {
+	length(na.exclude(unique(x))) == 2
+}
+
+performance_bernoulli <- function(pred = NULL, obs = NULL) {
+	# Literature:
+	# 	- Brier, G. W. 1950. Verification of forecasts expressed in terms of probability. Monthly Weather Review 78:1-3.
+	# 	- Allouche, O., A. Tsoar, and R. Kadmon. 2006. Assessing the accuracy of species distribution models: prevalence, kappa and the true skill statistic (TSS). Journal of Applied Ecology 43:1223-1232.
+	
+	if (!(length(pred) == length(obs))) {
+		stop("ecotoner::performance_bernoulli(): arguments 'pred' and 'obs' must have the same length")
+	}
+	if (!(is.null(obs) || is_binary(obs))) {
+		stop("ecotoner::performance_bernoulli(): argument 'obs' must be a binary variable")
+	}
+
+	perf <- c(Brier_score = NA_integer_, AUC = NA_integer_,
+				tss_max = NA_integer_, tss_max.threshold = NA_integer_,
+					tss_max.omission.rate = NA_integer_, tss_max.sensitivity = NA_integer_, tss_max.specificity = NA_integer_, tss_max.prop.correct = NA_integer_,
+				kappa_max = NA_integer_, kappa_max.threshold = NA_integer_,
+					kappa_max.omission.rate = NA_integer_, kappa_max.sensitivity = NA_integer_, kappa_max.specificity = NA_integer_, kappa_max.prop.correct = NA_integer_)
+	
+	if (!(is.null(pred) && is.null(obs))) {
+		# Brier score (if binary outcome, then equal to mean square error)
+		perf["Brier_score"] <- mean((pred - obs) ^ 2, na.rm = TRUE)
+
+		if (requireNamespace("ROCR", quietly = TRUE)) {
+			# SDMTools::auc() is ~150x faster and ROCR::performance(, "auc") is ~35x faster than pROC::auc()
+			# however, SDMTools::accuracy() is ~40x slower than ROCR::performance(, "auc")
+			
+			# AUC
+			temp <- ROCR::prediction(pred, obs)
+			perf["AUC"] <- slot(ROCR::performance(temp, "auc"), "y.values")[[1]][1]
+			
+			# Calculate
+			ss <- ROCR::performance(temp, "spec", "sens")
+			thresholds <- slot(ss, "alpha.values")[[1]]
+			sens <- slot(ss, "x.values")[[1]]
+			spec <- slot(ss, "y.values")[[1]]
+			fnr <- slot(ROCR::performance(temp, "fnr"), "y.values")[[1]]
+			acc <- slot(ROCR::performance(temp, "acc"), "y.values")[[1]]
+			
+			# Maximize TSS = sensitivity + specificity - 1
+			tss <- sens + spec - 1
+			i_max_tss <- which(tss == max(tss))
+			perf["tss_max"] <- mean(tss[i_max_tss])
+			
+			# Maximize Kappa
+			fobs <- factor(obs)		
+			prevalence <- sum(fobs == levels(fobs)[2], na.rm = TRUE) / length(na.exclude(obs))
+			Pobs <- prevalence * sens + (1 - prevalence) * spec
+			Pexp <- -2 * tss * prevalence * (1 - prevalence) + Pobs
+			kappa2 <- (Pobs - Pexp) / (1 - Pexp)
+			i_max_kappa2 <- which(kappa2 == max(kappa2))
+			perf["kappa_max"] <- mean(kappa2[i_max_kappa2])
+
+			# Copy values
+			thres <- list(i_max_tss, i_max_kappa2)
+			perf[c("tss_max.threshold", "kappa_max.threshold")] <- sapply(thres, function(im) mean(thresholds[im]))
+			perf[c("tss_max.omission.rate", "kappa_max.omission.rate")] <- sapply(thres, function(im) mean(fnr[im]))
+			perf[c("tss_max.sensitivity", "kappa_max.sensitivity")] <- sapply(thres, function(im) mean(sens[im]))
+			perf[c("tss_max.specificity", "kappa_max.specificity")] <- sapply(thres, function(im) mean(spec[im]))
+			perf[c("tss_max.prop.correct", "kappa_max.prop.correct")] <- sapply(thres, function(im) mean(acc[im]))
+		
+		} else if (requireNamespace("SDMTools", quietly = TRUE)) {
+			# AUC
+			perf["AUC"] <- SDMTools::auc(obs, pred)
+		
+			# Calculate
+			acc <- SDMTools::accuracy(obs, pred, threshold = 101) #slow
+			
+			# Maximize TSS = sensitivity + specificity - 1
+			tss <- acc[, "specificity"] + acc[, "sensitivity"] - 1
+			i_max_tss <- which(tss == max(tss))
+			perf["tss_max"] <- mean(tss[i_max_tss])
+
+			# Maximize Kappa
+			i_max_kappa2 <- which(acc[, "Kappa"] == max(acc[, "Kappa"]))
+			perf["kappa_max"] <- mean(acc[i_max_kappa2, "Kappa"])
+
+			# Copy values
+			thres <- list(i_max_tss, i_max_kappa2)
+			perf[c("tss_max.threshold", "kappa_max.threshold")] <- sapply(thres, function(im) mean(acc[im, "threshold"]))
+			perf[c("tss_max.omission.rate", "kappa_max.omission.rate")] <- sapply(thres, function(im) mean(acc[im, "omission.rate"]))
+			perf[c("tss_max.sensitivity", "kappa_max.sensitivity")] <- sapply(thres, function(im) mean(acc[im, "sensitivity"]))
+			perf[c("tss_max.specificity", "kappa_max.specificity")] <- sapply(thres, function(im) mean(acc[im, "specificity"]))
+			perf[c("tss_max.prop.correct", "kappa_max.prop.correct")] <- sapply(thres, function(im) mean(acc[im, "prop.correct"]))
+
+		} else {
+			warning("Neither package 'SDMTools' nor 'ROCR' is installed: model performance not estimated")
+		}
+	}
+	
+	perf
+}
+
 
 m_glm <- function(family, data.) {
-	w <- if (length(unique(data.[["y"]])) == 2 || identical(family[["family"]], "gaussian")) NULL else data.[["w"]]
+	w <- if (data.[["is_binary"]] || identical(family[["family"]], "gaussian")) NULL else data.[["w"]]
 	mfit <- try(stats::glm(y ~ x, data = data.[c("x", "y")], family = family, weights = w), silent = TRUE)
 			
 	if (!inherits(mfit, "try-error")) {
 		mpred <- predict(mfit, newdata = data.[["newdata"]], type = "response", se.fit = TRUE)
+		
 		quals <- c(isConv = mfit$converged, edf = (temp <- extractAIC(mfit))[1], AIC = temp[2],
 					logLik = logLik(mfit), deviance = deviance(mfit), df.resid = df.residual(mfit))
+		
+		temp_se <- if (mfit$family$family %in% c("poisson", "binomial") && mfit$rank > 0) { #dispersion == 1
+						sqrt(diag(1 * chol2inv(mfit$qr$qr[p1 <- (1L:mfit$rank), p1, drop = FALSE]))[2])
+					} else {
+						coef(summary(mfit))[2, "Std. Error"]
+					}
+		coef1 <- c(beta = as.numeric(coef(mfit)[2]), se = temp_se)
+		
+		perf <- if (data.[["is_binary"]]) performance_bernoulli(pred = fitted(mfit), obs = data.[["y"]]) else performance_bernoulli()
+	
 	} else {
-		mpred <- NULL
+		mpred <- coef1 <- list()
 		quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
+		perf <- performance_bernoulli()
 	}
 	
-	list(m = mfit, preds = mpred, quals = quals)
+	list(m = mfit, preds = mpred, quals = quals, coef1 = coef1, perf = perf)
 }
 
 m_glmm <- function(family, data.) {
-	mfit <- try(lme4::glmer(y ~ x + (x|r), data = data.[c("x", "y", "r")], family = family), silent = TRUE)
+	mpred <- coef1 <- list()
+	quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
+	perf <- performance_bernoulli()
+
+	if (requireNamespace("lme4", quietly = TRUE) && requireNamespace("Matrix", quietly = TRUE)) {
+		mfit <- try(lme4::glmer(y ~ x + (x|r), data = data.[c("x", "y", "r")], family = family), silent = TRUE)
 	
-	if (!inherits(mfit, "try-error")) {
-		# unconditional (level-0 random effect) prediction
-		mpred <- predict(mfit, newdata = data.[["newdata"]], re.form = ~ 0, type = "response")
-		quals <- c(isConv = TRUE, edf = attr(logLik(mfit), "df"),
-					lme4::llikAIC(mfit)[["AICtab"]][c("AIC", "logLik", "deviance", "df.resid")])
+		if (!inherits(mfit, "try-error")) {
+			# unconditional (level-0 random effect) prediction
+			mpred <- list(fit = predict(mfit, newdata = data.[["newdata"]], re.form = ~ 0, type = "response"))
+			quals <- c(isConv = TRUE, edf = attr(logLik(mfit), "df"),
+						lme4::llikAIC(mfit)[["AICtab"]][c("AIC", "logLik", "deviance", "df.resid")])
+			coef1 <- c(beta = as.numeric(lme4::fixef(mfit)[2]),
+						se = sqrt(Matrix::diag(vcov(mfit, use.hessian = TRUE))[2]))
+			perf <- if (data.[["is_binary"]]) performance_bernoulli(pred = fitted(mfit), obs = data.[["y"]])
+		}
 	} else {
-		mpred <- NULL
-		quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
+		mfit <- try(stop("Package 'lme4' and/or 'Matrix' not installed: 'GLMM' not estimated"), silent = TRUE)
 	}
 	
-	list(m = mfit, preds = mpred, quals = quals)
+	list(m = mfit, preds = mpred, quals = quals, coef1 = coef1, perf = perf)
 }
 
 m_sig <- function(data.) {
@@ -238,16 +354,24 @@ m_sig <- function(data.) {
 			fit}
 	
 	if (!inherits(mfit, "try-error")) {
-		mpred <- predict(mfit, newdata = data.[["newdata"]], type = "response")
+		mpred <- list(fit = predict(mfit, newdata = data.[["newdata"]], type = "response"))
+		
 		temp <- logLik(mfit)
 		quals <- c(isConv = mfit[["convInfo"]][["isConv"]], edf = attr(temp, "df"), AIC = AIC(mfit),
 					logLik = temp, deviance = deviance(mfit), df.resid = df.residual(mfit))
+		
+		temp <- coef(summary(mfit))
+		coef1 <- c(beta = temp["b", "Estimate"], se = temp["b", "Std. Error"])
+
+		perf <- if (data.[["is_binary"]]) performance_bernoulli(pred = as.numeric(fitted(mfit)), obs = data.[["y"]]) else performance_bernoulli()
+
 	} else {
-		mpred <- NULL
+		mpred <- coef1 <- list()
 		quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
+		perf <- performance_bernoulli()
 	}
 
-	list(m = mfit, preds = mpred, quals = quals)
+	list(m = mfit, preds = mpred, quals = quals, coef1 = coef1, perf = perf)
 }
 
 

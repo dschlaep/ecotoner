@@ -23,7 +23,7 @@ do.debug <- FALSE
 do.demo <- TRUE		# If TRUE, then code uses the example data from the ecotoner package, i.e., can be run without additional input data
 
 
-actions <- c(	locate_transects = TRUE,	# calls the transect functions detect_ecotone_transects_from_searchpoint()
+actions <- c(	locate_transects = FALSE,	# calls the transect functions detect_ecotone_transects_from_searchpoint()
 #				make_summary = FALSE,		# creates a table with the results from calling detect_ecotone_transects_from_searchpoint()
 				measure_transects = TRUE,	# uses methods to extract information about the located transects
 				make_map = FALSE			# draws a map with all transects
@@ -312,10 +312,6 @@ if (actions["locate_transects"]) {
 
 	if (do.debug) message("TODO(drs): organize output; separate action:make_summary")
 
-.Last <- function() {#TODO(drs): remove
-	sessionInfo()
-	print(warnings())
-}
 	resultTransects <- parallel::parSapplyLB(cl, seq_len(transect_N(esets)), detect_ecotone_transects_from_searchpoint,
 							initpoints = initpoints,
 							ecotoner_settings = esets,

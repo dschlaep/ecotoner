@@ -66,8 +66,7 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 																		flag_bfig = flag_bfig,
 																		copy_FromMig1_TF = copy_FromMig1_TF,
 																		do_figures = do_figures,
-																		seed = seed,
-																		et_methods = et_methods))
+																		seed = seed))
 
 					#Temporarily save data to disk file
 					if (all(sapply(etmeas[[etm]]$etable[b, ], function(x) class(x)) %in% c("numeric", "logical", "integer", "character"))) {

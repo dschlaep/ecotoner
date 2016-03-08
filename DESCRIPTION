@@ -21,7 +21,10 @@ Suggests:
     maptools (>= 0.8.37),
     geosphere (>= 1.5.1),
     spdep (>= 0.5.92),
-    lme4 (>= 1.1.11)
+    lme4 (>= 1.1.11),
+    Matrix (>= 1.2.3),
+    SDMTools (>= 1.1.221),
+    ROCR (>= 1.0.7)
 License: GPL (>= 3)
 LazyData: true
 ByteCompile: true

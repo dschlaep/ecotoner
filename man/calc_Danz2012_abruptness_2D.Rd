@@ -4,8 +4,7 @@
 \alias{calc_Danz2012_abruptness_2D}
 \title{Estimates the abruptness of outcome y against x}
 \usage{
-calc_Danz2012_abruptness_2D(x1, z1, x2, z2, end_toLeft, xlab, fname,
-  seed = NULL)
+calc_Danz2012_abruptness_2D(x1, z1, x2, z2, seed = NULL)
 }
 \arguments{
 \item{x}{A numeric vector. Predictor along the ecotone transect from left-right. The length of x has to correspond to the ecotone transect. For instance, distance along the transect.}
