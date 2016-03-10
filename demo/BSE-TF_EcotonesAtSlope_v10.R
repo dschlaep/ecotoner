@@ -23,9 +23,9 @@ do.debug <- FALSE
 do.demo <- TRUE		# If TRUE, then code uses the example data from the ecotoner package, i.e., can be run without additional input data
 
 
-actions <- c(	locate_transects = FALSE,	# calls the transect functions detect_ecotone_transects_from_searchpoint()
+actions <- c(	locate_transects = TRUE,	# calls the transect functions detect_ecotone_transects_from_searchpoint()
 #				make_summary = FALSE,		# creates a table with the results from calling detect_ecotone_transects_from_searchpoint()
-				measure_transects = TRUE,	# uses methods to extract information about the located transects
+				measure_transects = FALSE,	# uses methods to extract information about the located transects
 				make_map = FALSE			# draws a map with all transects
 			)
 
@@ -57,7 +57,7 @@ if (prj_status == "new") {
 
 	transect_type(esets) <- 4
 	transect_N(esets) <- 15000
-	cores_N(esets) <- min(12, parallel::detectCores() - 2)
+	cores_N(esets) <- min(12, parallel::detectCores() - 2) # 0 or 1 will turn off parallelization
 	reproducible(esets) <- TRUE
 	reseed(esets) <- FALSE
 	neighborhoods(esets) <- 1667
@@ -86,6 +86,7 @@ if (prj_status == "new") {
 	# Files
 	file_etsummary(esets) <- paste0("Table_transect_summary", if (do.debug) "_debug", ".csv")
 	file_searchpoints(esets) <- file.path(dir_init(esets), bname_searchpoints)
+	file_etmeasure_base(esets) <- paste0("Table_transect_measure", if (do.debug) "_debug", ".csv")
 
 } else {
 	dir.init <- file.path(dir.prj, "1_Inits")
@@ -261,28 +262,57 @@ if (any(actions)) {
 	esets <- verify_project_paths(esets)
 
 	#---Setup: parallel, RNG, project information
-	cat(format(Sys.time(), format = ""), ": set up parallel cluster'\n", sep = "")
 	if (interactive()) cores_N(esets) <- 1
-	cl  <- if (.Platform$OS.type == "unix") {
-				parallel::makeCluster(cores_N(esets), type = "FORK", outfile = "log_ecotone.txt")
-			} else if (.Platform$OS.type == "windows") {
-				message("Running this code in parallel on a Windows OS computer has not been tested.")
-				parallel::makeCluster(cores_N(esets), type = "PSOCK", outfile = "log_ecotone.txt")
-			} else {
-				stop("Running this code on this type of platform is currently not implemented.")
-			}
-	parallel::clusterEvalQ(cl, library("ecotoner"))
 	
-	# In case of abort and unable to call on.exit(); after crash, load cl and close cluster properly
-	ftemp_cl <- file.path(dir_init(esets), "ClusterData.RData")
-	save(cl, file = ftemp_cl)
-	
-	# Set up random number generator	
-	if (do.debug) message("TODO(drs): Does load balancing allow replicability when used with ('L'Ecuyer-CMRG', master: clusterSetRNGStream(); tasks: set.seed())?")
 	old_RNGkind <- RNGkind()
-	RNGkind("L'Ecuyer-CMRG")
-	parallel::clusterSetRNGStream(cl, get_sseed(esets))
-	if (prj_status == "new") esets <- init_pseed(esets)
+	if (cores_N(esets) > 1) {
+		cat(format(Sys.time(), format = ""), ": set up parallel cluster'\n", sep = "")
+		cl  <- if (.Platform$OS.type == "unix") {
+					parallel::makeCluster(cores_N(esets), type = "FORK", outfile = "log_ecotone.txt")
+				} else if (.Platform$OS.type == "windows") {
+					message("Running this code in parallel on a Windows OS computer has not been tested.")
+					parallel::makeCluster(cores_N(esets), type = "PSOCK", outfile = "log_ecotone.txt")
+				} else {
+					stop("Running this code on this type of platform is currently not implemented.")
+				}
+		parallel::clusterEvalQ(cl, library("ecotoner"))
+		
+		pfun <- function(X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
+					res <- if (reproducible(esets)) {
+								# load balancing is not (easily) reproducible
+								parallel::parSapply(cl, X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE)
+							} else {
+								parallel::parSapplyLB(cl, X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE)
+							}
+
+					temp <- warnings()
+					if (length(temp) > 0) print(temp)
+					
+					res
+				}
+	
+		# In case of abort and unable to call on.exit(); after crash, load cl and close cluster properly
+		ftemp_cl <- file.path(dir_init(esets), "ClusterData.RData")
+		save(cl, file = ftemp_cl)
+	
+		# Set up random number generator	
+		RNGkind("L'Ecuyer-CMRG")
+		parallel::clusterSetRNGStream(cl, get_sseed(esets))
+		if (prj_status == "new") esets <- init_pseed(esets)
+	} else {
+		# Set up random number generator	
+		RNGkind(kind = "default", normal.kind = "default")
+		set.seed(get_sseed(esets))
+		
+		pfun <- function(X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
+					res <- sapply(X, FUN, ..., simplify = simplify, USE.NAMES = USE.NAMES)
+					
+					temp <- warnings()
+					if (length(temp) > 0) print(temp)
+					
+					res
+				}
+	}
 
 	# Save project information to disk
 	if (prj_status == "new") saveRDS(esets, file = fname_settings)
@@ -312,7 +342,7 @@ if (actions["locate_transects"]) {
 
 	if (do.debug) message("TODO(drs): organize output; separate action:make_summary")
 
-	resultTransects <- parallel::parSapplyLB(cl, seq_len(transect_N(esets)), detect_ecotone_transects_from_searchpoint,
+	resultTransects <- pfun(seq_len(transect_N(esets)), detect_ecotone_transects_from_searchpoint,
 							initpoints = initpoints,
 							ecotoner_settings = esets,
 							ecotoner_grids = egrids, 
@@ -320,7 +350,6 @@ if (actions["locate_transects"]) {
 							verbose = interactions["verbose"],
 							do_figures = interactions["figures"])
 	
-	print(warnings())
 	#---Results
 	write.csv(resultTransects, file = file_etsummary(esets))
 }
@@ -339,16 +368,20 @@ if (actions["measure_transects"]) {
 
 et_methods_choices <- c("Danz2012JVegSci_1D", "Danz2012JVegSci_2D", "Eppinga2013Ecography", "Gastner2010AmNat")
 
-	XXX <- parallel::parSapplyLB(cl, seq_len(transect_N(esets)), measure_ecotone_per_transect,
-							et_methods = c("Danz2012JVegSci_2D"),
-							ecotoner_settings = esets,
-							verbose = interactions["verbose"],
-							do_figures = interactions["figures"])
+	measureTransects1 <- pfun(seq_len(transect_N(esets)), measure_ecotone_per_transect,
+								et_methods = c("Danz2012JVegSci_2D"),
+								ecotoner_settings = esets,
+								verbose = interactions["verbose"],
+								do_figures = interactions["figures"])
 	
-	print(warnings())
 stop("TODO(drs): not implemented")	
 et_methods2 <- c("InterZoneLocation", "InterZonePatchDistr")
-	XXX <- measure_ecotones_all_transects()
+
+	measureTransects2 <- pfun(seq_len(transect_N(esets)), measure_ecotones_all_transects,
+								et_methods = c("Danz2012JVegSci_global_2D"),
+								ecotoner_settings = esets,
+								verbose = interactions["verbose"],
+								do_figures = interactions["figures"])
 
 	#---Results
 	write.csv(XXX, file = fXXX)

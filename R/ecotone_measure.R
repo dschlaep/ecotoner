@@ -9,7 +9,7 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 	}
 	
 	# Output containers
-	iflag <- flag_itransect(i, ecotoner_settings)
+	iflag <- flag_itransect(ecotoner_settings, i)
 	
 	temp <- vector("list", length = length(get("migtypes", envir = etr_vars)))
 	names(temp) <- get("migtypes", envir = etr_vars)
@@ -20,7 +20,7 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 	names(etmeas) <- et_methods
 	
 	do_measure <- TRUE
-	if (file.exists(fname_etmeasured(iflag, ecotoner_settings))) {
+	if (file.exists(fname_etmeasured(ecotoner_settings, iflag))) {
 		load(ftemp3) #load: i, b, etmeas
 		itemp <- et_methods %in% names(etmeas)
 #TODO(drs): check not only presence of methods, but also whether all neighborhoods and migration types have been completed
@@ -31,14 +31,14 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 		}
 	}
 	
-	if (file.exists(fname_etlocated(iflag, ecotoner_settings))) {
-		load(fname_etlocated(iflag, ecotoner_settings)) #i, b, and etransect loaded
+	if (file.exists(fname_etlocated(ecotoner_settings, iflag))) {
+		load(fname_etlocated(ecotoner_settings, iflag)) #i, b, and etransect loaded
 	} else {
 		do_measure <- FALSE # no suitable transect located for search point i
 	}
 	
 	if (do_measure) {
-		for (im in et_methods) etmeas[[im]] <- template_etobs
+		for (etm in et_methods) etmeas[[etm]] <- template_etobs
 
 		dir_fig <- file.path(dir_out_fig(ecotoner_settings), iflag)
 		dir.create(dir_fig, showWarnings = FALSE)
@@ -46,7 +46,7 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 		seed <- if (reseed(ecotoner_settings)) get_pseed(ecotoner_settings) else NA
 
 		for (b in seq_len(neighbors_N(ecotoner_settings))) {
-			flag_bfig <- flag_basename(iflag, b, ecotoner_settings)
+			flag_bfig <- flag_basename(ecotoner_settings, iflag, b)
 
 		
 #TODO(drs):	eB_InterZone <- eB_PatchSizeDist <- template_etobs	#ecological boundaries
@@ -70,9 +70,9 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 
 					#Temporarily save data to disk file
 					if (all(sapply(etmeas[[etm]]$etable[b, ], function(x) class(x)) %in% c("numeric", "logical", "integer", "character"))) {
-#TODO(drs): determine XXX based on measurement method
-						appT <- file.exists(XXX)
-						write.table(etmeas[[etm]]$etable[b, ], file = XXX,
+						ftemp <- file_etmeasure_base(ecotoner_settings, etm)
+						appT <- file.exists(ftemp)
+						write.table(etmeas[[etm]]$etable[b, ], file = ftemp,
 									append = appT, sep = ",", dec = ".", qmethod = "double",
 									row.names = FALSE, col.names = !appT)
 					} else {
@@ -80,7 +80,7 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 					}
 
 					# Save data to RData disk file
-					save(i, b, migtype, etmeas, file=fname_etmeasured(iflag, ecotoner_settings))
+					save(i, b, migtype, etmeas, file = fname_etmeasured(ecotoner_settings, iflag))
 				}
 			} # end loop through migtypes
 		} # end loop through neighborhoods

@@ -445,7 +445,7 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 	
 	if (!do_interim) raster::removeTmpFiles(h=2) #clean up old temporary raster files; assuming that no call to this function takes longer than 2 hours
 
-	iflag <- flag_itransect(i, ecotoner_settings)
+	iflag <- flag_itransect(ecotoner_settings, i)
 
 	# Result container
 	etransect <- list(etbands = vector(mode = "list", length = neighbors_N(ecotoner_settings)), # list for 'etband' of each neighborhood
@@ -455,9 +455,9 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 
 	# Check if transect successfully located, none found, or error occurred, then do not continue with locating a transect from search point
 	do_more <- TRUE
-	if (file.exists(fname_etlocated(iflag, ecotoner_settings)) ||
-		file.exists(fname_etnone(iflag, ecotoner_settings)) ||
-		file.exists(fname_etfailed(iflag, ecotoner_settings))) {
+	if (file.exists(fname_etlocated(ecotoner_settings, iflag)) ||
+		file.exists(fname_etnone(ecotoner_settings, iflag)) ||
+		file.exists(fname_etfailed(ecotoner_settings, iflag))) {
 		do_more <- FALSE
 	}
 			
@@ -506,7 +506,7 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 			asp201SDCropped <- temp$grid_aspect_sd_cropped
 	
 			for (b in seq_len(neighbors_N(ecotoner_settings))) { #if no transect can be established then proceed to next initpoint
-				flag_bfig <- flag_basename(iflag, b, ecotoner_settings)
+				flag_bfig <- flag_basename(ecotoner_settings, iflag, b)
 				etransect[["status"]][b] <- "searching"
 			
 				if (do.tempData1) {
@@ -595,7 +595,7 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 				if (etransect[["status"]][b] == "error") {
 					break
 				} else if (b < neighbors_N(ecotoner_settings)) {
-					save(i, b, etransect, file = fname_etsearching(iflag, ecotoner_settings))
+					save(i, b, etransect, file = fname_etsearching(ecotoner_settings, iflag))
 				}
 			} # end for-loop through neighborhoods
 
@@ -604,22 +604,22 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 			remove_fsearching <- FALSE
 			
 			if (all(etransect[["status"]] == "located")) {
-				save(i, b, etransect, file = fname_etlocated(iflag, ecotoner_settings))
+				save(i, b, etransect, file = fname_etlocated(ecotoner_settings, iflag))
 				remove_fsearching <- TRUE
 			} else {
 				unlink(dir_fig, recursive = TRUE)
 				
 				if (any(etransect[["status"]] == "error")) {
-					save(i, b, etransect, file = fname_etfailed(iflag, ecotoner_settings))
+					save(i, b, etransect, file = fname_etfailed(ecotoner_settings, iflag))
 					remove_fsearching <- TRUE
 				} else if (any(etransect[["status"]] == "notransect")) {
-					save(i, b, etransect, file = fname_etnone(iflag, ecotoner_settings))
+					save(i, b, etransect, file = fname_etnone(ecotoner_settings, iflag))
 					remove_fsearching <- TRUE
 				}
 			}
 			
-			if (remove_fsearching && file.exists(fname_etsearching(iflag, ecotoner_settings))){
-				unlink(fname_etsearching(iflag, ecotoner_settings))
+			if (remove_fsearching && file.exists(fname_etsearching(ecotoner_settings, iflag))){
+				unlink(fname_etsearching(ecotoner_settings, iflag))
 			}
 		}
 

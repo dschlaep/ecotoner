@@ -91,8 +91,9 @@ setValidity("EcotonerFile", function(object) {
 #' @slot dir_aspect_mean An 'EcotonerPath' object. The path to where the raster grid representing the mean smoothed aspect 'grid_aspect_mean' is stored (required with transect_type == 4). 
 #' @slot dir_aspect_sd An 'EcotonerPath' object. The path to where the raster grid representing the standard deviation of the smoothed aspect 'grid_aspect_sd' is stored (required with transect_type == 4). 
 #' @slot file_searchpoints An 'EcotonerFile' object. The entire file path to where the search points are/will be stored.
-#' @slot file_etsummary An 'EcotonerFile' object. The entire file path to where the table of the transect summary be stored.
-#' @slot file_etsummary_temp An 'EcotonerFile' object. The entire file path to where temporary table of the transect summary be stored.
+#' @slot file_etsummary An 'EcotonerFile' object. The entire file path to where the table of the transect summary are stored.
+#' @slot file_etsummary_temp An 'EcotonerFile' object. The entire file path to where temporary table of the transect summary are stored.
+#' @slot file_etmeasure_base An 'EcotonerFile' object. The entire file path (minus a flag indicating which measure type) to where temporary tables of the transect measures are stored.
 #'
 #' @export
 ## Can extend and create with new("EcotonerSettings", ...). You can use EcotonerSettings() inside package, but not exported. See http://r-pkgs.had.co.nz/namespace.html
@@ -145,7 +146,8 @@ EcotonerSettings <- setClass("EcotonerSettings",
 										 										 
 										 file_searchpoints = "EcotonerFile",
 										 file_etsummary = "EcotonerFile",
-										 file_etsummary_temp = "EcotonerFile"
+										 file_etsummary_temp = "EcotonerFile",
+										 file_etmeasure_base = "EcotonerFile"
 										),
 							prototype = list(transect_type = 4L,
 											 transect_type_desc = "HomogeneousAspect",
@@ -405,15 +407,19 @@ setGeneric("dir_aspect_sd", signature = "x", function(x) standardGeneric("dir_as
 #' @export
 setGeneric("dir_aspect_sd<-", signature = "x", function(x, value) standardGeneric("dir_aspect_sd<-"))
 #' @export
-setGeneric("file_searchpoints", signature = "x", function(x, value) standardGeneric("file_searchpoints"))
+setGeneric("file_searchpoints", signature = "x", function(x) standardGeneric("file_searchpoints"))
 #' @export
 setGeneric("file_searchpoints<-", signature = "x", function(x, value) standardGeneric("file_searchpoints<-"))
 #' @export
-setGeneric("file_etsummary", signature = "x", function(x, value) standardGeneric("file_etsummary"))
+setGeneric("file_etsummary", signature = "x", function(x) standardGeneric("file_etsummary"))
 #' @export
 setGeneric("file_etsummary<-", signature = "x", function(x, value) standardGeneric("file_etsummary<-"))
 #' @export
-setGeneric("file_etsummary_temp", signature = "x", function(x, value) standardGeneric("file_etsummary_temp"))
+setGeneric("file_etsummary_temp", signature = "x", function(x) standardGeneric("file_etsummary_temp"))
+#' @export
+setGeneric("file_etmeasure_base<-", signature = "x", function(x, value) standardGeneric("file_etmeasure_base<-"))
+#' @export
+setGeneric("file_etmeasure_base", signature = "x", function(x, value) standardGeneric("file_etmeasure_base"))
 
 
 
@@ -534,6 +540,13 @@ setReplaceMethod("file_etsummary", "EcotonerSettings", function(x, value) {
 			initialize(x, file_etsummary_temp = new("EcotonerFile", path = file.path(dir_out(x), temp)))
 		})
 setMethod("file_etsummary_temp", "EcotonerSettings", function(x) slot(slot(x, "file_etsummary_temp"), "path"))
+setReplaceMethod("file_etmeasure_base", "EcotonerSettings", function(x, value) initialize(x, file_etmeasure_base = new("EcotonerFile", path = file.path(dir_out(x), basename(value)))))
+setMethod("file_etmeasure_base", "EcotonerSettings", function(x, value) {
+			x <- slot(slot(x, "file_etmeasure_base"), "path"))
+			temp <- strsplit(basename(x), split = ".", fixed = TRUE)[[1]]
+			temp <- paste0(paste(head(temp, n = -1), collapse = ""), "_", value, ".", tail(temp, n = 1))
+			file.path(dirname(x), temp)
+		})
 
 
 ## Paths
