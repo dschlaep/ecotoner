@@ -80,10 +80,11 @@ extract_tband_grids <- function(tpoly_UTM, width_n, crs_UTM, declin, center, res
 		band1 <- maptools::elide(obj = band0, rotate = declin * 180/pi, center = center)
 	} else {
 		temp <- rotate_coords(sp::coordinates(band0), angle_rad = -declin, center = center)
-		band2 <- sp::SpatialPointsDataFrame(coords = data.frame(x = temp[, 1], y = temp[, 2]), data = data.frame(layer = rep(1, nrow(temp))))
+		band1 <- sp::SpatialPointsDataFrame(coords = data.frame(x = temp[, 1], y = temp[, 2]), data = data.frame(layer = rep(1, nrow(temp))))
 	}
 	to_UTM2 <- raster::raster(raster::extent(band1), crs = crs_UTM)
 	raster::res(to_UTM2) <- raster::res(grid1)
+	raster::origin(to_UTM2) <- c(0, 0)
 	
 	#extract grid values for locations within band
 	band0_orig <- sp::spTransform(band0, CRS = raster::crs(grid1))	#rows of band1 and band0_orig correspond to each other

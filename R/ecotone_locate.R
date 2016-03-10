@@ -228,6 +228,7 @@ gap.rat <- df_veg(ecotoner_grids)
 													start2_icol = limits2_ZoneEcolBoundary[1],
 													end2_icol = limits2_ZoneEcolBoundary[2])
 
+
 			#2e2. Environmental gradient along transect
 			#Copy temporary environmental data into final variable
 			etband$Env$DistAlongXaxis_m <- res_m(specs_grid(ecotoner_grids)) * ((1:dim(temp_band4$elev)[2]) - 1/2)
