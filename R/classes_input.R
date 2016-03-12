@@ -92,10 +92,15 @@ setValidity("EcotonerGrids", function(object) {
 
 
 ## Accessor generic function definitions
+#' @export
 setGeneric("crs", signature = "x", function(x) standardGeneric("crs"))
+#' @export
 setGeneric("res_m", signature = "x", function(x) standardGeneric("res_m"))
+#' @export
 setGeneric("longlat", signature = "x", function(x) standardGeneric("longlat"))
+#' @export
 setGeneric("origin", signature = "x", function(x) standardGeneric("origin"))
+#' @export
 setGeneric("rotation", signature = "x", function(x) standardGeneric("rotation"))
 
 #' @export
@@ -117,15 +122,10 @@ setGeneric("df_veg", signature = "x", function(x) standardGeneric("df_veg"))
 
 
 ## Accessor method definitions
-#' @export
 setMethod("crs", "GridInfo", function(x) slot(x, "crs"))
-#' @export
 setMethod("res_m", "GridInfo", function(x) slot(x, "res_m"))
-#' @export
 setMethod("longlat", "GridInfo", function(x) slot(x, "longlat"))
-#' @export
 setMethod("origin", "GridInfo", function(x) slot(x, "origin"))
-#' @export
 setMethod("rotation", "GridInfo", function(x) slot(x, "rotation"))
 
 setMethod("grid_env", "EcotonerGrids", function(x) slot(x, "grid_env"))

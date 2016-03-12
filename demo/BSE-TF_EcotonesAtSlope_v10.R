@@ -23,10 +23,9 @@ do.debug <- FALSE
 do.demo <- TRUE		# If TRUE, then code uses the example data from the ecotoner package, i.e., can be run without additional input data
 
 
-actions <- c(	locate_transects = TRUE,	# calls the transect functions detect_ecotone_transects_from_searchpoint()
-#				make_summary = FALSE,		# creates a table with the results from calling detect_ecotone_transects_from_searchpoint()
-				measure_transects = TRUE,	# uses methods to extract information about the located transects
-				make_map = FALSE			# draws a map with all transects
+actions <- c(	locate_transects = FALSE,	# call the transect functions detect_ecotone_transects_from_searchpoint()
+				make_map = TRUE,			# draw a map of all transects
+				measure_transects = FALSE	# use methods to extract information about the located transects
 			)
 
 interactions <- c(	verbose = TRUE,		# prints progress statements
@@ -57,7 +56,7 @@ if (prj_status == "new") {
 
 	transect_type(esets) <- 4
 	transect_N(esets) <- 15000
-	inhibit_searchpoints(esets) <- TRUE
+	inhibit_searchpoints(esets) <- FALSE
 	cores_N(esets) <- min(12, parallel::detectCores() - 2) # 0 or 1 will turn off parallelization
 	reproducible(esets) <- TRUE
 	reseed(esets) <- FALSE
@@ -72,9 +71,9 @@ if (prj_status == "new") {
 
 	fname_settings <- file.path(dir_init(esets), paste0(format(time_stamp, format = "%Y%m%d_%H%M"), "_ecotoner_settings.rds"))
 	bname_searchpoints <- paste0("SearchPoints_",
-									if (inhibit_searchpoints(esets)) "inhibited" else "Poisson",
+									if (inhibit_searchpoints(esets)) "inhibited" else "Poisson", "_",
 									transect_N(esets), "N_",
-									"_Veg1and2Abut.rds")
+									"Veg1and2Abut.rds")
 
 	if (do.debug || do.demo) {
 		interactions[seq_along(interactions)] <- TRUE
@@ -86,9 +85,9 @@ if (prj_status == "new") {
 			neighborhoods(esets) <- 667
 			dir_big(esets) <- NA_character_
 			bname_searchpoints <- paste0("SearchPoints_",
-										if (inhibit_searchpoints(esets)) "inhibited" else "Poisson",
+										if (inhibit_searchpoints(esets)) "inhibited" else "Poisson", "_",
 										transect_N(esets), "N_",
-										"_Veg1and2Abut.rds")
+										"Veg1and2Abut.rds")
 		}
 		
 	}
@@ -112,7 +111,7 @@ if (prj_status == "new") {
 
 
 ##------RASTER GRIDS
-if (actions["locate_transects"]) {
+if (actions["locate_transects"] || actions["make_map"]) {
 	if (prj_status == "new") {
 		fname_grids <- file.path(dir_init(esets), paste0(format(time_stamp, format = "%Y%m%d_%H%M"), "_ecotoner_grids.rds"))
 
@@ -255,7 +254,6 @@ if (prj_status == "new") {
 }
 
 
-
 #------------------------------------------------------------#
 ##------SETUP COMPUTER
 if (any(actions)) {
@@ -275,7 +273,9 @@ if (any(actions)) {
 	esets <- verify_project_paths(esets)
 
 	#---Setup: parallel, RNG, project information
-	if (interactive()) cores_N(esets) <- 1
+	if (interactive() || (actions["make_map"] && sum(actions) == 1)) {
+		cores_N(esets) <- 1
+	}
 	
 	old_RNGkind <- RNGkind()
 	if (cores_N(esets) > 1) {
@@ -290,18 +290,13 @@ if (any(actions)) {
 				}
 		parallel::clusterEvalQ(cl, library("ecotoner"))
 		
-		pfun <- function(X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
-					res <- if (reproducible(esets)) {
-								# load balancing is not (easily) reproducible
-								parallel::parSapply(cl, X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE)
-							} else {
-								parallel::parSapplyLB(cl, X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE)
-							}
-
-					temp <- warnings()
-					if (length(temp) > 0) print(temp)
-					
-					res
+		pfun <- function(X, FUN, ...) {
+					simplify2result(if (reproducible(esets)) {
+										# load balancing is not (easily) reproducible
+										parallel::parLapply(cl, X, FUN, ...)
+									} else {
+										parallel::parLapplyLB(cl, X, FUN, ...)
+									})
 				}
 	
 		# In case of abort and unable to call on.exit(); after crash, load cl and close cluster properly
@@ -317,14 +312,7 @@ if (any(actions)) {
 		RNGkind(kind = "default", normal.kind = "default")
 		set.seed(get_sseed(esets))
 		
-		pfun <- function(X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
-					res <- sapply(X, FUN, ..., simplify = simplify, USE.NAMES = USE.NAMES)
-					
-					temp <- warnings()
-					if (length(temp) > 0) print(temp)
-					
-					t(res)
-				}
+		pfun <- function(X, FUN, ...) simplify2result(lapply(X, FUN, ...))
 	}
 
 	# Save project information to disk
@@ -365,9 +353,47 @@ if (actions["locate_transects"]) {
 							do_interim = interactions["save_interim"],
 							verbose = interactions["verbose"],
 							do_figures = interactions["figures"])
-	
+
 	#---Results
 	write.csv(resultTransects, file = file_etsummary(esets))
+}
+
+
+#------------------------------------------------------------#
+#------DRAW A MAP WITH TRANSECT LOCATIONS
+if (actions["make_map"]){
+	if (!exists("resultTransects")) resultTransects <- try(read.csv(file = file_etsummary(esets)), silent = TRUE)
+	
+	if (!inherits(resultTransects, "try-error") && nrow(resultTransects) > 0){
+		cat(format(Sys.time(), format = ""), ": draw a map with ", nrow(resultTransects), " transects\n", sep = "")
+		
+		libraries2  <- c("maps")
+		l <- lapply(libraries2, function(lib) stopifnot(require(lib, character.only = TRUE, quietly = FALSE)))
+
+#		gadm_usa <- readRDS(file.path("~/Dropbox/Work_Stuff/2_Research/200907_UofWyoming_PostDoc/Product17_EcotoneGradients/2_Data", "20160126_GADMv28_USA_adm1.rds")) # WGS84
+#		gadm_usa_aeanad83 <- sp::spTransform(gadm_usa, raster::crs(elev))
+
+		pdf(width = 14, height = 14, file = file.path(dir_out(esets), paste0("Map_Transects_All_v2.pdf")))
+			raster::plot(grid_env(egrids), col = gray(25:255/255))
+		
+			raster::image(raster::calc(grid_veg(egrids), fun = function(x) ifelse(x %in% type_ids(type_veg1(esets)), 1, NA)), col = adjustcolor("red", alpha.f  =  0.3), add = TRUE)
+			raster::image(raster::calc(grid_veg(egrids), fun = function(x) ifelse(x %in% type_ids(type_veg2(esets)), 1, NA)), col = adjustcolor("darkgreen", alpha.f  =  0.3), add = TRUE)
+
+			sp_start <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_StartPoint_WGS84_Long", "TransectLinear_StartPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
+			sp_start <- sp::coordinates(sp::spTransform(sp_start, crs(specs_grid(egrids))))
+			sp_end <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_EndPoint_WGS84_Long", "TransectLinear_EndPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
+			sp_end <- sp::coordinates(sp::spTransform(sp_end, crs(specs_grid(egrids))))
+			
+			segments(x0 = sp_start[, 1], y0 = sp_start[, 2],
+					 x1 = sp_end[, 1], y1 = sp_end[, 2],
+					 col = "orange", lwd = 2)
+			
+			map("county", col = "blue", add = TRUE)
+#			plot(gadm_usa_aeanad83, border = "blue", add = TRUE)
+		dev.off()
+	} else {
+		cat(format(Sys.time(), format = ""), ": cannot draw a map because there are no transects; before drawing transects attempt to locate them by running the code with actions['locate_transects'] set to 'TRUE'\n", sep = "")
+	}
 }
 
 
@@ -406,39 +432,6 @@ print(sessionInfo())
 stop()
 
 
-#------------------------------------------------------------#
-#Draw overall map
-if (actions["make_map"]){
-	transect.files <- list.files(path=dir.big.trans, pattern="_etransect.RData", full.names=TRUE)
-	
-	if(length(transect.files) > 0){
-		if(do.verbose) print(paste(Sys.time(), "start overall map with", length(transect.files), "transects"))
-		
-		gadm_usa <- readRDS(file.path("~/Dropbox/Work_Stuff/2_Research/200907_UofWyoming_PostDoc/Product17_EcotoneGradients/2_Data", "20160126_GADMv28_USA_adm1.rds")) # WGS84
-		gadm_usa_aeanad83 <- sp::spTransform(gadm_usa, raster::crs(elev))
-
-		pdf(width=14, height=14, file=file.path(dir.out, paste0("Map_Transect_All_v2.pdf")))
-			plot(elev, col=gray(0:255/255))
-		
-			raster::image(calc(gap, fun=function(x) ifelse(x %in% bseRatValue, 1, NA)), col=adjustcolor("red", alpha.f = 0.3), add=TRUE)
-			raster::image(calc(gap, fun=function(x) ifelse(x %in% tfRatValue, 1, NA)), col=adjustcolor("darkgreen", alpha.f = 0.3), add=TRUE)
-		
-			for(i in seq_along(transect.files)){
-				if(do.verbose) print(paste("debug", i, "out of", length(transect.files)))
-				res_neighbors <- list()
-				load(transect.files[i])
-				if(length(res_neighbors) > 0) for(b in seq_along(res_neighbors)){
-					if(!is.null(res_neighbors[[b]]$etline)){
-						points(res_neighbors[[b]]$etline$pts, type="l", lwd=2, col="yellow")
-					}
-				}
-			}
-			
-			plot(gadm_usa_aeanad83, border = "orange", add = TRUE)
-			
-		dev.off()
-	}
-}
 
 
 

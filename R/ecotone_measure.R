@@ -1,7 +1,7 @@
-#' export
+#' @export
 measure_ecotones_all_transects <- function(x) {return(NULL)}
 
-#' export
+#' @export
 measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbose = TRUE, do_figures = TRUE) {
 	if (verbose) {
 		idh <- 1
