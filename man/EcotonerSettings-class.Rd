@@ -33,6 +33,8 @@ An S4-class to represent the settings of an 'ecotoner' project
 
 \item{\code{transect_N}}{An integer. The number of search points to generated to initiate a transect search in the neighborhood of size(s) \code{neighborhoods}.}
 
+\item{\code{inhibit_searchpoints}}{A logical. If \code{TRUE} then search points to initiate a transect search are sampled by a random simple sequential inhibition process; if \code{FALSE}, then a random (stratified) process is used to sample search points.}
+
 \item{\code{neighborhoods}}{An integer vector. The number(s) of cells per side of a square representing local grid window(s) around a search point within which the transect methods searches for a suitable transect. Neighborhood(s) must be odd. Note: Below a neighborhood of 333 cells, the density function may become unreliable.}
 
 \item{\code{neighbors_N}}{An integer. The number of \code{neighborhoods}.}
@@ -89,8 +91,12 @@ An S4-class to represent the settings of an 'ecotoner' project
 
 \item{\code{file_searchpoints}}{An 'EcotonerFile' object. The entire file path to where the search points are/will be stored.}
 
-\item{\code{file_etsummary}}{An 'EcotonerFile' object. The entire file path to where the table of the transect summary be stored.}
+\item{\code{file_initwindow}}{An 'EcotonerFile' object. The entire file path to where the spatstat::owin object for the search point generation is/will be stored.}
 
-\item{\code{file_etsummary_temp}}{An 'EcotonerFile' object. The entire file path to where temporary table of the transect summary be stored.}
+\item{\code{file_etsummary}}{An 'EcotonerFile' object. The entire file path to where the table of the transect summary are stored.}
+
+\item{\code{file_etsummary_temp}}{An 'EcotonerFile' object. The entire file path to where temporary table of the transect summary are stored.}
+
+\item{\code{file_etmeasure_base}}{An 'EcotonerFile' object. The entire file path (minus a flag indicating which measure type) to where temporary tables of the transect measures are stored.}
 }}
 

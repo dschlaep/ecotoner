@@ -623,6 +623,8 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 			}
 		}
 
+	} else if (file.exists(fname_etlocated(ecotoner_settings, iflag))) {
+		load(fname_etlocated(ecotoner_settings, iflag)) # i, b, etransect
 	}
 	
 	if (verbose) cat("'ecotoner' detecting: tr = ", i, "; completed ", format(t2 <- Sys.time(), format = ""), " after ", round(difftime(t2, t1, units="hours"), 2), " hours\n", sep = "")

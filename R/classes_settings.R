@@ -61,6 +61,7 @@ setValidity("EcotonerFile", function(object) {
 #' @slot reproducible A logical. If \code{TRUE} then this flag sets the seed of the random number generator at the start.
 #' @slot reseed A logical. If \code{TRUE} then this flag re-sets the random number generator each time a set of random numbers is generated.
 #' @slot transect_N An integer. The number of search points to generated to initiate a transect search in the neighborhood of size(s) \code{neighborhoods}.
+#' @slot inhibit_searchpoints A logical. If \code{TRUE} then search points to initiate a transect search are sampled by a random simple sequential inhibition process; if \code{FALSE}, then a random (stratified) process is used to sample search points.
 #' @slot neighborhoods An integer vector. The number(s) of cells per side of a square representing local grid window(s) around a search point within which the transect methods searches for a suitable transect. Neighborhood(s) must be odd. Note: Below a neighborhood of 333 cells, the density function may become unreliable.
 #' @slot neighbors_N An integer. The number of \code{neighborhoods}.
 #' @slot stepsHullEdge An integer vector. The step length(s), in grid cells, of the hull edge method by Gastner et al.
@@ -91,6 +92,7 @@ setValidity("EcotonerFile", function(object) {
 #' @slot dir_aspect_mean An 'EcotonerPath' object. The path to where the raster grid representing the mean smoothed aspect 'grid_aspect_mean' is stored (required with transect_type == 4). 
 #' @slot dir_aspect_sd An 'EcotonerPath' object. The path to where the raster grid representing the standard deviation of the smoothed aspect 'grid_aspect_sd' is stored (required with transect_type == 4). 
 #' @slot file_searchpoints An 'EcotonerFile' object. The entire file path to where the search points are/will be stored.
+#' @slot file_initwindow An 'EcotonerFile' object. The entire file path to where the spatstat::owin object for the search point generation is/will be stored.
 #' @slot file_etsummary An 'EcotonerFile' object. The entire file path to where the table of the transect summary are stored.
 #' @slot file_etsummary_temp An 'EcotonerFile' object. The entire file path to where temporary table of the transect summary are stored.
 #' @slot file_etmeasure_base An 'EcotonerFile' object. The entire file path (minus a flag indicating which measure type) to where temporary tables of the transect measures are stored.
@@ -110,6 +112,7 @@ EcotonerSettings <- setClass("EcotonerSettings",
 										 reproducible = "logical",
 										 reseed = "logical",
 										 transect_N = "integer",
+										 inhibit_searchpoints = "logical",
 										 neighborhoods = "integer",
 										 neighbors_N = "integer",
 										 stepsHullEdge = "integer",
@@ -145,6 +148,7 @@ EcotonerSettings <- setClass("EcotonerSettings",
 										 dir_aspect_sd = "EcotonerPath",
 										 										 
 										 file_searchpoints = "EcotonerFile",
+										 file_initwindow = "EcotonerFile",
 										 file_etsummary = "EcotonerFile",
 										 file_etsummary_temp = "EcotonerFile",
 										 file_etmeasure_base = "EcotonerFile"
@@ -167,6 +171,7 @@ EcotonerSettings <- setClass("EcotonerSettings",
 											 reproducible = TRUE,
 											 reseed = FALSE,
 											 transect_N = 30L,
+											 inhibit_searchpoints = FALSE,
 											 neighborhoods = c(1667L, 999L),
 											 neighbors_N = 2L,
 											 stepsHullEdge = c(1L, 3L),
@@ -187,7 +192,7 @@ setValidity("EcotonerSettings", function(object) {
 	tests[["transect_azimuth"]] <- all(length(object@transect_azimuth) == 1,
 										object@transect_azimuth >= 0, object@transect_azimuth < (2 * pi))
 	tests[["cores_N"]] <- all(length(object@cores_N) == 1,
-							object@cores_N %in% seq_len(parallel::detectCores() - 1))
+							object@cores_N %in% (seq_len(parallel::detectCores()) - 1))
 	tests[["rng_seed0"]] <- all(length(object@rng_seed0) == 1,
 							object@rng_seed0 > 0)
 	tests[["transect_N"]] <- all(length(object@transect_N) == 1,
@@ -281,6 +286,11 @@ setGeneric("reseed<-", signature = "x", function(x, value) standardGeneric("rese
 setGeneric("transect_N", signature = "x", function(x) standardGeneric("transect_N"))
 #' @export
 setGeneric("transect_N<-", signature = "x", function(x, value) standardGeneric("transect_N<-"))
+
+#' @export
+setGeneric("inhibit_searchpoints", signature = "x", function(x) standardGeneric("inhibit_searchpoints"))
+#' @export
+setGeneric("inhibit_searchpoints<-", signature = "x", function(x, value) standardGeneric("inhibit_searchpoints<-"))
 
 #' @export
 setGeneric("neighborhoods", signature = "x", function(x) standardGeneric("neighborhoods"))
@@ -411,6 +421,10 @@ setGeneric("file_searchpoints", signature = "x", function(x) standardGeneric("fi
 #' @export
 setGeneric("file_searchpoints<-", signature = "x", function(x, value) standardGeneric("file_searchpoints<-"))
 #' @export
+setGeneric("file_initwindow", signature = "x", function(x) standardGeneric("file_initwindow"))
+#' @export
+setGeneric("file_initwindow<-", signature = "x", function(x, value) standardGeneric("file_initwindow<-"))
+#' @export
 setGeneric("file_etsummary", signature = "x", function(x) standardGeneric("file_etsummary"))
 #' @export
 setGeneric("file_etsummary<-", signature = "x", function(x, value) standardGeneric("file_etsummary<-"))
@@ -452,6 +466,9 @@ setReplaceMethod("reseed", "EcotonerSettings", function(x, value) initialize(x, 
 
 setMethod("transect_N", "EcotonerSettings", function(x) slot(x, "transect_N"))
 setReplaceMethod("transect_N", "EcotonerSettings", function(x, value) initialize(x, transect_N = as.integer(value)))
+
+setMethod("inhibit_searchpoints", "EcotonerSettings", function(x) slot(x, "inhibit_searchpoints"))
+setReplaceMethod("inhibit_searchpoints", "EcotonerSettings", function(x, value) initialize(x, inhibit_searchpoints = value))
 
 setMethod("neighborhoods", "EcotonerSettings", function(x) slot(x, "neighborhoods"))
 setReplaceMethod("neighborhoods", "EcotonerSettings", function(x, value) {x@neighborhoods <- as.integer(value); x@neighbors_N <- length(x@neighborhoods); x})
@@ -531,6 +548,8 @@ setReplaceMethod("dir_aspect_sd", "EcotonerSettings", function(x, value) initial
 
 setMethod("file_searchpoints", "EcotonerSettings", function(x) slot(slot(x, "file_searchpoints"), "path"))
 setReplaceMethod("file_searchpoints", "EcotonerSettings", function(x, value) initialize(x, file_searchpoints = new("EcotonerFile", path = file.path(dir_init(x), basename(value)))))
+setMethod("file_initwindow", "EcotonerSettings", function(x) slot(slot(x, "file_initwindow"), "path"))
+setReplaceMethod("file_initwindow", "EcotonerSettings", function(x, value) initialize(x, file_initwindow = new("EcotonerFile", path = value)))
 setMethod("file_etsummary", "EcotonerSettings", function(x) slot(slot(x, "file_etsummary"), "path"))
 setReplaceMethod("file_etsummary", "EcotonerSettings", function(x, value) {
 			x <- initialize(x, file_etsummary = new("EcotonerFile", path = file.path(dir_out(x), basename(value))))
@@ -542,7 +561,7 @@ setReplaceMethod("file_etsummary", "EcotonerSettings", function(x, value) {
 setMethod("file_etsummary_temp", "EcotonerSettings", function(x) slot(slot(x, "file_etsummary_temp"), "path"))
 setReplaceMethod("file_etmeasure_base", "EcotonerSettings", function(x, value) initialize(x, file_etmeasure_base = new("EcotonerFile", path = file.path(dir_out(x), basename(value)))))
 setMethod("file_etmeasure_base", "EcotonerSettings", function(x, value) {
-			x <- slot(slot(x, "file_etmeasure_base"), "path"))
+			x <- slot(slot(x, "file_etmeasure_base"), "path")
 			temp <- strsplit(basename(x), split = ".", fixed = TRUE)[[1]]
 			temp <- paste0(paste(head(temp, n = -1), collapse = ""), "_", value, ".", tail(temp, n = 1))
 			file.path(dirname(x), temp)

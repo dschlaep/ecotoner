@@ -4,17 +4,24 @@
 \alias{get_transect_search_points}
 \title{Sample randomly \code{N} points to initiate the search for suitable gradients}
 \usage{
-get_transect_search_points(N, grid_mask1, grid_maskNA = NULL,
-  initfile = NA_character_, seed = NULL, verbose = TRUE)
+get_transect_search_points(N, grid_mask1, mywindow = NULL,
+  inhibit_dist = NULL, grid_maskNA = NULL, initfile = NA_character_,
+  initwindowfile = NA_character_, seed = NULL, verbose = TRUE)
 }
 \arguments{
 \item{N}{An integer value. The number of search points to generate.}
 
 \item{grid_mask1}{A \code{\linkS4class{RasterLayer}} object from which cells with the value of 1 will be sampled.}
 
+\item{mywindow}{A \code{\linkS4class{owin}} of the package 'spatstat' or NULL. If inhibit_dist is not 0 or NULL, then an inihibited random point process generates points within this window or, if NULL, then one is created based on grid_mask1 and grid_maskNA.}
+
+\item{inhibit_dist}{A numeric value or \code{NULL}. The inhibition distance in meters between randomly sampled points.}
+
 \item{grid_maskNA}{A \code{\linkS4class{RasterLayer}} object whose cells with the value of NA will prevent sampling of corresponding cells in \code{grid_mask1}.}
 
 \item{initfile}{A filename (and its path) or \code{NA}. If not \code{NA}, then the generated search points are stored to disk in \link[=readRDS]{.rds} format.}
+
+\item{initwindowfile}{A filename (and its path) or \code{NA}. If not \code{NA} and if a spatstat::owin object is created for an inhibited random sample, then the generated 'owin' object is stored to disk in \link[=readRDS]{.rds} format.}
 
 \item{seed}{An integer value or \code{NULL} to set the random number generator. \code{NULL} follows the behavior of \code{\link{set.seed}}.}
 

@@ -90,61 +90,65 @@ calc_Gastner2010_hulledge <- function(i, steplength, veg, end_toLeft) {
 	icol <- start_col #matrix column (x-axis) of current position
 	nextStep_pos <- rep(NA, 2)
 	#Walk
-	repeat {
-		#-Take step
-		grid_hullEdge[irow, icol] <- 1
-		mat_hullEdge <- rbind(mat_hullEdge, c(icol, irow))
-		spLine_hullEdge <- if (!is.null(iLine)) rgeos::gLineMerge(rbind(spLine_hullEdge, iLine)) else spLine_hullEdge
-		if (irow == end_row && icol == end_col) break
-
-		#-Decide on next step
-		#account for edges of the grid
-		clipw <- c(ifelse(irow > steplength, 1, steplength + 2 - irow),
-					ifelse((rtemp <- nrow(veg) - irow) >= steplength, stepwindow_N, steplength + 1 + rtemp),
-					ifelse(icol > steplength, 1, steplength + 2 - icol),
-					ifelse((ctemp <- ncol(veg) - icol) >= steplength, stepwindow_N, steplength + 1 + ctemp)) #usable extent of window (row min + max, col min + max)
-		clipb <- c(ifelse(clipw[1] == 1, irow - steplength, 1),
-					1 + ifelse(clipw[1] == 1, steplength, irow - 1) + ifelse(clipw[2] == stepwindow_N, steplength, rtemp),
-					ifelse(clipw[3] == 1, icol - steplength, 1),
-					1 + ifelse(clipw[3] == 1, steplength, icol - 1) + ifelse(clipw[4] == stepwindow_N, steplength, ctemp)) #usable extent of block (row min, nrows, col min, ncols)
-		#apply stepwindow's mask
-		neigh_sw <- stepwindow[clipw[1]:clipw[2], clipw[3]:clipw[4], ]
-		neigh_vals <- getValuesBlock(vegclumps_largest, row = clipb[1], nrows = clipb[2], col = clipb[3], ncols = clipb[4], format = 'matrix')
-		neigh_available <- neigh_vals * neigh_sw[,, "mask"]
-		neigh_available[neigh_available == 0] <- NA
-		#get the leftmost available cell(s) as seen from current direction
-		neigh_azimuths <- neigh_available * rotate_azimuth_matrix(neigh_sw[,, "azimuth"], iazimuth)
-		#loop through the cells with increasing leftmost cells and pick the first cell that doesn't cross previously walked path
-		nextStep_pos <- rep(NA, 2)
+	if (requireNamespace("rgeos", quietly = TRUE)) {
 		repeat {
-			leftmost_value <- min(neigh_azimuths, na.rm = TRUE)
-			if(is.infinite(leftmost_value)) break #no possible next steps to take
-			leftmost_pos <- which(neigh_azimuths - sqrt(.Machine$double.neg.eps) <= leftmost_value & neigh_azimuths + sqrt(.Machine$double.eps) >= leftmost_value, arr.ind = TRUE, useNames = FALSE)
-			#choose the nearest leftmost cell
-			if((temp <- nrow(leftmost_pos)) > 1){
-				leftmost_pos <- leftmost_pos[which.min(sapply(seq_len(temp), FUN = function(i) neigh_sw[leftmost_pos[i, 1], leftmost_pos[i, 2], "distance"])), ]
-			} else {
-				leftmost_pos <- drop(leftmost_pos)
+			#-Take step
+			grid_hullEdge[irow, icol] <- 1
+			mat_hullEdge <- rbind(mat_hullEdge, c(icol, irow))
+			spLine_hullEdge <- if (!is.null(iLine)) rgeos::gLineMerge(rbind(spLine_hullEdge, iLine)) else spLine_hullEdge
+			if (irow == end_row && icol == end_col) break
+
+			#-Decide on next step
+			#account for edges of the grid
+			clipw <- c(ifelse(irow > steplength, 1, steplength + 2 - irow),
+						ifelse((rtemp <- nrow(veg) - irow) >= steplength, stepwindow_N, steplength + 1 + rtemp),
+						ifelse(icol > steplength, 1, steplength + 2 - icol),
+						ifelse((ctemp <- ncol(veg) - icol) >= steplength, stepwindow_N, steplength + 1 + ctemp)) #usable extent of window (row min + max, col min + max)
+			clipb <- c(ifelse(clipw[1] == 1, irow - steplength, 1),
+						1 + ifelse(clipw[1] == 1, steplength, irow - 1) + ifelse(clipw[2] == stepwindow_N, steplength, rtemp),
+						ifelse(clipw[3] == 1, icol - steplength, 1),
+						1 + ifelse(clipw[3] == 1, steplength, icol - 1) + ifelse(clipw[4] == stepwindow_N, steplength, ctemp)) #usable extent of block (row min, nrows, col min, ncols)
+			#apply stepwindow's mask
+			neigh_sw <- stepwindow[clipw[1]:clipw[2], clipw[3]:clipw[4], ]
+			neigh_vals <- getValuesBlock(vegclumps_largest, row = clipb[1], nrows = clipb[2], col = clipb[3], ncols = clipb[4], format = 'matrix')
+			neigh_available <- neigh_vals * neigh_sw[,, "mask"]
+			neigh_available[neigh_available == 0] <- NA
+			#get the leftmost available cell(s) as seen from current direction
+			neigh_azimuths <- neigh_available * rotate_azimuth_matrix(neigh_sw[,, "azimuth"], iazimuth)
+			#loop through the cells with increasing leftmost cells and pick the first cell that doesn't cross previously walked path
+			nextStep_pos <- rep(NA, 2)
+			repeat {
+				leftmost_value <- min(neigh_azimuths, na.rm = TRUE)
+				if(is.infinite(leftmost_value)) break #no possible next steps to take
+				leftmost_pos <- which(neigh_azimuths - sqrt(.Machine$double.neg.eps) <= leftmost_value & neigh_azimuths + sqrt(.Machine$double.eps) >= leftmost_value, arr.ind = TRUE, useNames = FALSE)
+				#choose the nearest leftmost cell
+				if((temp <- nrow(leftmost_pos)) > 1){
+					leftmost_pos <- leftmost_pos[which.min(sapply(seq_len(temp), FUN = function(i) neigh_sw[leftmost_pos[i, 1], leftmost_pos[i, 2], "distance"])), ]
+				} else {
+					leftmost_pos <- drop(leftmost_pos)
+				}
+				#check that this step would not cross previously walked path c(yFromRow(veg, start_row), xFromCol(veg, start_col)
+				iLine <- sp::SpatialLines(list(Lines(Line(rbind(c(xFromCol(veg, icol), yFromRow(veg, irow)), c(xFromCol(veg, icol + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaX"]), yFromRow(veg, irow + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaY"])))), ID = 0)), proj4string = CRS(helper_CRS))
+				iIntersections <- rgeos::gIntersection(spLine_hullEdge, iLine)
+				#remove points of cells along walk from this intersection (i.e., walk is allowed to revisit cells, but not to cross)
+				temp1 <- apply(if(identical(class(temp <- coordinates(iIntersections)), "list")) as.matrix(temp[[1]][[1]]) else as.matrix(temp), 1, FUN = function(x) paste(round(x), collapse = "_"))
+				temp2 <- apply(rbind(as.matrix(coordinates(iLine)[[1]][[1]]), as.matrix(coordinates(spLine_hullEdge)[[1]][[1]])), 1, FUN = function(x) paste(round(x), collapse = "_"))
+				if (any(!(temp1 %in% temp2))) {
+					neigh_azimuths[neigh_azimuths == leftmost_value] <- NA #remove this leftmost value from the possible choices
+				} else { #next step found
+					nextStep_pos <- leftmost_pos
+					break
+				}
 			}
-			#check that this step would not cross previously walked path c(yFromRow(veg, start_row), xFromCol(veg, start_col)
-			iLine <- sp::SpatialLines(list(Lines(Line(rbind(c(xFromCol(veg, icol), yFromRow(veg, irow)), c(xFromCol(veg, icol + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaX"]), yFromRow(veg, irow + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaY"])))), ID = 0)), proj4string = CRS(helper_CRS))
-			iIntersections <- rgeos::gIntersection(spLine_hullEdge, iLine)
-			#remove points of cells along walk from this intersection (i.e., walk is allowed to revisit cells, but not to cross)
-			temp1 <- apply(if(identical(class(temp <- coordinates(iIntersections)), "list")) as.matrix(temp[[1]][[1]]) else as.matrix(temp), 1, FUN = function(x) paste(round(x), collapse = "_"))
-			temp2 <- apply(rbind(as.matrix(coordinates(iLine)[[1]][[1]]), as.matrix(coordinates(spLine_hullEdge)[[1]][[1]])), 1, FUN = function(x) paste(round(x), collapse = "_"))
-			if (any(!(temp1 %in% temp2))) {
-				neigh_azimuths[neigh_azimuths == leftmost_value] <- NA #remove this leftmost value from the possible choices
-			} else { #next step found
-				nextStep_pos <- leftmost_pos
-				break
-			}
-		}
-		if (all(is.na(nextStep_pos))) break #no next step: i.e. walk ended (probably prematurely)
+			if (all(is.na(nextStep_pos))) break #no next step: i.e. walk ended (probably prematurely)
 		
-		#-Prepare this step
-		irow <- irow + neigh_sw[nextStep_pos[1], nextStep_pos[2], "deltaY"]
-		icol <- icol + neigh_sw[nextStep_pos[1], nextStep_pos[2], "deltaX"]
-		iazimuth <- rotate_azimuth_matrix(neigh_sw[nextStep_pos[1], nextStep_pos[2], "azimuth"], pi)
+			#-Prepare this step
+			irow <- irow + neigh_sw[nextStep_pos[1], nextStep_pos[2], "deltaY"]
+			icol <- icol + neigh_sw[nextStep_pos[1], nextStep_pos[2], "deltaX"]
+			iazimuth <- rotate_azimuth_matrix(neigh_sw[nextStep_pos[1], nextStep_pos[2], "azimuth"], pi)
+		}
+	} else {
+		warning("Package 'rgeos' not installed: 'calc_Gastner2010_hulledge' will not performe the biased walk")
 	}
 		
 	list(grid_LargestPatch = vegclumps_largest, is_spanning = is_spanning,
@@ -157,7 +161,11 @@ calc_Gastner2010_hulledge <- function(i, steplength, veg, end_toLeft) {
 calc_Gastner2010_hulledge_Statistics <- function(mat_hullEdge, spLine_hullEdge, res_m) {
 	pos <- mean(mat_hullEdge[, 1])	#eq. A2
 	width <- sd(mat_hullEdge[, 1])	#eq. A3
-	len <- rgeos::gLength(spLine_hullEdge)	#eq. A4
+	if (requireNamespace("rgeos", quietly = TRUE)) {
+		len <- rgeos::gLength(spLine_hullEdge)	#eq. A4
+	} else {
+		warning("Package 'rgeos' not installed: 'calc_Gastner2010_hulledge_Statistics' will not determine the length of the hull edge")
+	}
 		
 	list(position_cells = pos, position_m = res_m * pos, width_m = res_m * width, length_m = len)
 }

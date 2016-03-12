@@ -117,10 +117,15 @@ setGeneric("df_veg", signature = "x", function(x) standardGeneric("df_veg"))
 
 
 ## Accessor method definitions
+#' @export
 setMethod("crs", "GridInfo", function(x) slot(x, "crs"))
+#' @export
 setMethod("res_m", "GridInfo", function(x) slot(x, "res_m"))
+#' @export
 setMethod("longlat", "GridInfo", function(x) slot(x, "longlat"))
+#' @export
 setMethod("origin", "GridInfo", function(x) slot(x, "origin"))
+#' @export
 setMethod("rotation", "GridInfo", function(x) slot(x, "rotation"))
 
 setMethod("grid_env", "EcotonerGrids", function(x) slot(x, "grid_env"))

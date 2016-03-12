@@ -1,5 +1,5 @@
-# Sample random point where grid==1 to initiate gradient search
-sample_init_cells <- function(N, grid, gridNA = NULL, pts_init = NULL, seed = NULL, verbose = FALSE, iter = 1) {
+# Sample random points where grid==1 to initiate gradient search
+sample_init_cells <- function(N, grid, gridNA = NULL, pts_init = NULL, seed = NULL, verbose = FALSE, iter_max = 7, iter = 1) {
 	#---Test input
 	if (inherits(pts_init, "SpatialPoints")) {
 		pts_init <- sp::coordinates(pts_init)
@@ -10,6 +10,7 @@ sample_init_cells <- function(N, grid, gridNA = NULL, pts_init = NULL, seed = NU
 	tempfile_init <- file.path(tempdir(), "ecotoner_temp_init_points.RData")
 	
 	if (!is.na(seed)) set.seed(seed)
+
 	pts_new <- try(raster::sampleStratified(grid, size = N, xy = TRUE))
 		#Error in ys[[i]] <- y : attempt to select less than one element
 		#	- raster(file.path(dir.bse, "bseEdge_CroppedWyoming.tif"))
@@ -18,6 +19,7 @@ sample_init_cells <- function(N, grid, gridNA = NULL, pts_init = NULL, seed = NU
 		if (!is.na(seed)) set.seed(seed)
 		pts_new <- raster::sampleRandom(grid, 3 * N, na.rm = TRUE, xy = TRUE)
 	}
+	
 	if (!is.null(gridNA)) {
 		# Do not use cells where corresponding gridNA value is NA
 		pts_new[, "stratum"] <- ifelse(is.na(raster::extract(gridNA, sp::SpatialPoints(pts_new[, c("x", "y")]))), -1, pts_new[, "stratum"])
@@ -29,10 +31,10 @@ sample_init_cells <- function(N, grid, gridNA = NULL, pts_init = NULL, seed = NU
 		pts_init <- pts_init[-temp, ] # remove duplicated grid cells
 	}
 	
-	if (nrow(pts_init) < N & iter <= 7) {
+	if (nrow(pts_init) < N & iter <= iter_max) {
 		save(N, pts_init, iter, file = tempfile_init)
 		if(verbose) cat("'ecotoner' starting points: ", iter, " iteration of produced ", nrow(pts_init), " points at ", format(Sys.time(), format = ""), "\n", sep = "")
-		pts_init <- Recall(N, grid, gridNA, pts_init, seed, verbose, iter + 1)
+		pts_init <- Recall(N, grid, inhibit_dist, gridNA, pts_init, seed, verbose, iter_max, iter + 1)
 	} else {
 		if (!is.na(seed)) set.seed(seed)
 		pts_init <- pts_init[sample(x = nrow(pts_init), size = min(nrow(pts_init), N)), ]
@@ -45,13 +47,61 @@ sample_init_cells <- function(N, grid, gridNA = NULL, pts_init = NULL, seed = NU
 }
 
 
+# Sample rSSI points either from mywin or where grid==1 to initiate gradient search
+sample_inhibited_init_cells <- function(N, grid, inhibit_dist, mywin = NULL, gridNA = NULL, pts_init = NULL, initwindowfile = NA_character_, seed = NULL, verbose = FALSE) {
+	#---Test input
+	if (is.null(mywin) || !inherits(mywin, "owin")) {
+		if (is.null(grid) || !inherits(grid, "RasterLayer")) {
+			stop("ecotoner::sample_inhibited_init_cells(): either 'mywin' must be a spatstat::owin object or 'grid' must be of class 'Raster' to generate an 'owin' object")
+		} else {
+			if (!is.null(gridNA) && inherits(gridNA, "RasterLayer")) {
+				# Do not use cells where corresponding gridNA value is NA
+				grid <- raster::mask(grid, gridNA)
+			}
+			
+			if(verbose) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "'sample_inhibited_init_cells' creates a spatstat::owin object", "\n")
+			mywin <- spatstat::as.owin(as.data.frame(raster::rasterToPoints(grid)))
+			
+			if (!is.na(initwindowfile)) saveRDS(mywin, file = initwindowfile)
+		}
+	}
+	
+	if (inherits(pts_init, "SpatialPoints")) {
+		pts_init <- sp::coordinates(pts_init)
+	}
+
+	if (!is.na(seed)) set.seed(seed)
+
+	#---Begin function calculations
+	if (requireNamespace("spatstat", quietly = TRUE) && requireNamespace("nlme", quietly = TRUE)) {
+		
+		x.init <- if (nrow(pts_init) > 0) {
+						spatstat::ppp(x = pts_init[, 1], y = pts_init[, 2], window = mywin)
+					} else {
+						NULL
+					}
+		
+		if(verbose) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "'sample_inhibited_init_cells' started to generate a random point pattern as a realisation of a simple sequential inhibition process", "\n")
+		pts_new <- spatstat::rSSI(r = inhibit_dist, n = N, win = mywin, giveup = 1000, x.init = x.init)
+		pts_init <- rbind(pts_init, spatstat::as.data.frame.ppp(pts_new))
+	
+	} else {
+		stop("Package 'spatstat' and/or 'nlme' not installed: 'sample_inhibited_init_cells' will not apply the Simple Sequential Inhibition point process")
+	}
+	
+	sp::SpatialPoints(coords = pts_init, proj4string = raster::crs(grid))
+}
+
 #' Sample randomly \code{N} points to initiate the search for suitable gradients
 #'
 #' @param N An integer value. The number of search points to generate.
 #' @param grid_mask1 A \code{\linkS4class{RasterLayer}} object from which cells with the value of 1 will be sampled.
 ## \link[package:MyClass-class]{MyClass}
+#' @param mywindow A \code{\linkS4class{owin}} of the package 'spatstat' or NULL. If inhibit_dist is not 0 or NULL, then an inihibited random point process generates points within this window or, if NULL, then one is created based on grid_mask1 and grid_maskNA.
+#' @param inhibit_dist A numeric value or \code{NULL}. The inhibition distance in meters between randomly sampled points.
 #' @param grid_maskNA A \code{\linkS4class{RasterLayer}} object whose cells with the value of NA will prevent sampling of corresponding cells in \code{grid_mask1}.
 #' @param initfile A filename (and its path) or \code{NA}. If not \code{NA}, then the generated search points are stored to disk in \link[=readRDS]{.rds} format.
+#' @param initwindowfile A filename (and its path) or \code{NA}. If not \code{NA} and if a spatstat::owin object is created for an inhibited random sample, then the generated 'owin' object is stored to disk in \link[=readRDS]{.rds} format.
 #' @param seed An integer value or \code{NULL} to set the random number generator. \code{NULL} follows the behavior of \code{\link{set.seed}}.
 #' @param verbose A logical value. If \code{TRUE}, then progress statements are printed out.
 #'
@@ -69,7 +119,7 @@ sample_init_cells <- function(N, grid, gridNA = NULL, pts_init = NULL, seed = NU
 #' points(temp, col = "red", lwd = 2)
 #'
 #' @export
-get_transect_search_points <- function(N, grid_mask1, grid_maskNA = NULL, initfile = NA_character_, seed = NULL, verbose = TRUE) {
+get_transect_search_points <- function(N, grid_mask1, mywindow = NULL, inhibit_dist = NULL, grid_maskNA = NULL, initfile = NA_character_, initwindowfile = NA_character_, seed = NULL, verbose = TRUE) {
 	#---Test input
 	if (!inherits(grid_mask1, "RasterLayer") || (!is.null(grid_maskNA) && !inherits(grid_maskNA, "RasterLayer"))) {
 		stop("ecotoner::get_transect_search_points(): argument(s) 'grid_mask1' and/or 'grid_maskNA' are not of class 'Raster'")
@@ -95,7 +145,21 @@ get_transect_search_points <- function(N, grid_mask1, grid_maskNA = NULL, initfi
 	}
 	
 	if (ip_N < N) {
-		initpoints <- sample_init_cells(N = N, grid = grid_mask1, gridNA = grid_maskNA, pts_init = initpoints, seed = seed, verbose = verbose)
+		dont_inhibit <- is.null(inhibit_dist) || inhibit_dist <= 0
+		
+		if (!dont_inhibit) {
+			temp <- try(sample_inhibited_init_cells(N = N, grid = grid_mask1, inhibit_dist = inhibit_dist, mywin = mywindow, gridNA = grid_maskNA, pts_init = initpoints, initwindowfile = initwindowfile, seed = seed, verbose = verbose), silent = TRUE)
+			if (inherits(temp, "try-error")) {
+				dont_inhibit <- TRUE
+			} else {	
+				initpoints <- temp
+			}
+		}
+		
+		if (dont_inhibit) {
+			initpoints <- sample_init_cells(N = N, grid = grid_mask1, gridNA = grid_maskNA, pts_init = initpoints, seed = seed, verbose = verbose)
+		}
+		
 		if (!is.na(initfile)) saveRDS(initpoints, file = initfile)
 	} else if (ip_N > N) {
 		initpoints <- initpoints[sample(x = length(initpoints), size = N), ]

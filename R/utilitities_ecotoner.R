@@ -1,6 +1,6 @@
 
 flag_itransect <- function(ecotoner_settings, iflag) {
-	paste0("Transect", formatC(i, format = "d", flag = "0", width = floor(log(transect_N(ecotoner_settings), base = 10) + 1)))
+	paste0("Transect", formatC(iflag, format = "d", flag = "0", width = floor(log(transect_N(ecotoner_settings), base = 10) + 1)))
 }
 
 flag_basename <- function(ecotoner_settings, iflag, b) {

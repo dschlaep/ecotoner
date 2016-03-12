@@ -12,9 +12,9 @@ if (FALSE) { # TODO(drs): conversion package
 #------------------------------------------------------------#
 ##------PROJECT NEW/CONTD
 
-prj_status <- "contd"		# one of "new" and "contd"; if "contd" then bname_settings (and bname_grids if locate_transects) must exist on disk
-bname_settings <- "20160229_0757_ecotoner_settings.rds"
-bname_grids <- "20160229_0757_ecotoner_grids.rds"
+prj_status <- "new"		# one of "new" and "contd"; if "contd" then bname_settings (and bname_grids if locate_transects) must exist on disk
+bname_settings <- "20160312_1211_ecotoner_settings.rds"
+bname_grids <- "20160312_1211_ecotoner_grids.rds"
 time_stamp <- Sys.time()
 
 
@@ -25,7 +25,7 @@ do.demo <- TRUE		# If TRUE, then code uses the example data from the ecotoner pa
 
 actions <- c(	locate_transects = TRUE,	# calls the transect functions detect_ecotone_transects_from_searchpoint()
 #				make_summary = FALSE,		# creates a table with the results from calling detect_ecotone_transects_from_searchpoint()
-				measure_transects = FALSE,	# uses methods to extract information about the located transects
+				measure_transects = TRUE,	# uses methods to extract information about the located transects
 				make_map = FALSE			# draws a map with all transects
 			)
 
@@ -38,7 +38,7 @@ interactions <- c(	verbose = TRUE,		# prints progress statements
 
 #------------------------------------------------------------#
 ##------SETUP R PACKAGES
-#libraries  <- c("ecotoner", "doMC", "rgeos", "rgdal", "raster", "igraph", "foreign", "geosphere", "maptools", "akima", "modeest", "boot", "simpleboot", "zoo", "gstat", "spdep", "circular", "RANN")
+#libraries  <- c("rgdal", "akima", "RANN") TODO(drs): Where are these packages used? Are they still needed?
 libraries  <- c("ecotoner", "parallel", "foreign")
 l <- lapply(libraries, function(lib) stopifnot(require(lib, character.only = TRUE, quietly = FALSE)))
 
@@ -57,6 +57,7 @@ if (prj_status == "new") {
 
 	transect_type(esets) <- 4
 	transect_N(esets) <- 15000
+	inhibit_searchpoints(esets) <- TRUE
 	cores_N(esets) <- min(12, parallel::detectCores() - 2) # 0 or 1 will turn off parallelization
 	reproducible(esets) <- TRUE
 	reseed(esets) <- FALSE
@@ -70,17 +71,25 @@ if (prj_status == "new") {
 	dir_big(esets) <- "/Volumes/BookDuo_12TB/BigData/Product17_EcotoneGradients/3_EcotoneGradient/4_Intermountain_v6"
 
 	fname_settings <- file.path(dir_init(esets), paste0(format(time_stamp, format = "%Y%m%d_%H%M"), "_ecotoner_settings.rds"))
-	bname_searchpoints <- paste0("SearchPoints_N", transect_N(esets), "_Veg1and2Abut.rds")
+	bname_searchpoints <- paste0("SearchPoints_",
+									if (inhibit_searchpoints(esets)) "inhibited" else "Poisson",
+									transect_N(esets), "N_",
+									"_Veg1and2Abut.rds")
 
 	if (do.debug || do.demo) {
 		interactions[seq_along(interactions)] <- TRUE
-		transect_N(esets) <- 10
+		transect_N(esets) <- 6
 		reproducible(esets) <- TRUE
 		reseed(esets) <- do.debug
 		if (do.demo) {
+			neighborhoods(esets) <- 667
 			dir_big(esets) <- NA_character_
-			fname_searchpoints <- paste0("SearchPoints_N", transect_N(esets), "_Veg1and2Abut.rds")
+			fname_searchpoints <- paste0("SearchPoints_",
+										if (inhibit_searchpoints(esets)) "inhibited" else "Poisson",
+										transect_N(esets), "N_",
+										"_Veg1and2Abut.rds")
 		}
+		
 	}
 
 	# Files
@@ -116,6 +125,8 @@ if (actions["locate_transects"]) {
 			dir_aspect_mean(esets) <- dir_aspect_sd(esets) <- dir_flow(esets) <- file.path(dir_env(esets), "terrain")
 
 			esets <- verify_grid_paths(esets)
+			
+			file_initwindow(esets) <- file.path(dir_abut(esets), "owin_Veg1and2Abut.rds")
 	
 			# Load grids
 			egrids <- new("EcotonerGrids")
@@ -163,15 +174,17 @@ if (actions["locate_transects"]) {
 				}
 			}
 		} else {
-			path_demo <- system.file("extdata", "raster", package = "ecotoner")
+			path_demo <- system.file("extdata", "spatial", package = "ecotoner")
 
 			dir_env(esets) <- path_demo
 			dir_veg(esets) <- path_demo
 			dir_abut(esets) <- path_demo
 			dir_aspect_mean(esets) <- dir_aspect_sd(esets) <- dir_flow(esets) <- path_demo
-
+			
 			esets <- verify_grid_paths(esets)
 	
+			file_initwindow(esets) <- file.path(dir_init(esets), "owin_Veg1and2Abut_demo.rds")
+
 			# Load grids
 			egrids <- new("EcotonerGrids")
 
@@ -184,8 +197,8 @@ if (actions["locate_transects"]) {
 			grid_abut(egrids) <- raster::raster(file.path(dir_abut(esets), "abutt_eg.grd"))
 			grid_aspect_mean(egrids) <- raster::raster(file.path(dir_aspect_mean(esets), "asp201Mean_eg.grd"))
 			grid_aspect_sd(egrids) <- raster::raster(file.path(dir_aspect_sd(esets), "asp201SD_eg.grd"))
+			
 		}
-		
 	} else {
 		fname_grids <- file.path(dir.init, bname_grids)
 
@@ -211,9 +224,8 @@ if (prj_status == "new") {
 						fgap <- file.path(dir_veg(esets), "natgaplandcov_v2_1.img")
 						foreign::read.dbf(file=paste0(fgap, ".vat.dbf"))
 					} else {
-						path_demo <- system.file("extdata", "raster", package = "ecotoner")
-						load(file.path(path_demo, "meta_eg.RData"))
-						gap.rat
+						path_demo <- system.file("extdata", "spatial", package = "ecotoner")
+						readRDS(file.path(path_demo, "gap_rat.rds"))
 					}
 				}
 
@@ -310,7 +322,7 @@ if (any(actions)) {
 					temp <- warnings()
 					if (length(temp) > 0) print(temp)
 					
-					res
+					t(res)
 				}
 	}
 
@@ -331,8 +343,11 @@ if (actions["locate_transects"]) {
 	cat(format(Sys.time(), format = ""), ": sample ", transect_N(esets), " 'initpoints'\n", sep = "")
 	initpoints <- get_transect_search_points(N = transect_N(esets),
 											grid_mask1 = if (valid_grid(grid_abut(egrids))) grid_abut(egrids) else grid_veg(egrids),
+											inhibit_dist = if (inhibit_searchpoints(esets)) ceiling(res_m(specs_grid(egrids)) * max(neighborhoods(esets)) / 2) else NULL, 
+											mywindow = if (inhibit_searchpoints(esets) && file.exists(file_initwindow(esets))) readRDS(file_initwindow(esets)) else NULL,
 											grid_maskNA = grid_env(egrids),
 											initfile = file_searchpoints(esets),
+											initwindowfile = file_initwindow(esets),
 											seed = get_sseed(esets),
 											verbose = interactions["verbose"])
 	
@@ -353,7 +368,6 @@ if (actions["locate_transects"]) {
 	#---Results
 	write.csv(resultTransects, file = file_etsummary(esets))
 }
-
 
 
 #------------------------------------------------------------#
@@ -387,6 +401,8 @@ et_methods2 <- c("InterZoneLocation", "InterZonePatchDistr")
 	write.csv(XXX, file = fXXX)
 }
 
+print(sessionInfo())
+stop()
 
 
 #------------------------------------------------------------#

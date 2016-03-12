@@ -109,7 +109,7 @@ calc_Eppinga2013_stats <- function(deltaF1_T17, deltaF2_T17, seed = NULL) {
 		if (requireNamespace("simpleboot", quietly = TRUE) && requireNamespace("boot", quietly = TRUE)) {
 			b <- simpleboot::two.boot(sample1 = deltaF1_T17, sample2 = deltaF2_T17, FUN = mean, R = R <- 10000, na.rm = TRUE)
 		} else {
-			warning("Package 'simpleboot' and/or 'boot' not installed: an statistical analysis will not be performed by the function 'calc_Eppinga2013_stats'")
+			warning("Package 'simpleboot' and/or 'boot' not installed: 'calc_Eppinga2013_stats' will not be estimated")
 			return(res)
 		}
 		
