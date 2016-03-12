@@ -81,10 +81,11 @@ if (prj_status == "new") {
 		transect_N(esets) <- 6
 		reproducible(esets) <- TRUE
 		reseed(esets) <- do.debug
+
 		if (do.demo) {
 			neighborhoods(esets) <- 667
 			dir_big(esets) <- NA_character_
-			fname_searchpoints <- paste0("SearchPoints_",
+			bname_searchpoints <- paste0("SearchPoints_",
 										if (inhibit_searchpoints(esets)) "inhibited" else "Poisson",
 										transect_N(esets), "N_",
 										"_Veg1and2Abut.rds")
