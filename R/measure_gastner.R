@@ -275,13 +275,17 @@ plot_Gastner2010_hulledge <- function(filename, eB_Env, eB_Veg, datFit) {
 
 
 
-Gastner2010AmNat <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
+Gastner2010AmNat <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, copy_FromMig1_TF, do_figures, ...) {
 	#3c. Gastner et al. 2010 Am.Nat.: Location of boundary as hull edge
 	
 	dots <- list(...)
+	seed <- if ("seed" %in% names(dots)) dots["seed"] else NULL
+	if ("flag_bfig" %in% names(dots)) flag_bfig <- dots["flag_bfig"] else do_figures <- FALSE
+	if ("dir_fig" %in% names(dots)) dir_fig <- dots["dir_fig"] else do_figures <- FALSE
 
 	etmeasure$etable[b, "Transect_ID"] <- i
 	etmeasure$etable[b, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
+	etmeasure$etable[b, "Migration_Type"] <- migtype
 	
 	step_lengths <- stepsHullEdge(ecotoner_settings)
 	etmeasure$gETmeas[[b]][[migtype]] <- vector(mode = "list", length = length(step_lengths))

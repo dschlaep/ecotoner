@@ -3,7 +3,11 @@ simplify2result <- function(x) {
 	len0 <- sapply(x, length) == 0
 	if (sum(len0) > 0) x <- x[!len0]
 	
-	dim1 <- dim(x[[1]])
+    dim1 <- if (inherits(x[[1]], "data.frame") || inherits(x[[1]], "matrix")) {
+				dim(x[[1]])
+			} else {
+				c(1, length(x[[1]]))
+			}
 	rows1 <- seq_len(dim1[1])
 	res <- as.data.frame(matrix(NA, nrow = length(x) * dim1[1], ncol = dim1[2], dimnames = list(NULL, colnames(x[[1]]))))
 	for (i in seq_along(x)) res[(i - 1) * dim1[1] + rows1, ] <- x[[i]]
@@ -48,3 +52,18 @@ fname_etsearching <- function(ecotoner_settings, iflag) {
 fname_etmeasured <- function(ecotoner_settings, iflag) {
 	file.path(dir_out_dat(ecotoner_settings), paste0(iflag, "_et_measured.RData"))
 }
+
+#' @export
+write_ecotoner_row <- function(data_row, filename, tag_fun = "", tag_id = "") {
+	res <- if (all(apply(data_row, 1:2, class) %in% c("numeric", "logical", "integer", "character"))) {
+				appT <- file.exists(filename)
+				write.table(data_row, file = filename, append = appT, sep = ",", dec = ".", qmethod = "double", row.names = FALSE, col.names = !appT)
+				"written"
+			} else {
+				warning(tag_fun, ": ", tag_id, " contains unsuitable elements, e.g., a 'list'", immediate. = TRUE)
+				"error"
+			}
+
+	invisible(res)
+}
+

@@ -220,7 +220,7 @@ plot_Danz2012_abruptness_1D <- function(filename, eB_Env, eB_Veg, datFit) {
 
 
 #' @export
-Danz2012JVegSci_1D <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
+Danz2012JVegSci_1D <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, copy_FromMig1_TF, do_figures, ...) {
 	#---3. Ecological boundaries
 	#3a. Danz et al. 2012 J.Veg.Sci.: Shape of vegetation boundary in relation to environmental conditions
 	#Objective: of our boundary analysis was to evaluate whether the transition from prairie to forest across the boundary resulted from a smooth or abrupt climatic gradient, i.e. whether the transition followed pattern ‘(a)’ or pattern ‘(b)’ in Fig. 3. We used three analytical tactics to address this objective:
@@ -231,9 +231,12 @@ Danz2012JVegSci_1D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 
 	dots <- list(...)
 	seed <- if ("seed" %in% names(dots)) dots["seed"] else NULL
+	if ("flag_bfig" %in% names(dots)) flag_bfig <- dots["flag_bfig"] else do_figures <- FALSE
+	if ("dir_fig" %in% names(dots)) dir_fig <- dots["dir_fig"] else do_figures <- FALSE
 
 	etmeasure$etable[b, "Transect_ID"] <- i
 	etmeasure$etable[b, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
+	etmeasure$etable[b, "Migration_Type"] <- migtype
 	
 	if (!copy_FromMig1_TF) {
 		etmeasure$gETmeas[[b]][[migtype]]$ElevVsDist_1D <- calc_Danz2012_abruptness_1D(x = etband$Env$DistAlongXaxis_m,

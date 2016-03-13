@@ -67,7 +67,7 @@ calc_InterZoneLocation <- function(center, start, end, dist_AlongTransect, elev_
 
 
 #' @export
-InterZoneLocation <- function(i, b, b_neigh, migtype, etband, etmeasure, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
+InterZoneLocation <- function(i, b, b_neigh, migtype, etband, etmeasure, flag_bfig, copy_FromMig1_TF, do_figures, dir_fig, ...) {
 	#---4. Define location and contact/interaction zone of veg1 and veg2 for each ecological boundary
 
 	dots <- list(...)

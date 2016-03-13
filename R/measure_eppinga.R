@@ -168,7 +168,7 @@ tabulate_Eppinga2013_advance <- function(etable, b, data, flag_migtype){
 
 
 #' @export
-Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
+Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, copy_FromMig1_TF, do_figures, ...) {
 	#3b. Eppinga et al. 2013 Ecography: Location of boundary and front-runner distance
 	#Objective: inference of vegetation boundary movement from one ‘snapshot’ (e.g. an aerial photograph or satellite image) in time
 	#It is assumed that the current vegetation distribution is reflecting competitive interactions between communities over a longer time period (i.e. decades). Also, it is assumed that vegetation boundary movement is relatively slow as compared to fluctuations in environmental and meteorological conditions.
@@ -176,9 +176,12 @@ Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmea
 	
 	dots <- list(...)
 	seed <- if ("seed" %in% names(dots)) dots["seed"] else NULL
+	if ("flag_bfig" %in% names(dots)) flag_bfig <- dots["flag_bfig"] else do_figures <- FALSE
+	if ("dir_fig" %in% names(dots)) dir_fig <- dots["dir_fig"] else do_figures <- FALSE
 
 	etmeasure$etable[b, "Transect_ID"] <- i
 	etmeasure$etable[b, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
+	etmeasure$etable[b, "Migration_Type"] <- migtype
 	
 	if (!copy_FromMig1_TF) {
 		etmeasure$gETmeas[[b]][[migtype]]$optim <- calc_Eppinga2013_optpos(x = etband$Env$DistAlongXaxis_m,

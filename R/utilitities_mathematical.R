@@ -312,7 +312,8 @@ m_glm <- function(family, data.) {
 		perf <- if (data.[["is_binary"]]) performance_bernoulli(pred = fitted(mfit), obs = data.[["y"]]) else performance_bernoulli()
 	
 	} else {
-		mpred <- coef1 <- list()
+		mpred <- list()
+		coef1 <- c(beta = NA_integer_, se = NA_integer_)
 		quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
 		perf <- performance_bernoulli()
 	}
@@ -321,7 +322,8 @@ m_glm <- function(family, data.) {
 }
 
 m_glmm <- function(family, data.) {
-	mpred <- coef1 <- list()
+	mpred <- list()
+	coef1 <- c(beta = NA_integer_, se = NA_integer_)
 	quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
 	perf <- performance_bernoulli()
 
@@ -366,7 +368,8 @@ m_sig <- function(data.) {
 		perf <- if (data.[["is_binary"]]) performance_bernoulli(pred = as.numeric(fitted(mfit)), obs = data.[["y"]]) else performance_bernoulli()
 
 	} else {
-		mpred <- coef1 <- list()
+		mpred <- list()
+		coef1 <- c(beta = NA_integer_, se = NA_integer_)
 		quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
 		perf <- performance_bernoulli()
 	}

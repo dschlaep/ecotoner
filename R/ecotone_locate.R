@@ -575,16 +575,12 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 					}#end loop through migtypes
 
 					#Temporarily save data to disk file
-					if (all(sapply(etransect$etable[b, ], function(x) class(x)) %in% c("numeric", "logical", "integer", "character"))) {
-						appT <- file.exists(file_etsummary_temp(ecotoner_settings))
-						write.table(etransect$etable[b, ], file = file_etsummary_temp(ecotoner_settings),
-									append = appT, sep = ",", dec = ".", qmethod = "double",
-									row.names = FALSE, col.names = !appT)
-					} else {
-						etransect[["status"]][b] <- "error"
-						warning("'detect_ecotone_transects_from_searchpoint': ", i, " 'etransect$etable[", b, ", ]' contains unsuitable elements, e.g., a 'list'", immediate. = TRUE)
-					}
-				
+					temp <- write_ecotoner_row(data_row = etransect$etable[b, ],
+												filename = file_etsummary_temp(ecotoner_settings),
+												tag_fun = 'detect_ecotone_transects_from_searchpoint',
+												tag_id = paste0(i, " 'etransect$etable[", b, ", ]'"))
+					if (identical(temp, "error")) etransect[["status"]][b] <- "error"
+					
 					if(verbose) cat("'ecotoner' detecting: tr = ", i, "; neigh = ", b, ": prog: ", idh <- idh + 1, "\n", sep = "")
 				}
 				

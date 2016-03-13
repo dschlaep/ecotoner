@@ -1,6 +1,6 @@
 #------------------------------------------------------------#
 if (FALSE) { # TODO(drs): conversion package
-	libraries  <- c("ecotoner", "devtools")
+	libraries  <- c("devtools")
 	l <- lapply(libraries, FUN=function(lib) stopifnot(require(lib, character.only=TRUE, quietly=FALSE)))
 	
 	dir_dev <- "~/Dropbox/Work_Stuff/2_Research/Software/GitHub_Projects"
@@ -424,8 +424,6 @@ et_methods2 <- c("InterZoneLocation", "InterZonePatchDistr")
 								verbose = interactions["verbose"],
 								do_figures = interactions["figures"])
 
-	#---Results
-	write.csv(XXX, file = fXXX)
 }
 
 print(sessionInfo())

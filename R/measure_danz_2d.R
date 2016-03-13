@@ -37,9 +37,6 @@ calc_Danz2012_abruptness_2D <- function(x1, z1, x2, z2, seed = NULL) {
 	
 	#---Begin function calculations
 	if (inherits(x2, "RasterLayer") && inherits(x2, "RasterLayer")) {
-#TODO(drs): why are origins not exactly the same?
-raster::origin(z2) <- raster::origin(x2)
-
 		x2p <- raster::rasterToPoints(x2)
 		if (raster::cellStats(z2, "countNA")) z2 <- raster::calc(z2, function(z) ifelse(is.na(z), 0, z))
 		if (raster::cellStats(x2, "countNA")) z2 <- raster::mask(z2, x2)
@@ -103,9 +100,8 @@ raster::origin(z2) <- raster::origin(x2)
 			fits[[k]][[dom[[j]][["tag"]]]] <- temp[c("quals", "coef1", "perf")]
 			
 			# rescale coef1 to original scale
-			if (!is.null(fits[[k]][[dom[[j]][["tag"]]]][["coef1"]])) {
-				fits[[k]][[dom[[j]][["tag"]]]][["coef1"]] <- fits[[k]][[dom[[j]][["tag"]]]][["coef1"]] / dats[[k]][["scaled_scale"]]
-			}
+			temp <- fits[[k]][[dom[[j]][["tag"]]]][["coef1"]]
+			if (length(temp) > 0 && !anyNA(temp)) fits[[k]][[dom[[j]][["tag"]]]][["coef1"]] <- temp / dats[[k]][["scaled_scale"]]
 		}
 	}
 		
@@ -178,21 +174,19 @@ plot_Danz2012_abruptness_2D <- function(filename, xlab, preds1, preds2, data1, d
 }
 
 
-tabulate_Danz2012_abruptness_2D <- function(etable, b, data, flag_migtype) {
+tabulate_Danz2012_abruptness_2D <- function(etable, index, data) {
 #TODO(drs): consider replacing this function with 'put.ListData1Level_TableData'
 	temp <- unlist(data)
 	cname <- paste("Danz2012", names(temp), sep = "_")
 	cname_exist <- match(cname, colnames(etable), nomatch = 0)
 
 	icol <- cname_exist > 0
-	if (any(icol)) {
-		etable[b, cname_exist[icol]] <- temp[icol]
-	}
+	if (any(icol)) etable[index, cname_exist[icol]] <- temp[icol]
 
 	icol <- cname_exist == 0
 	if (any(icol)) {
-		res <- matrix(NA, nrow = max(1, nrow(etable)), ncol = sum(icol), dimnames = list(NULL, cname[icol]))
-		res[b, ] <- temp[icol]
+		res <- as.data.frame(matrix(NA, nrow = max(1, nrow(etable)), ncol = sum(icol), dimnames = list(NULL, cname[icol])))
+		res[index, ] <- temp[icol]
 		etable <- cbind(etable, res)
 	}
 	
@@ -202,7 +196,7 @@ tabulate_Danz2012_abruptness_2D <- function(etable, b, data, flag_migtype) {
 
 
 #' @export
-Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, flag_bfig, copy_FromMig1_TF, do_figures, ...) {
+Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, copy_FromMig1_TF, do_figures, ...) {
 	#---3. Ecological boundaries
 	#3a. Danz et al. 2012 J.Veg.Sci.: Shape of vegetation boundary in relation to environmental conditions
 	#Objective: of our boundary analysis was to evaluate whether the transition from prairie to forest across the boundary resulted from a smooth or abrupt climatic gradient, i.e. whether the transition followed pattern ‘(a)’ or pattern ‘(b)’ in Fig. 3. We used three analytical tactics to address this objective:
@@ -213,9 +207,13 @@ Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 
 	dots <- list(...)
 	seed <- if ("seed" %in% names(dots)) dots["seed"] else NULL
-
-	etmeasure$etable[b, "Transect_ID"] <- i
-	etmeasure$etable[b, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
+	if ("flag_bfig" %in% names(dots)) flag_bfig <- dots["flag_bfig"] else do_figures <- FALSE
+	if ("dir_fig" %in% names(dots)) dir_fig <- dots["dir_fig"] else do_figures <- FALSE
+	
+	b_migtype <- (b - 1) * length(get("migtypes", envir = etr_vars)) + which(migtype == get("migtypes", envir = etr_vars))
+	etmeasure$etable[b_migtype, "Transect_ID"] <- i
+	etmeasure$etable[b_migtype, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
+	etmeasure$etable[b_migtype, "Migration_Type"] <- migtype
 	
 	if (!copy_FromMig1_TF) {
 		# Vegetation versus elevation
@@ -233,9 +231,8 @@ Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 													end_toLeft1 = end_to_left(type_veg1(ecotoner_settings)), end_toLeft2 = end_to_left(type_veg2(ecotoner_settings)))
 	} 
 	
-	etmeasure$etable <- tabulate_Danz2012_abruptness_2D(etable = etmeasure$etable, b = b,
-														data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) "AllMigration" else migtype]],
-														flag_migtype = migtype)
+	etmeasure$etable <- tabulate_Danz2012_abruptness_2D(etable = etmeasure$etable, index = b_migtype,
+														data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) "AllMigration" else migtype]])
 
 	etmeasure	
 }
