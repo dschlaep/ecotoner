@@ -12,9 +12,9 @@ if (FALSE) { # TODO(drs): conversion package
 #------------------------------------------------------------#
 ##------PROJECT NEW/CONTD
 
-prj_status <- "new"		# one of "new" and "contd"; if "contd" then bname_settings (and bname_grids if locate_transects) must exist on disk
-bname_settings <- "20160312_1211_ecotoner_settings.rds"
-bname_grids <- "20160312_1211_ecotoner_grids.rds"
+prj_status <- "contd"		# one of "new" and "contd"; if "contd" then bname_settings (and bname_grids if locate_transects) must exist on disk
+bname_settings <- "20160314_1429_ecotoner_settings.rds"
+bname_grids <- "20160314_1429_ecotoner_grids.rds"
 time_stamp <- Sys.time()
 
 
@@ -23,9 +23,9 @@ do.debug <- FALSE
 do.demo <- TRUE		# If TRUE, then code uses the example data from the ecotoner package, i.e., can be run without additional input data
 
 
-actions <- c(	locate_transects = FALSE,	# call the transect functions detect_ecotone_transects_from_searchpoint()
+actions <- c(	locate_transects = TRUE,	# call the transect functions detect_ecotone_transects_from_searchpoint()
 				make_map = TRUE,			# draw a map of all transects
-				measure_transects = FALSE	# use methods to extract information about the located transects
+				measure_transects = TRUE	# use methods to extract information about the located transects
 			)
 
 interactions <- c(	verbose = TRUE,		# prints progress statements
@@ -56,7 +56,7 @@ if (prj_status == "new") {
 
 	transect_type(esets) <- 4
 	transect_N(esets) <- 15000
-	inhibit_searchpoints(esets) <- FALSE
+	inhibit_searchpoints(esets) <- TRUE
 	cores_N(esets) <- min(12, parallel::detectCores() - 2) # 0 or 1 will turn off parallelization
 	reproducible(esets) <- TRUE		# If TRUE, then transects set their own unique random seed (this setup is reproducible even after re-starting a parallel function call)
 	neighborhoods(esets) <- 1667
@@ -79,6 +79,7 @@ if (prj_status == "new") {
 		transect_N(esets) <- 6
 
 		if (do.demo) {
+			inhibit_searchpoints(esets) <- FALSE
 			neighborhoods(esets) <- 667
 			dir_big(esets) <- NA_character_
 			bname_searchpoints <- paste0("SearchPoints_",

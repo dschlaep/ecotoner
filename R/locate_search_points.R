@@ -54,12 +54,15 @@ sample_inhibited_init_cells <- function(N, grid, inhibit_dist, mywin = NULL, gri
 		if (is.null(grid) || !inherits(grid, "RasterLayer")) {
 			stop("ecotoner::sample_inhibited_init_cells(): either 'mywin' must be a spatstat::owin object or 'grid' must be of class 'Raster' to generate an 'owin' object")
 		} else {
-			if (!is.null(gridNA) && inherits(gridNA, "RasterLayer")) {
-				# Do not use cells where corresponding gridNA value is NA
-				grid <- raster::mask(grid, gridNA)
-			}
-			
 			if(verbose) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "'sample_inhibited_init_cells' creates a spatstat::owin object", "\n")
+			
+			# Do not use cells where corresponding gridNA value is NA
+			if (!is.null(gridNA) && inherits(gridNA, "RasterLayer")) grid <- raster::mask(grid, gridNA)
+			
+			# Do not use cells that are 0
+			if (raster::freq(grid, value = 0) > 0) grid <- raster::calc(grid, function(x) ifelse(abs(x) < sqrt(.Machine$double.eps), NA, x))
+						
+			# create owin
 			mywin <- spatstat::as.owin(as.data.frame(raster::rasterToPoints(grid)))
 			
 			if (!is.na(initwindowfile)) saveRDS(mywin, file = initwindowfile)
