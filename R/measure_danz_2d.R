@@ -18,7 +18,7 @@ calc_Danz2012_abruptness_2D <- function(x1d, z1d, x2d, z2d, seed = NULL) {
 	#		- binomial GLM: "We assume that Yi is binomial distributed with probability pi and ni = 1 independent trials"
 	#		- "The logit and probit link functions assume that you have approximately an equal number of zeros and ones"
 	#		- "The clog–log may be an option if you have considerably more zeros than ones, or vice versa; the sigmoidal curve is asymmetrical."
-	
+
 	#---Test input
 	if (!is.na(seed)) set.seed(seed)
 
@@ -36,12 +36,14 @@ calc_Danz2012_abruptness_2D <- function(x1d, z1d, x2d, z2d, seed = NULL) {
 	}	
 	
 	#---Begin function calculations
+	z2d <- raster::calc(z2d, function(x) ifelse(is.na(x), 0, x)) # Interpret NAs as absences of iveg
 	dat2d <- transect_to_long(x2d, z2d)
-	
+
 	# model fits
-	xt <- seq(min(dat2d$x), max(dat2d$x), length.out = 100)
+	xt <- seq(min(dat2d$x, na.rm = TRUE), max(dat2d$x, na.rm = TRUE), length.out = 100)
 	x1d_scaled <- scale(x1d)
 	x2d_scaled <- scale(dat2d$x)
+
 #TODO(drs): should I use data-splitting (e.g., cross-validation) to estimate model performance?
 	dats <- list('1D' = list(x = as.numeric(x1d_scaled), y = z1d, r = rep(NA, length(x1d)), w = rep(length(unique(dat2d$reps)), length(x1d)),
 							newdata = data.frame(x = scale(xt, center = attr(x1d_scaled, "scaled:center"), scale = attr(x1d_scaled, "scaled:scale"))),
@@ -111,10 +113,20 @@ add_Danz2012_abruptness_2D_panel <- function(preds, data, end_toLeft, xlab, pane
 	axis(side = 2, labels = y_ann)
 	
 	# Add more observed data
-	rug(jitter(data[["2D"]][["x"]][data[["2D"]][["y"]] == 0]), side = 1, col = adjustcolor("lightblue", alpha.f = 0.1), quiet = TRUE)
-	rug(jitter(data[["2D"]][["x"]][data[["2D"]][["y"]] == 1]), side = 3, col = adjustcolor("orange", alpha.f = 0.1), quiet = TRUE)
-	temp <- density(data[["2D"]][["x"]][data[["2D"]][["y"]] == 0]); lines(temp$x, temp$y * 0.1 / max(temp$y), col = "lightblue")
-	temp <- density(data[["2D"]][["x"]][data[["2D"]][["y"]] == 1]); lines(temp$x, 1 - temp$y * 0.1 / max(temp$y), col = "orange")
+	index_y0 <- data[["2D"]][["y"]] == 0
+	sum_y0 <- sum(index_y0)
+	index_y1 <- !index_y0
+	sum_y1 <- length(index_y0) - sum_y0
+	if (sum_y0 > 0) rug(jitter(data[["2D"]][["x"]][index_y0]), side = 1, col = adjustcolor("lightblue", alpha.f = 0.1), quiet = TRUE)
+	if (sum_y1 > 0) rug(jitter(data[["2D"]][["x"]][index_y1]), side = 3, col = adjustcolor("orange", alpha.f = 0.1), quiet = TRUE)
+	if (sum_y0 > 2) {
+		temp <- density(data[["2D"]][["x"]][index_y0])
+		lines(temp$x, temp$y * 0.1 / max(temp$y), col = "lightblue")
+	}
+	if (sum_y1 > 2) {
+		temp <- density(data[["2D"]][["x"]][index_y1])
+		lines(temp$x, 1 - temp$y * 0.1 / max(temp$y), col = "orange")
+	}
 
 	# Add model predictions
 	k <- 1
@@ -205,8 +217,8 @@ Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 		# Vegetation versus elevation
 		temp1 <- calc_Danz2012_abruptness_2D(x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$Veg1$density,
 												x2d = etband$Env$elev$grid, z2d = etband$Veg[[migtype]]$Veg1$grid, seed = seed)
-		temp2 <- calc_Danz2012_abruptness_2D(x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$dat2d$y$density,
-												x2d = etband$Env$elev$grid, z2d = etband$Veg[[migtype]]$dat2d$y$grid, seed = seed)
+		temp2 <- calc_Danz2012_abruptness_2D(x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$Veg2$density,
+												x2d = etband$Env$elev$grid, z2d = etband$Veg[[migtype]]$Veg2$grid, seed = seed)
 		etmeasure$gETmeas[[b]][[migtype]]$Veg1VsElev_2D <- temp1$fits
 		etmeasure$gETmeas[[b]][[migtype]]$Veg2VsElev_2D <- temp2$fits
 		

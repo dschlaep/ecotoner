@@ -1,5 +1,5 @@
 #' @export
-measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbose = TRUE, do_figures = TRUE) {
+measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed = NULL, verbose = TRUE, do_figures = TRUE) {
 	if (verbose) {
 		idh <- 1
 		cat("'ecotoner' measuring: tr = ", i, "; start at ", format(t1 <- Sys.time(), format = ""), "\n", sep = "")
@@ -7,6 +7,7 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 	
 	# Output containers
 	iflag <- flag_itransect(ecotoner_settings, i)
+	migtypes <- get("migtypes", envir = etr_vars)
 	
 	# Determine what to do
 	do_measure <- do_new <- TRUE
@@ -35,10 +36,11 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 	# Measure ecotones
 	if (do_measure) {
 		if (do_new) {
-			temp <- vector("list", length = length(get("migtypes", envir = etr_vars)))
-			names(temp) <- get("migtypes", envir = etr_vars)
-			template_etobs <- list(gETmeas = vector(mode = "list", length = neighbors_N(ecotoner_settings)), # list for 'gETmeas' of each neighborhood
-							etable = data.frame(matrix(NA, nrow = 1, ncol = 0))) #container combining output table results with rows for each neighborhood and migtype
+			template_etobs <- list(	gETmeas = vector(mode = "list", length = neighbors_N(ecotoner_settings)), # list for 'gETmeas' of each neighborhood
+									seeds = vector(mode = "list", length = neighbors_N(ecotoner_settings) * length(migtypes)),
+									etable = data.frame(matrix(NA, nrow = 1, ncol = 0))) #container combining output table results with rows for each neighborhood and migtype
+			temp <- vector("list", length = length(migtypes))
+			names(temp) <- migtypes
 			template_etobs$gETmeas <- lapply(template_etobs$gETmeas, function(x) temp)
 			etmeas <- vector(mode = "list", length = length(et_methods))
 			names(etmeas) <- et_methods
@@ -49,39 +51,41 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 		dir_fig <- file.path(dir_out_fig(ecotoner_settings), iflag)
 		dir.create(dir_fig, showWarnings = FALSE)
 
-		seed <- if (reseed(ecotoner_settings)) get_pseed(ecotoner_settings) else NA
-		
 		for (b in seq_len(neighbors_N(ecotoner_settings))) {
 			flag_bfig <- flag_basename(ecotoner_settings, iflag, b)
 
 #TODO(drs):	eB_InterZone <- eB_PatchSizeDist <- template_etobs	#ecological boundaries
 
 			#----3. Loop through both versions of vegetation for applying the methods : Veg$AllMigration and Veg$OnlyGoodMigration
-			for (migtype in get("migtypes", envir = etr_vars)) {
-				copy_FromMig1_TF <- if (migtype == "AllMigration") FALSE else !etransect$etbands[[b]]$Veg[["OnlyGoodMigration"]]$diffs_amongMigTypes_TF
+			for (im in seq_along(migtypes)) {
+				copy_FromMig1_TF <- if (migtypes[im] == "AllMigration") FALSE else !etransect$etbands[[b]]$Veg[["OnlyGoodMigration"]]$diffs_amongMigTypes_TF
 
-				if (verbose) cat("'ecotoner' measuring: tr = ", i, "; neigh = ", b, ": prog: ", idh <- idh + 1, "; mig-type: ", migtype, "; method: ", etm, "\n", sep = "")
+				if (verbose) cat("'ecotoner' measuring: tr = ", i, "; neigh = ", b, ": prog: ", idh <- idh + 1, "; mig-type: ", migtypes[im], "; method: ", etm, "\n", sep = "")
 				
 				# loop through measurement methods 'et_methods'
 				for (etm in et_methods) {
-					etmeas[[etm]] <- do.call(what = etm, args = list(i = i, b = b, migtype = migtype, 
+					iseed <- (b - 1) * length(migtypes) + im
+					etmeas[[etm]][["seeds"]][[iseed]] <- if (is.null(seed)) NULL else if (inherits(seed, "list")) seed[[((i - 1) * neighbors_N(ecotoner_settings) + (b - 1)) * length(migtypes) + im]] else NA
+					if (!anyNA(etmeas[[etm]][["seeds"]][[iseed]])) set.seed(etmeas[[etm]][["seeds"]][[iseed]])
+
+					etmeas[[etm]] <- do.call(what = etm, args = list(i = i, b = b, migtype = migtypes[im], 
 																		ecotoner_settings = ecotoner_settings,
 																		etband = etransect[["etbands"]][[b]],
 																		etmeasure = etmeas[[etm]],
 																		copy_FromMig1_TF = copy_FromMig1_TF,
 																		do_figures = do_figures, dir_fig = dir_fig, flag_bfig = flag_bfig,
-																		seed = seed))
+																		seed = NA))
 
 					# Write data to disk file
 					index <- which(etmeas[[etm]]$etable[, "Neighbor_Cells"] == neighborhoods(ecotoner_settings)[b] &
-									etmeas[[etm]]$etable[, "Migration_Type"] == migtype)
+									etmeas[[etm]]$etable[, "Migration_Type"] == migtypes[im])
 					write_ecotoner_row(data_row = etmeas[[etm]]$etable[index, ],
 										filename = file_etmeasure_base(ecotoner_settings, etm),
 										tag_fun = 'measure_ecotone_per_transect',
 										tag_id = paste0(i, " 'etmeas[[", etm, "]]$etable[", paste(index, collapse = "-"), ", ]'"))
 
 					# Save data to RData disk file
-					save(i, b, migtype, etmeas, file = fname_etmeasured(ecotoner_settings, iflag))
+					save(i, b, im, etmeas, file = fname_etmeasured(ecotoner_settings, iflag))
 				}
 			} # end loop through migtypes
 		} # end loop through neighborhoods
@@ -108,6 +112,8 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 #' @export
 measure_ecotones_all_transects <- function(pfun, X, et_methods, ecotoner_settings, verbose, do_figures) {
 	
+	migtypes <- get("migtypes", envir = etr_vars)
+	
 	# Load data of transects
 #TODO(drs): Should 'transect_data' be a big data object such as ff
 	#transect_data <- pfun(X, 
@@ -123,10 +129,11 @@ measure_ecotones_all_transects <- function(pfun, X, et_methods, ecotoner_setting
 		}
 		
 		if (do_measure) for (b in seq_len(neighbors_N(ecotoner_settings))) {
-			for (migtype in get("migtypes", envir = etr_vars)) {
+			for (im in seq_along(migtypes)) {
 				for (iveg in c("Veg1", "Veg2")) {
-					trans2d[[iveg]] <- transect_to_long(x = etransect[["etbands"]][[b]]$Env$elev$grid,
-												y = etransect[["etbands"]][[b]]$Veg[[migtype]][[iveg]]$grid)
+					# Interpret NAs as absences of iveg
+					y <- raster::calc(etransect[["etbands"]][[b]]$Veg[[migtypes[im]]][[iveg]]$grid, function(x) ifelse(is.na(x), 0, x))
+					trans2d[[iveg]] <- transect_to_long(x = etransect[["etbands"]][[b]]$Env$elev$grid, y = y)
 				}
 			}
 		}

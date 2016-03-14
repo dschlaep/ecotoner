@@ -21,15 +21,9 @@ An S4-class to represent the settings of an 'ecotoner' project
 
 \item{\code{cores_N}}{An integer. This project is attempted to be run on the local machine in parallel with \code{cores_N} cores, but not with more than the actual number of cores of this machine.}
 
-\item{\code{rng_seed0}}{An integer. This is the seed to set the random number generator if used.}
+\item{\code{rng_seed}}{An integer. This is the seed to set the (global) random number generator if used.}
 
-\item{\code{rng_seed1}}{An integer or \code{NULL}. The 'serial' seed. This is the seed used to set the random number generator before parallel streams are initiated. If \code{reproducible} is \code{TRUE}, rng_seed1 corresponds to rng_seed0 else to \code{NULL}.}
-
-\item{\code{rng_seed2}}{An integer vector or \code{NULL}. The 'parallel' seed. This slot captures the state of the random number generator after parallel streams of the kind of 'L'Ecuyer-CMRG' have been set up. This state will be used to re-set the generator if \code{reproducible} is \code{TRUE}.}
-
-\item{\code{reproducible}}{A logical. If \code{TRUE} then this flag sets the seed of the random number generator at the start.}
-
-\item{\code{reseed}}{A logical. If \code{TRUE} then this flag re-sets the random number generator each time a set of random numbers is generated.}
+\item{\code{reproducible}}{A logical. If \code{TRUE} then this flag sets the transect number as the seed of the random number generator for each transect function call.}
 
 \item{\code{transect_N}}{An integer. The number of search points to generated to initiate a transect search in the neighborhood of size(s) \code{neighborhoods}.}
 

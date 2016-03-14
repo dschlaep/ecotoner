@@ -58,8 +58,7 @@ if (prj_status == "new") {
 	transect_N(esets) <- 15000
 	inhibit_searchpoints(esets) <- FALSE
 	cores_N(esets) <- min(12, parallel::detectCores() - 2) # 0 or 1 will turn off parallelization
-	reproducible(esets) <- TRUE
-	reseed(esets) <- FALSE
+	reproducible(esets) <- TRUE		# If TRUE, then transects set their own unique random seed (this setup is reproducible even after re-starting a parallel function call)
 	neighborhoods(esets) <- 1667
 	stepsHullEdge(esets) <- c(1, 3)
 	clumpAreaClasses_m2(esets) <- c(1e4, 1e6)
@@ -78,8 +77,6 @@ if (prj_status == "new") {
 	if (do.debug || do.demo) {
 		interactions[seq_along(interactions)] <- TRUE
 		transect_N(esets) <- 6
-		reproducible(esets) <- TRUE
-		reseed(esets) <- do.debug
 
 		if (do.demo) {
 			neighborhoods(esets) <- 667
@@ -272,14 +269,14 @@ if (any(actions)) {
 	#---Verify folder setup
 	esets <- verify_project_paths(esets)
 
-	#---Setup: parallel, RNG, project information
-	if (interactive() || (actions["make_map"] && sum(actions) == 1)) {
-		cores_N(esets) <- 1
-	}
+	#---Setup: random number generator	
+	RNGkind_old <- RNGkind()
+
+	#---Setup: parallel, project information
+	if (interactive() || (actions["make_map"] && sum(actions) == 1)) cores_N(esets) <- 1
 	
-	old_RNGkind <- RNGkind()
 	if (cores_N(esets) > 1) {
-		cat(format(Sys.time(), format = ""), ": set up parallel cluster'\n", sep = "")
+		cat(format(Sys.time(), format = ""), ": setting up parallel cluster'\n", sep = "")
 		cl  <- if (.Platform$OS.type == "unix") {
 					parallel::makeCluster(cores_N(esets), type = "FORK", outfile = "log_ecotone.txt")
 				} else if (.Platform$OS.type == "windows") {
@@ -290,28 +287,13 @@ if (any(actions)) {
 				}
 		parallel::clusterEvalQ(cl, library("ecotoner"))
 		
-		pfun <- function(X, FUN, ...) {
-					simplify2result(if (reproducible(esets)) {
-										# load balancing is not (easily) reproducible
-										parallel::parLapply(cl, X, FUN, ...)
-									} else {
-										parallel::parLapplyLB(cl, X, FUN, ...)
-									})
-				}
+		# load balancing is reproducible if each transect sets its own unique random seed
+		pfun <- function(X, FUN, ...) simplify2result(parallel::parLapplyLB(cl, X, FUN, ...))
 	
 		# In case of abort and unable to call on.exit(); after crash, load cl and close cluster properly
 		ftemp_cl <- file.path(dir_init(esets), "ClusterData.RData")
 		save(cl, file = ftemp_cl)
-	
-		# Set up random number generator	
-		RNGkind("L'Ecuyer-CMRG")
-		parallel::clusterSetRNGStream(cl, get_sseed(esets))
-		if (prj_status == "new") esets <- init_pseed(esets)
 	} else {
-		# Set up random number generator	
-		RNGkind(kind = "default", normal.kind = "default")
-		set.seed(get_sseed(esets))
-		
 		pfun <- function(X, FUN, ...) simplify2result(lapply(X, FUN, ...))
 	}
 
@@ -329,7 +311,7 @@ if (actions["locate_transects"]) {
 	stopifnot(exists("esets"), exists("egrids"))
 	
 	#---Get search points to initiate transects
-	cat(format(Sys.time(), format = ""), ": sample ", transect_N(esets), " 'initpoints'\n", sep = "")
+	cat(format(Sys.time(), format = ""), ": sampling ", transect_N(esets), " 'initpoints'\n", sep = "")
 	initpoints <- get_transect_search_points(N = transect_N(esets),
 											grid_mask1 = if (valid_grid(grid_abut(egrids))) grid_abut(egrids) else grid_veg(egrids),
 											inhibit_dist = if (inhibit_searchpoints(esets)) ceiling(res_m(specs_grid(egrids)) * max(neighborhoods(esets)) / 2) else NULL, 
@@ -337,19 +319,22 @@ if (actions["locate_transects"]) {
 											grid_maskNA = grid_env(egrids),
 											initfile = file_searchpoints(esets),
 											initwindowfile = file_initwindow(esets),
-											seed = get_sseed(esets),
+											seed = if (reproducible(esets)) get_global_seed(esets) else NULL,
 											verbose = interactions["verbose"])
 	
 
 	#---Loop through random points
-	cat(format(Sys.time(), format = ""), ": send ", transect_N(esets), " calls to the function 'detect_ecotone_transects_from_searchpoint'\n", sep = "")
+	cat(format(Sys.time(), format = ""), ": sending ", transect_N(esets), " calls to the function 'detect_ecotone_transects_from_searchpoint'\n", sep = "")
 
-	if (do.debug) message("TODO(drs): organize output; separate action:make_summary")
-
+	seeds_locate <- if (reproducible(esets)) {
+							prepare_RNG_streams(N = N_of_location_calls(esets), iseed = get_global_seed(esets))
+					} else NULL
+					
 	resultTransects <- pfun(seq_len(transect_N(esets)), detect_ecotone_transects_from_searchpoint,
 							initpoints = initpoints,
 							ecotoner_settings = esets,
-							ecotoner_grids = egrids, 
+							ecotoner_grids = egrids,
+							seed = seeds_locate,
 							do_interim = interactions["save_interim"],
 							verbose = interactions["verbose"],
 							do_figures = interactions["figures"])
@@ -365,7 +350,7 @@ if (actions["make_map"]){
 	if (!exists("resultTransects")) resultTransects <- try(read.csv(file = file_etsummary(esets)), silent = TRUE)
 	
 	if (!inherits(resultTransects, "try-error") && nrow(resultTransects) > 0){
-		cat(format(Sys.time(), format = ""), ": draw a map with ", nrow(resultTransects), " transects\n", sep = "")
+		cat(format(Sys.time(), format = ""), ": drawing a map with ", nrow(resultTransects), " transects\n", sep = "")
 		
 		libraries2  <- c("maps")
 		l <- lapply(libraries2, function(lib) stopifnot(require(lib, character.only = TRUE, quietly = FALSE)))
@@ -388,7 +373,7 @@ if (actions["make_map"]){
 					 x1 = sp_end[, 1], y1 = sp_end[, 2],
 					 col = "orange", lwd = 2)
 			
-			map("county", col = "blue", add = TRUE)
+			maps::map("county", col = "blue", add = TRUE)
 #			plot(gadm_usa_aeanad83, border = "blue", add = TRUE)
 		dev.off()
 	} else {
@@ -405,13 +390,18 @@ if (actions["measure_transects"]) {
 	stopifnot(exists("esets"))
 
 	#---Loop through random points
-	cat(format(Sys.time(), format = ""), ": send ", transect_N(esets), " calls to the function 'measure_ecotone_per_transect'\n", sep = "")
+	cat(format(Sys.time(), format = ""), ": sending ", transect_N(esets), " calls to the function 'measure_ecotone_per_transect'\n", sep = "")
 
 et_methods_choices <- c("Danz2012JVegSci_1D", "Danz2012JVegSci_2D", "Eppinga2013Ecography", "Gastner2010AmNat")
 
+	seeds_measure1 <- if (reproducible(esets)) {
+							prepare_RNG_streams(N = N_of_measure_calls(esets), iseed = get_global_seed(esets))
+					  } else NULL
+					
 	measureTransects1 <- pfun(seq_len(transect_N(esets)), measure_ecotone_per_transect,
 								et_methods = c("Danz2012JVegSci_2D"),
 								ecotoner_settings = esets,
+								seed = seeds_measure1,
 								verbose = interactions["verbose"],
 								do_figures = interactions["figures"])
 	
@@ -437,5 +427,5 @@ stop()
 	# Parallel clean-up
 	parallel::stopCluster(cl)
 	unlink(ftemp_cl)
-	RNGkind(kind = old_RNGkind[1], normal.kind = old_RNGkind[2])
+	RNGkind(kind = RNGkind_old[1], normal.kind = RNGkind_old[2])
 

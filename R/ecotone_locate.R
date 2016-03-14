@@ -5,14 +5,12 @@
 establish_ecotone_transect <- function(x) x
 #TODO(drs): devtools::document() doesn't like to export the real function below; this is a hack
 
-establish_ecotone_transect <- function(i, b, etband, etable, ipoint, ecotoner_settings, ecotoner_grids, elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped, dir_fig, figBasename, verbose, do_figures) {
+establish_ecotone_transect <- function(i, b, etband, etable, ipoint, ecotoner_settings, ecotoner_grids, elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped, dir_fig, figBasename, verbose, do_figures, seed) {
 	if	(verbose) {
 		cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; start at ", format(Sys.time(), format = ""), "\n", sep = "")
 		idh <- 0 #counter for debug 'here' statements
 	}
 	
-	seed <- if (reseed(ecotoner_settings)) get_pseed(ecotoner_settings) else NA
-
 ## TODO(drs): assumptions used about 'gap.rat'; replace properly with object of class 'TypeInfo'
 gap.rat <- df_veg(ecotoner_grids)
 	
@@ -387,20 +385,18 @@ gap.rat <- df_veg(ecotoner_grids)
 #' Identify suitably migrated vegetation patches of the ecotone band transect, extract relevant information
 #'
 #' @export
-identify_migration_patches <- function(b, ecotoner_settings, etband, etable, dir_fig, figBasename, verbose, do_figures) {
+identify_migration_patches <- function(i, b, ecotoner_settings, etband, etable, dir_fig, figBasename, verbose, do_figures, seed) {
 	if(verbose) {
-		cat("'ecotoner' migrating: neigh = ", b, "; start at ", format(Sys.time(), format = ""), "\n", sep = "")
+		cat("'ecotoner' migrating: tr = ", i, "; neigh = ", b, "; start at ", format(Sys.time(), format = ""), "\n", sep = "")
 		idh <- 0 #counter for debug 'here' statements
 	}
-	
-	seed <- if (reseed(ecotoner_settings)) get_pseed(ecotoner_settings) else NA
 	
 	#2e3ii. Veg$OnlyGoodMigration: Quality of x- vs y-axis migration routes: idea: identify patches that 'drain' out either at y=1 or at y=200; assumption: most likely migration route = flowpath
 	#Use Rook's case re-calculated patches (patches4) and not rotates ones (patches8)
 	flowdir <- raster::terrain(etband$Env$elev$grid, opt="flowdir")
 
 	for (iveg in c("Veg1", "Veg2")) {
-		if(verbose) cat("'ecotoner' migrating: neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
+		if(verbose) cat("'ecotoner' migrating: tr = ", i, "; neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
 		
 		type_veg <- if (iveg == "Veg1") type_veg1(ecotoner_settings) else type_veg2(ecotoner_settings)
 		migration <- calc.MigrationRoutes_EstimateFlowpaths(elev=etband$Env$elev$grid, flowdir=flowdir, patches=etband$Veg$AllMigration[[iveg]]$patches4, end_toLeft=end_to_left(type_veg), seed = seed)
@@ -423,7 +419,7 @@ identify_migration_patches <- function(b, ecotoner_settings, etband, etable, dir
 	#Store migration band transect data for analysis
 	etable <- get.BandTransect_TableDataMigration(etable=etable, b=b, data=etband$Veg$OnlyGoodMigration)
 	
-	if(verbose) cat("'ecotoner' migrating: neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
+	if(verbose) cat("'ecotoner' migrating: tr = ", i, "; neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
 
 	if(do_figures) map_flowpaths(filename=file.path(dir_fig, paste0(figBasename, "FlowpathsApproximatingMigration.pdf")),
 							elev=etband$Env$elev$grid, 
@@ -437,7 +433,7 @@ identify_migration_patches <- function(b, ecotoner_settings, etband, etable, dir
 
 # Workhorse function
 #' @export
-detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_settings, ecotoner_grids, do_interim = TRUE, verbose = TRUE, do_figures = TRUE) {
+detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_settings, ecotoner_grids, seed = NULL, do_interim = TRUE, verbose = TRUE, do_figures = TRUE) {
 	if (verbose) {
 		idh <- 0 #counter for debug 'here' statements
 		cat("'ecotoner' detecting: tr = ", i, "; start at ", format(t1 <- Sys.time(), format = ""), "\n", sep = "")
@@ -450,6 +446,7 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 	# Result container
 	etransect <- list(etbands = vector(mode = "list", length = neighbors_N(ecotoner_settings)), # list for 'etband' of each neighborhood
 						status = rep("searching", neighbors_N(ecotoner_settings)), # "located", "notransect", "searching", "error"
+						seeds = vector(mode = "list", length = neighbors_N(ecotoner_settings)),
 						etable = list()) #container combining output table results from each neighborhood
 
 
@@ -506,6 +503,9 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 			asp201SDCropped <- temp$grid_aspect_sd_cropped
 	
 			for (b in seq_len(neighbors_N(ecotoner_settings))) { #if no transect can be established then proceed to next initpoint
+				etransect[["seeds"]][[b]] <- if (is.null(seed)) NULL else if (inherits(seed, "list")) seed[[(i - 1) * neighbors_N(ecotoner_settings) + b]] else NA
+				if (!anyNA(etransect[["seeds"]][[b]])) set.seed(etransect[["seeds"]][[b]])
+				
 				flag_bfig <- flag_basename(ecotoner_settings, iflag, b)
 				etransect[["status"]][b] <- "searching"
 			
@@ -515,7 +515,8 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 												etable = etransect[["etable"]],
 												ipoint, ecotoner_settings, ecotoner_grids,
 												elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped,
-												dir_fig, flag_bfig, verbose, do_figures), silent = TRUE)
+												dir_fig, flag_bfig, verbose, do_figures,
+												seed = NA), silent = TRUE)
 					
 					if (!inherits(temp, "try-error")) {
 						etransect[["etbands"]][[b]] <- temp[["etband"]]
@@ -535,10 +536,11 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 				} #end of do.tempData1 == FALSE
 
 				if (do.tempData2 && etransect[["status"]][b] == "searching") {
-					temp <- try(identify_migration_patches(b, ecotoner_settings,
+					temp <- try(identify_migration_patches(i, b, ecotoner_settings,
 															etband = etransect[["etbands"]][[b]],
 															etable = etransect[["etable"]],
-															dir_fig, flag_bfig, verbose, do_figures), silent = TRUE)
+															dir_fig, flag_bfig, verbose, do_figures,
+															seed = NA), silent = TRUE)
 					
 					if (!inherits(temp, "try-error")) {
 						etransect[["etbands"]][[b]] <- temp[["etband"]]

@@ -1,3 +1,46 @@
+#' Implementation of Pierre L'Ecuyer's RngStreams for N tasks
+#'
+#' The function \code{\link{parallel::clusterSetRNGStream}} creates a stream for each slave/core, and thus replicability can only realized if each task is assigned to a the same slave at each repeated call. This is usually not guaranteed with load-balancing parallel computations or when a long computation is being re-started continuing on previously produced results.
+#' This implementation generates a stream for each unique tasks and thus avoids those two problems.
+#'
+#' The current RNG kind, if required, must be captures before calling this function because the function sets it to "L'Ecuyer-CMRG" (see examples).
+#'
+#' @param N An integer. The number of streams to generate.
+#' @param iseed An integer or \code{NULL}. The seed used by set.seed before generating the streams.
+#' @return A vector of length N containing the seed for each stream. 
+#' @examples
+#' RNGkind_old <- RNGkind()
+#' seeds <- prepare_RNG_streams(10, iseed = 123)
+#' # do work with random numbers
+#' RNGkind(kind = RNGkind_old[1], normal.kind = RNGkind_old[2])
+#' @export
+prepare_RNG_streams <- function(N, iseed = NULL) {
+	# based on parallel::clusterSetRNGStream
+	
+    oldseed <- if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
+        			get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+    			} else NULL
+    
+    RNGkind("L'Ecuyer-CMRG")
+    
+    if (!is.null(iseed)) set.seed(iseed)
+
+    seeds <- vector("list", N)
+    seeds[[1L]] <- .Random.seed
+    
+    for (i in seq_len(N - 1L)) seeds[[i + 1L]] <- parallel::nextRNGStream(seeds[[i]])
+    
+    if (!is.null(oldseed)) {
+        assign(".Random.seed", oldseed, envir = .GlobalEnv)
+    } else {
+    	rm(.Random.seed, envir = .GlobalEnv)
+    }
+	
+	seeds
+}
+
+
+
 #' Determine whether a number is odd.
 #'
 #' @param x An integer (vector).

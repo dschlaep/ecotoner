@@ -145,10 +145,66 @@ get_xyz <- function(spdf, field) {
 	sp:::as.data.frame.SpatialPointsDataFrame(spdf)[c("x", "y", field)]
 }
 
+#' rasterToPoints
+#'
+#' Identical to \code{\link{raster::rasterToPoints}} if \code{not_convertible} is \code{NULL}.
+#'
+#' rasterToPoints does not convert cells with values that are contained as single values in not_convertible or that are within and including the range of min-max of the length two vectors of not_convertible.
+#'
+#' @inheritParams raster::rasterToPoints
+#' @param not_convertible A list of single elements, e.g., NA, 10, and of vectors of length two, e.g., c(0, 10).
+#'
+#' @examples
+#' if (requireNamespace("raster")) {
+#'   r <- raster::raster(nrow = 5, ncol = 5)
+#'   r[] <- 1:(raster::ncell(r))
+#'   r[1:5] <- NA
+#'   
+#'   identical(rasterToPoints(r, not_convertible = NULL), raster::rasterToPoints(r))
+#'   rasterToPoints(r, not_convertible = NA)
+#'   rasterToPoints(r, not_convertible = list(NA, 25, c(7.1, 20.5)))
+#' }
+#' @export
+rasterToPoints <- function(x, fun = NULL, spatial = FALSE, not_convertible = list(NA), ...) {
+	if (!is.null(not_convertible)) {
+		keep_NA <- FALSE
+		temp_grid <- if (anyNA(not_convertible) && raster::cellStats(x, "countNA") > 0) {
+							# we want cells with NA values to be converted to points
+							# find a placeholder value
+							x_vals <- sort(raster::unique(x))
+							val_for_NA <- min(x_vals, na.rm = TRUE) - 1
+							keep_NA <- TRUE
+							raster::calc(x, function(x) ifelse(is.na(x), val_for_NA, x))
+						} else x
+		
+		res <- raster::rasterToPoints(temp_grid, fun = fun, spatial = spatial, ...)
+		
+		for (i in seq_along(not_convertible)) {
+			if (nrow(res) == 0) break
+			if (!is.na(not_convertible[i])) {
+				iremove <- FALSE
+				if (length(not_convertible[i][[1]]) == 1) {
+					iremove <- res[, 'layer'] == not_convertible[i][[1]]
+				}
+				if (length(not_convertible[i][[1]]) == 2) {
+					iremove <- res[, 'layer'] >= not_convertible[i][[1]][1] & res[, 'layer'] <= not_convertible[i][[1]][2]
+				}
+				if (sum(iremove) > 0) res <- res[!iremove, , drop = FALSE]
+			}
+		}
+
+		if (keep_NA) res[res[, 'layer'] == val_for_NA, 'layer'] <- NA
+		
+	} else {
+		res <- raster::rasterToPoints(x, fun = fun, spatial = spatial, ...)
+	}
+	
+	res
+}
 
 transect_to_long <- function(x, y, na.rm = TRUE) {
-	if (inherits(x, "RasterLayer")) x <- raster::rasterToPoints(x)
-	if (inherits(y, "RasterLayer")) y <- raster::rasterToPoints(y)
+	if (inherits(x, "RasterLayer")) x <- rasterToPoints(x, not_convertible = NA)
+	if (inherits(y, "RasterLayer")) y <- rasterToPoints(y, not_convertible = NA)
 	
 	if (inherits(x, "matrix") && inherits(y, "matrix") && nrow(x) == nrow(y) && ncol(x) >= 3 && ncol(y) >= 3) {
 		if (na.rm) isnotna <- !(is.na(x[, 3]) | is.na(y[, 3])) else rep(TRUE, nrow(x))

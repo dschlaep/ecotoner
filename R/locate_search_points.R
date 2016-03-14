@@ -144,11 +144,13 @@ get_transect_search_points <- function(N, grid_mask1, mywindow = NULL, inhibit_d
 		ip_N <- 0L
 	}
 	
+	if (!is.na(seed)) set.seed(seed)
+
 	if (ip_N < N) {
 		dont_inhibit <- is.null(inhibit_dist) || inhibit_dist <= 0
 		
 		if (!dont_inhibit) {
-			temp <- try(sample_inhibited_init_cells(N = N, grid = grid_mask1, inhibit_dist = inhibit_dist, mywin = mywindow, gridNA = grid_maskNA, pts_init = initpoints, initwindowfile = initwindowfile, seed = seed, verbose = verbose), silent = TRUE)
+			temp <- try(sample_inhibited_init_cells(N = N, grid = grid_mask1, inhibit_dist = inhibit_dist, mywin = mywindow, gridNA = grid_maskNA, pts_init = initpoints, initwindowfile = initwindowfile, seed = NA, verbose = verbose), silent = TRUE)
 			if (inherits(temp, "try-error")) {
 				dont_inhibit <- TRUE
 			} else {	
@@ -157,7 +159,7 @@ get_transect_search_points <- function(N, grid_mask1, mywindow = NULL, inhibit_d
 		}
 		
 		if (dont_inhibit) {
-			initpoints <- sample_init_cells(N = N, grid = grid_mask1, gridNA = grid_maskNA, pts_init = initpoints, seed = seed, verbose = verbose)
+			initpoints <- sample_init_cells(N = N, grid = grid_mask1, gridNA = grid_maskNA, pts_init = initpoints, seed = NA, verbose = verbose)
 		}
 		
 		if (!is.na(initfile)) saveRDS(initpoints, file = initfile)

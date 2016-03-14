@@ -67,3 +67,9 @@ write_ecotoner_row <- function(data_row, filename, tag_fun = "", tag_id = "") {
 	invisible(res)
 }
 
+#' @export
+N_of_location_calls <- function(ecotoner_settings) transect_N(ecotoner_settings) * neighbors_N(ecotoner_settings)
+
+
+#' @export
+N_of_measure_calls <- function(ecotoner_settings) transect_N(ecotoner_settings) * neighbors_N(ecotoner_settings) * length(get("migtypes", envir = etr_vars))

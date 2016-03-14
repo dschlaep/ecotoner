@@ -4,8 +4,8 @@
 \alias{identify_migration_patches}
 \title{Identify suitably migrated vegetation patches of the ecotone band transect, extract relevant information}
 \usage{
-identify_migration_patches(b, ecotoner_settings, etband, etable, dir_fig,
-  figBasename, verbose, do_figures)
+identify_migration_patches(i, b, ecotoner_settings, etband, etable, dir_fig,
+  figBasename, verbose, do_figures, seed)
 }
 \description{
 Identify suitably migrated vegetation patches of the ecotone band transect, extract relevant information
