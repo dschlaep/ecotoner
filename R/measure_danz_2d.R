@@ -9,7 +9,7 @@
 #' @param x A numeric vector. Predictor along the ecotone transect from left-right. The length of x has to correspond to the ecotone transect. For instance, distance along the transect.
 #' @param z A numeric vector. The outcome along the ecotone transect, e.g., vegetation density.
 #' 
-calc_Danz2012_abruptness_2D <- function(x1, z1, x2, z2, seed = NULL) {
+calc_Danz2012_abruptness_2D <- function(x1d, z1d, x2d, z2d, seed = NULL) {
 	# logistic regression on z ~ x with repeated 'rows' along the transect
 	# idea by ld; implementation by drs
 
@@ -22,51 +22,37 @@ calc_Danz2012_abruptness_2D <- function(x1, z1, x2, z2, seed = NULL) {
 	#---Test input
 	if (!is.na(seed)) set.seed(seed)
 
-	if (!(length(x1) == length(z1))) {
-		stop("ecotoner::calc_Danz2012_abruptness_2D(): arguments 'x1' and 'z1' describe the same transect and thus must have the same length")
+	if (!(length(x1d) == length(z1d))) {
+		stop("ecotoner::calc_Danz2012_abruptness_2D(): arguments 'x1d' and 'z1d' describe the same transect and thus must have the same length")
 	}
-	if (!(inherits(x2, "RasterLayer") && inherits(z2, "RasterLayer")) && !(inherits(x2, "matrix") && inherits(z2, "matrix"))) {
-		stop("ecotoner::calc_Danz2012_abruptness_2D(): both argument(s) 'x2' and 'z2' must be either matrices or a rasters")
+	if (!(inherits(x2d, "RasterLayer") && inherits(z2d, "RasterLayer")) && !(inherits(x2d, "matrix") && inherits(z2d, "matrix"))) {
+		stop("ecotoner::calc_Danz2012_abruptness_2D(): both argument(s) 'x2d' and 'z2d' must be either matrices or a rasters")
 	}
-	if (inherits(x2, "RasterLayer") && inherits(x2, "RasterLayer") && !raster::compareRaster(x2, z2)) {
-		stop("ecotoner::calc_Danz2012_abruptness_2D(): argument(s) 'x2' and 'z2' describe the same transect and must be comparable rasters")
+	if (inherits(x2d, "RasterLayer") && inherits(x2d, "RasterLayer") && !raster::compareRaster(x2d, z2d)) {
+		stop("ecotoner::calc_Danz2012_abruptness_2D(): argument(s) 'x2d' and 'z2d' describe the same transect and must be comparable rasters")
 	} else
-	if (inherits(x2, "matrix") && inherits(z2, "matrix") && !(identical(dim(x2), dim(z2)) && ncol(x2) >= 3)) {
-		stop("ecotoner::calc_Danz2012_abruptness_2D(): argument(s) 'x2' and 'z2' describe the same transect and must be comparable matrices with at least 3 columns: x, y, value")
+	if (inherits(x2d, "matrix") && inherits(z2d, "matrix") && !(identical(dim(x2d), dim(z2d)) && ncol(x2d) >= 3)) {
+		stop("ecotoner::calc_Danz2012_abruptness_2D(): argument(s) 'x2d' and 'z2d' describe the same transect and must be comparable matrices with at least 3 columns: x, y, value")
 	}	
 	
 	#---Begin function calculations
-	if (inherits(x2, "RasterLayer") && inherits(x2, "RasterLayer")) {
-		x2p <- raster::rasterToPoints(x2)
-		if (raster::cellStats(z2, "countNA")) z2 <- raster::calc(z2, function(z) ifelse(is.na(z), 0, z))
-		if (raster::cellStats(x2, "countNA")) z2 <- raster::mask(z2, x2)
-		z2p <- raster::rasterToPoints(z2)
-	
-		veg2 <- z2p[, "layer"]
-		grad2 <- x2p[, "layer"]
-		rows2 <- x2p[, "y"]
-	} else if (inherits(x2, "matrix") && inherits(z2, "matrix")) {
-		isnotna <- !(is.na(z2[, 3]) | is.na(x2[, 3]))
-		veg2 <- z2[isnotna, 3]
-		grad2 <- x2[isnotna, 3]
-		rows2 <- x2[isnotna, 2]
-	}
+	dat2d <- transect_to_long(x2d, z2d)
 	
 	# model fits
-	xt <- seq(min(grad2), max(grad2), length.out = 100)
-	x1s <- scale(x1)
-	grad2s <- scale(grad2)
+	xt <- seq(min(dat2d$x), max(dat2d$x), length.out = 100)
+	x1d_scaled <- scale(x1d)
+	x2d_scaled <- scale(dat2d$x)
 #TODO(drs): should I use data-splitting (e.g., cross-validation) to estimate model performance?
-	dats <- list('1D' = list(x = as.numeric(x1s), y = z1, r = rep(NA, length(x1)), w = rep(length(unique(rows2)), length(x1)),
-							newdata = data.frame(x = scale(xt, center = attr(x1s, "scaled:center"), scale = attr(x1s, "scaled:scale"))),
-							is_binary = is_binary(z1),
-							scaled_scale = attr(x1s, "scaled:scale")),
-				 '2D' = list(x = as.numeric(grad2s), y = veg2, r = factor(rows2),
-				 			newdata = data.frame(x = scale(xt, center = attr(grad2s, "scaled:center"), scale = attr(grad2s, "scaled:scale"))),
-				 			is_binary = is_binary(veg2),
-							scaled_scale = attr(grad2s, "scaled:scale"))
+	dats <- list('1D' = list(x = as.numeric(x1d_scaled), y = z1d, r = rep(NA, length(x1d)), w = rep(length(unique(dat2d$reps)), length(x1d)),
+							newdata = data.frame(x = scale(xt, center = attr(x1d_scaled, "scaled:center"), scale = attr(x1d_scaled, "scaled:scale"))),
+							is_binary = is_binary(z1d),
+							scaled_scale = attr(x1d_scaled, "scaled:scale")),
+				 '2D' = list(x = as.numeric(x2d_scaled), y = dat2d$y, r = factor(dat2d$reps),
+				 			newdata = data.frame(x = scale(xt, center = attr(x2d_scaled, "scaled:center"), scale = attr(x2d_scaled, "scaled:scale"))),
+				 			is_binary = is_binary(dat2d$y),
+							scaled_scale = attr(x2d_scaled, "scaled:scale"))
 				)
-	plot_data <- list('1D' = list(x = x1, y = z1), '2D' = list(x = grad2, y = veg2), newdata = xt)
+	plot_data <- list('1D' = list(x = x1d, y = z1d), '2D' = list(x = dat2d$x, y = dat2d$y), newdata = xt)
 	
 	# GLM
 	# 	Model: P(Y_ij = 1) = link(b_0 + b_1 * X_ij) with X_ij = environmental gradient
@@ -217,10 +203,10 @@ Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 	
 	if (!copy_FromMig1_TF) {
 		# Vegetation versus elevation
-		temp1 <- calc_Danz2012_abruptness_2D(x1 = etband$Env$elev$YMeans_ForEachX, z1 = etband$Veg[[migtype]]$Veg1$density,
-												x2 = etband$Env$elev$grid, z2 = etband$Veg[[migtype]]$Veg1$grid, seed = seed)
-		temp2 <- calc_Danz2012_abruptness_2D(x1 = etband$Env$elev$YMeans_ForEachX, z1 = etband$Veg[[migtype]]$Veg2$density,
-												x2 = etband$Env$elev$grid, z2 = etband$Veg[[migtype]]$Veg2$grid, seed = seed)
+		temp1 <- calc_Danz2012_abruptness_2D(x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$Veg1$density,
+												x2d = etband$Env$elev$grid, z2d = etband$Veg[[migtype]]$Veg1$grid, seed = seed)
+		temp2 <- calc_Danz2012_abruptness_2D(x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$dat2d$y$density,
+												x2d = etband$Env$elev$grid, z2d = etband$Veg[[migtype]]$dat2d$y$grid, seed = seed)
 		etmeasure$gETmeas[[b]][[migtype]]$Veg1VsElev_2D <- temp1$fits
 		etmeasure$gETmeas[[b]][[migtype]]$Veg2VsElev_2D <- temp2$fits
 		

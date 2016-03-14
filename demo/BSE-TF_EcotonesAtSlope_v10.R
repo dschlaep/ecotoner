@@ -418,7 +418,7 @@ et_methods_choices <- c("Danz2012JVegSci_1D", "Danz2012JVegSci_2D", "Eppinga2013
 stop("TODO(drs): not implemented")	
 et_methods2 <- c("InterZoneLocation", "InterZonePatchDistr")
 
-	measureTransects2 <- pfun(seq_len(transect_N(esets)), measure_ecotones_all_transects,
+	measureTransects2 <- measure_ecotones_all_transects(pfun, seq_len(transect_N(esets)),
 								et_methods = c("Danz2012JVegSci_global_2D"),
 								ecotoner_settings = esets,
 								verbose = interactions["verbose"],

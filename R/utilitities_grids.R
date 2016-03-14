@@ -145,3 +145,20 @@ get_xyz <- function(spdf, field) {
 	sp:::as.data.frame.SpatialPointsDataFrame(spdf)[c("x", "y", field)]
 }
 
+
+transect_to_long <- function(x, y, na.rm = TRUE) {
+	if (inherits(x, "RasterLayer")) x <- raster::rasterToPoints(x)
+	if (inherits(y, "RasterLayer")) y <- raster::rasterToPoints(y)
+	
+	if (inherits(x, "matrix") && inherits(y, "matrix") && nrow(x) == nrow(y) && ncol(x) >= 3 && ncol(y) >= 3) {
+		if (na.rm) isnotna <- !(is.na(x[, 3]) | is.na(y[, 3])) else rep(TRUE, nrow(x))
+		vy <- y[isnotna, 3]
+		vx <- x[isnotna, 3]
+		rows <- x[isnotna, 2]
+	} else {
+		vx <- vy <- rows <- NA
+	}
+	
+	list(x = vx, y = vy, reps = rows)
+}
+

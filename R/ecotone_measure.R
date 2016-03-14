@@ -1,7 +1,4 @@
 #' @export
-measure_ecotones_all_transects <- function(x) {return(NULL)}
-
-#' @export
 measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbose = TRUE, do_figures = TRUE) {
 	if (verbose) {
 		idh <- 1
@@ -106,3 +103,37 @@ measure_ecotone_per_transect <- function(i, ecotoner_settings, et_methods, verbo
 
 	i
 }	
+
+
+#' @export
+measure_ecotones_all_transects <- function(pfun, X, et_methods, ecotoner_settings, verbose, do_figures) {
+	
+	# Load data of transects
+#TODO(drs): Should 'transect_data' be a big data object such as ff
+	#transect_data <- pfun(X, 
+	
+	for (i in X) {
+		iflag <- flag_itransect(ecotoner_settings, i)
+		
+		do_measure <- TRUE
+		if (file.exists(fname_etlocated(ecotoner_settings, iflag))) {
+			load(fname_etlocated(ecotoner_settings, iflag)) #i, b, and etransect loaded
+		} else {
+			do_measure <- FALSE # no suitable transect located for search point i
+		}
+		
+		if (do_measure) for (b in seq_len(neighbors_N(ecotoner_settings))) {
+			for (migtype in get("migtypes", envir = etr_vars)) {
+				for (iveg in c("Veg1", "Veg2")) {
+					trans2d[[iveg]] <- transect_to_long(x = etransect[["etbands"]][[b]]$Env$elev$grid,
+												y = etransect[["etbands"]][[b]]$Veg[[migtype]][[iveg]]$grid)
+				}
+			}
+		}
+
+	}
+	
+	
+	X
+}
+
