@@ -38,23 +38,26 @@ calc_Danz2012_abruptness_2D <- function(x1d, z1d, x2d, z2d, seed = NULL) {
 	#---Begin function calculations
 	z2d <- raster::calc(z2d, function(x) ifelse(is.na(x), 0, x)) # Interpret NAs as absences of iveg
 	dat2d <- transect_to_long(x2d, z2d)
+	if (nrow(dat2d) == 0 || all(is.na(dat2d))) {
+		stop("ecotoner::calc_Danz2012_abruptness_2D(): arguments 'x2d' and 'z2d' combined contain only NAs")
+	}	
 
 	# model fits
-	xt <- seq(min(dat2d$x, na.rm = TRUE), max(dat2d$x, na.rm = TRUE), length.out = 100)
+	xt <- seq(min(dat2d[, "x"], na.rm = TRUE), max(dat2d[, "x"], na.rm = TRUE), length.out = 100)
 	x1d_scaled <- scale(x1d)
-	x2d_scaled <- scale(dat2d$x)
+	x2d_scaled <- scale(dat2d[, "x"])
 
 #TODO(drs): should I use data-splitting (e.g., cross-validation) to estimate model performance?
-	dats <- list('1D' = list(x = as.numeric(x1d_scaled), y = z1d, r = rep(NA, length(x1d)), w = rep(length(unique(dat2d$reps)), length(x1d)),
+	dats <- list('1D' = list(x = as.numeric(x1d_scaled), y = z1d, r = rep(NA, length(x1d)), w = rep(length(unique(dat2d[, "reps"])), length(x1d)),
 							newdata = data.frame(x = scale(xt, center = attr(x1d_scaled, "scaled:center"), scale = attr(x1d_scaled, "scaled:scale"))),
 							is_binary = is_binary(z1d),
 							scaled_scale = attr(x1d_scaled, "scaled:scale")),
-				 '2D' = list(x = as.numeric(x2d_scaled), y = dat2d$y, r = factor(dat2d$reps),
+				 '2D' = list(x = as.numeric(x2d_scaled), y = dat2d[, "y"], r = factor(dat2d[, "reps"]),
 				 			newdata = data.frame(x = scale(xt, center = attr(x2d_scaled, "scaled:center"), scale = attr(x2d_scaled, "scaled:scale"))),
-				 			is_binary = is_binary(dat2d$y),
+				 			is_binary = is_binary(dat2d[, "y"]),
 							scaled_scale = attr(x2d_scaled, "scaled:scale"))
 				)
-	plot_data <- list('1D' = list(x = x1d, y = z1d), '2D' = list(x = dat2d$x, y = dat2d$y), newdata = xt)
+	plot_data <- list('1D' = data.frame(x = x1d, y = z1d), '2D' = as.data.frame(dat2d[, c("x", "y")]), newdata = xt)
 	
 	# GLM
 	# 	Model: P(Y_ij = 1) = link(b_0 + b_1 * X_ij) with X_ij = environmental gradient

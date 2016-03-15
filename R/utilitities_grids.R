@@ -154,6 +154,7 @@ get_xyz <- function(spdf, field) {
 #' @inheritParams raster::rasterToPoints
 #' @param not_convertible A list of single elements, e.g., NA, 10, and of vectors of length two, e.g., c(0, 10).
 #'
+#' @seealso \code{\link{raster::rasterToPoints}} which this function simplifies
 #' @examples
 #' if (requireNamespace("raster")) {
 #'   r <- raster::raster(nrow = 5, ncol = 5)
@@ -208,14 +209,47 @@ transect_to_long <- function(x, y, na.rm = TRUE) {
 	if (inherits(y, "RasterLayer")) y <- rasterToPoints(y, not_convertible = NULL)
 	
 	if (inherits(x, "matrix") && inherits(y, "matrix") && nrow(x) == nrow(y) && ncol(x) >= 3 && ncol(y) >= 3) {
-		if (na.rm) isnotna <- !(is.na(x[, 3]) | is.na(y[, 3])) else rep(TRUE, nrow(x))
-		vy <- y[isnotna, 3]
-		vx <- x[isnotna, 3]
-		rows <- x[isnotna, 2]
+		isnotna <- if (na.rm) !(is.na(x[, 3]) | is.na(y[, 3])) else rep(TRUE, nrow(x))
+		res <- matrix(NA, nrow = sum(isnotna), ncol = 3, dimnames = list(NULL, c("x", "y", "reps")))
+		res[, "x"] <- x[isnotna, 3]
+		res[, "y"] <- y[isnotna, 3]
+		res[, "reps"] <- x[isnotna, 2]
 	} else {
-		vx <- vy <- rows <- NA
+		res <- matrix(NA, nrow = 0, ncol = 3, dimnames = list(NULL, c("x", "y", "reps")))
 	}
 	
-	list(x = vx, y = vy, reps = rows)
+	res
 }
 
+
+#' An implementation of a Simple Sequential Inhibition (SSI) process
+#'
+#' rSSI of cell-center points and avoiding spatstat. This function generates a random pattern of points selected from \code{win} all of which have at least \code{r} units distance to each other.
+#'
+#' This function implements the same process as \code{\link{spatstat::rSSI}}. \code{\link{spatstat::rSSI}} relies on \code{win} being of class \code{owin}, produces an object of class \code{ppp} - both very memory-intensive classes -, and copies such objects excessively. For instance, a matrix with 75 million rows (1.1 GB memory) was translated into an object of class \code{owin} of 16.8 GB memory usage. Running \code{\link{spatstat::rSSI}} on this 'owin' object failed after the process required more than than 84 GB memory - more than was available.
+#' 
+#' @inheritParams spatstat::rSSI
+#' @seealso \code{\link{spatstat::rSSI}} which this function simplifies
+#' @export
+rSSI2 <- function(r, n, win, giveup = 1000, x.init = NULL, ...) {
+    X <- if (inherits(x.init, "matrix") && ncol(x.init) == 2) {
+				x.init[, c("x", "y")]
+			} else {
+				matrix(NA, nrow = 0, ncol = 2, dimnames = list(NULL, c("x", "y")))
+			}
+	
+    r2 <- r^2
+    N <- nrow(win)
+    
+    ntries <- 0    
+    while (ntries < giveup && nrow(X) < n) {
+        qq <- win[sample.int(N, size = 1L), c("x", "y")]
+
+        if (all((qq["x"] - X[, "x"])^2 + (qq["y"] - X[, "y"])^2 > r2)) {
+        	X <- rbind(X, qq)
+        	ntries <- 0
+        } else ntries <- ntries + 1
+    }
+    
+	X
+}

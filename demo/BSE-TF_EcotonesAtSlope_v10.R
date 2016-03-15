@@ -13,8 +13,8 @@ if (FALSE) { # TODO(drs): conversion package
 ##------PROJECT NEW/CONTD
 
 prj_status <- "contd"		# one of "new" and "contd"; if "contd" then bname_settings (and bname_grids if locate_transects) must exist on disk
-bname_settings <- "20160314_1429_ecotoner_settings.rds"
-bname_grids <- "20160314_1429_ecotoner_grids.rds"
+bname_settings <- "20160315_0752_ecotoner_settings.rds"
+bname_grids <- "20160315_0752_ecotoner_grids.rds"
 time_stamp <- Sys.time()
 
 
@@ -57,9 +57,9 @@ if (prj_status == "new") {
 	transect_type(esets) <- 4
 	transect_N(esets) <- 15000
 	inhibit_searchpoints(esets) <- TRUE
-	cores_N(esets) <- min(12, parallel::detectCores() - 2) # 0 or 1 will turn off parallelization
+	cores_N(esets) <- min(23, parallel::detectCores() - 1) # 0 or 1 will turn off parallelization
 	reproducible(esets) <- TRUE		# If TRUE, then transects set their own unique random seed (this setup is reproducible even after re-starting a parallel function call)
-	neighborhoods(esets) <- 1667
+	neighborhoods(esets) <- 667
 	stepsHullEdge(esets) <- c(1, 3)
 	clumpAreaClasses_m2(esets) <- c(1e4, 1e6)
 
@@ -94,6 +94,7 @@ if (prj_status == "new") {
 	file_etsummary(esets) <- paste0("Table_transect_summary", if (do.debug) "_debug", ".csv")
 	file_searchpoints(esets) <- file.path(dir_init(esets), bname_searchpoints)
 	file_etmeasure_base(esets) <- paste0("Table_transect_measure", if (do.debug) "_debug", ".csv")
+	file_initwindow(esets) <- file.path(dir_init(esets), "owin_Veg1and2Abut", if (do.demo) "_demo", "rds")
 
 } else {
 	dir.init <- file.path(dir.prj, "1_Inits")
@@ -123,9 +124,7 @@ if (actions["locate_transects"] || actions["make_map"]) {
 			dir_aspect_mean(esets) <- dir_aspect_sd(esets) <- dir_flow(esets) <- file.path(dir_env(esets), "terrain")
 
 			esets <- verify_grid_paths(esets)
-			
-			file_initwindow(esets) <- file.path(dir_abut(esets), "owin_Veg1and2Abut.rds")
-	
+				
 			# Load grids
 			egrids <- new("EcotonerGrids")
 
@@ -181,8 +180,6 @@ if (actions["locate_transects"] || actions["make_map"]) {
 			
 			esets <- verify_grid_paths(esets)
 	
-			file_initwindow(esets) <- file.path(dir_init(esets), "owin_Veg1and2Abut_demo.rds")
-
 			# Load grids
 			egrids <- new("EcotonerGrids")
 

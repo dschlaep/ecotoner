@@ -50,47 +50,55 @@ sample_init_cells <- function(N, grid, gridNA = NULL, pts_init = NULL, seed = NU
 # Sample rSSI points either from mywin or where grid==1 to initiate gradient search
 sample_inhibited_init_cells <- function(N, grid, inhibit_dist, mywin = NULL, gridNA = NULL, pts_init = NULL, initwindowfile = NA_character_, seed = NULL, verbose = FALSE) {
 	#---Test input
-	if (is.null(mywin) || !inherits(mywin, "owin")) {
-		if (is.null(grid) || !inherits(grid, "RasterLayer")) {
-			stop("ecotoner::sample_inhibited_init_cells(): either 'mywin' must be a spatstat::owin object or 'grid' must be of class 'Raster' to generate an 'owin' object")
+	if (is.null(mywin)) {
+		if (!inherits(grid, "RasterLayer")) {
+			stop("ecotoner::sample_inhibited_init_cells(): either 'mywin' must be a matrix with a 'x' and a 'y' column or 'grid' must be of class 'Raster' to generate a matrix of suitable coordinates from which to randomly sample")
 		} else {
-			if(verbose) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "'sample_inhibited_init_cells' creates a spatstat::owin object", "\n")
+			if(verbose) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "'sample_inhibited_init_cells' creating a matrix of coordinates", "\n")
 			
 			# Do not use cells where corresponding gridNA value is NA
-			if (!is.null(gridNA) && inherits(gridNA, "RasterLayer")) grid <- raster::mask(grid, gridNA)
+			if (!is.null(gridNA) && inherits(gridNA, "RasterLayer")) {
+				do_mask <- if (raster::canProcessInMemory(gridNA)) {
+								if (raster::cellStats(gridNA, "countNA") > 0) TRUE else FALSE
+							} else TRUE
+				if (do_mask) {
+					if (!raster::compareRaster(grid, gridNA, stopiffalse = FALSE)) {
+						ext_intersect <- raster::intersect(raster::extent(grid), raster::extent(gridNA))
+						grid <- raster::crop(grid, ext_intersect)
+						gridNA <- raster::crop(gridNA, ext_intersect)
+					}
+					grid <- raster::mask(grid, gridNA)
+				}
+			}
 			
 			# Do not use cells that are 0
 			if (raster::freq(grid, value = 0) > 0) grid <- raster::calc(grid, function(x) ifelse(abs(x) < sqrt(.Machine$double.eps), NA, x))
 						
-			# create owin
-			mywin <- spatstat::as.owin(as.data.frame(raster::rasterToPoints(grid)))
+			# create matrix
+			mywin <- raster::rasterToPoints(grid)[, c("x", "y")]
 			
 			if (!is.na(initwindowfile)) saveRDS(mywin, file = initwindowfile)
 		}
+	} else if (inherits(mywin, "matrix")) {
+		mywin <- mywin[, c("x", "y")]
+	} else if (inherits(mywin, "data.frame")) {
+		mywin <- as.matrix(mywin[, c("x", "y")])
+	} else {
+		stop("ecotoner::sample_inhibited_init_cells(): either 'mywin' must be a matrix with a 'x' and a 'y' column or 'grid' must be of class 'Raster' to generate a matrix of suitable coordinates from which to randomly sample")
 	}
 	
-	if (inherits(pts_init, "SpatialPoints")) {
-		pts_init <- sp::coordinates(pts_init)
-	}
+	if (inherits(pts_init, "SpatialPoints"))  pts_init <- sp::coordinates(pts_init)
 
 	if (!is.na(seed)) set.seed(seed)
 
 	#---Begin function calculations
-	if (requireNamespace("spatstat", quietly = TRUE) && requireNamespace("nlme", quietly = TRUE)) {
-		
-		x.init <- if (nrow(pts_init) > 0) {
-						spatstat::ppp(x = pts_init[, 1], y = pts_init[, 2], window = mywin)
-					} else {
-						NULL
-					}
-		
-		if(verbose) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "'sample_inhibited_init_cells' started to generate a random point pattern as a realisation of a simple sequential inhibition process", "\n")
-		pts_new <- spatstat::rSSI(r = inhibit_dist, n = N, win = mywin, giveup = 1000, x.init = x.init)
-		pts_init <- rbind(pts_init, spatstat::as.data.frame.ppp(pts_new))
+	x.init <- if (nrow(pts_init) > 0) pts_init[, c("x", "y")] else NULL
 	
-	} else {
-		stop("Package 'spatstat' and/or 'nlme' not installed: 'sample_inhibited_init_cells' will not apply the Simple Sequential Inhibition point process")
-	}
+	if(verbose) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "'sample_inhibited_init_cells' started to generate a random point pattern as a realisation of a simple sequential inhibition process", "\n")
+	# spatstat::rSSI() used to much memory due to excessive copying and the fact that ppp and owin classes are not well-suited for sparse objects; rSSI2 is a downscaled version that reduces copying and operates on coordinates instead of point-patterns
+	# Note: the owin object was 16.8 GB in memory
+	pts_new <- rSSI2(r = inhibit_dist, n = N, win = mywin, giveup = max(1000L, as.integer(0.1 * N)), x.init = x.init)
+	pts_init <- rbind(pts_init, pts_new)
 	
 	sp::SpatialPoints(coords = pts_init, proj4string = raster::crs(grid))
 }
