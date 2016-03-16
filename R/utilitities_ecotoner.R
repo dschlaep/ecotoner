@@ -18,6 +18,29 @@ simplify2result <- function(x) {
 	res
 }
 
+#' Creates the path
+#' 
+#' This function first checks if the path exists. If the path does not exist, it attempts to create the path using
+#' \code{\link{base::dir.create}} with different default values.
+#'
+#' @inheritParams dir.create
+#'
+#' @return The function returns invisible \code{TRUE} if the path exists
+#' or if the path could successfully (and recursively by default) be created. If the path does not exist and the path cannot
+#' be created it throws an error with a hopefully useful message.
+#'
+#' @seealso \code{\link{dir.create}}
+#' @export
+dir_create <- function(path, showWarnings = FALSE, recursive = TRUE, mode = "0777") {
+	if (!dir.exists(path) && !dir.create(path, recursive = recursive, showWarnings = showWarnings, mode = mode)) {
+		temp <- sys.calls()
+		nframe <- sys.nframe() - 1
+		tcall <- if (length(temp) < nframe || nframe < 1) temp[[1]] else temp[[nframe]]
+		stop(deparse(tcall), ": failed to create directory ", sQuote(path), call. = FALSE)
+	}
+	invisible(TRUE)
+}
+
 #' @export
 flag_itransect <- function(ecotoner_settings, iflag) {
 	paste0("Transect", formatC(iflag, format = "d", flag = "0", width = floor(log(transect_N(ecotoner_settings), base = 10) + 1)))

@@ -568,10 +568,10 @@ setMethod("verify_project_paths", "EcotonerSettings", function(x) {
 	
 	if (!is.na(x@dir_prj@path)) {
 		x@dir_prj@path <- normalizePath(x@dir_prj@path, mustWork = TRUE)
-		dir.create(x@dir_prj@path, showWarnings = FALSE)
+		dir_create(x@dir_prj@path)
 
 		x@dir_init@path <- file.path(x@dir_prj@path, "1_Inits")
-		dir.create(x@dir_init@path, showWarnings = FALSE)
+		dir_create(x@dir_init@path)
 		if (!is.na(file_searchpoints(x))) file_searchpoints(x) <- basename(file_searchpoints(x))
 		
 		x@dir_out@path <- file.path(x@dir_prj@path, "4_Output")
@@ -583,7 +583,7 @@ setMethod("verify_project_paths", "EcotonerSettings", function(x) {
 		temp <- try(normalizePath(x@dir_big@path, mustWork = TRUE), silent = TRUE)
 		if (!inherits(temp, "try-error")) {
 			x@dir_big@path <- temp
-			dir.create(x@dir_big@path, showWarnings=FALSE)
+			dir_create(x@dir_big@path)
 			attempt_out <- TRUE
 		} else {
 			attempt_out <- FALSE ## assuming that x@dir_big@path is real, but currently unavailable
@@ -599,9 +599,9 @@ setMethod("verify_project_paths", "EcotonerSettings", function(x) {
 	}
 	
 	if (attempt_out) {
-		dir.create(x@dir_out@path, recursive = TRUE, showWarnings = FALSE)
-		dir.create(x@dir_out_fig@path, showWarnings = FALSE)
-		dir.create(x@dir_out_dat@path, showWarnings = FALSE)
+		dir_create(x@dir_out@path)
+		dir_create(x@dir_out_fig@path)
+		dir_create(x@dir_out_dat@path)
 	}
 	
 	x

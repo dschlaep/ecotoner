@@ -49,7 +49,7 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed 
 		for (etm in et_methods) etmeas[[etm]] <- template_etobs
 
 		dir_fig <- file.path(dir_out_fig(ecotoner_settings), iflag)
-		dir.create(dir_fig, showWarnings = FALSE)
+		dir_create(dir_fig)
 
 		for (b in seq_len(neighbors_N(ecotoner_settings))) {
 			flag_bfig <- flag_basename(ecotoner_settings, iflag, b)

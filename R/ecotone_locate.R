@@ -462,7 +462,8 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 		ipoint <- initpoints[i, ]
 		# Directory for temporary output
 		dir_fig <- file.path(dir_out_fig(ecotoner_settings), iflag)
-		dir.create(dir_fig, showWarnings = FALSE)
+		dir_create(dir_fig)
+
 
 		# Check whether partial (debug) output was already generated, if so read and jump there to continue
 		if(verbose) cat("'ecotoner' detecting: tr = ", i, "; prog: ", idh <- idh + 1, "\n", sep = "")
