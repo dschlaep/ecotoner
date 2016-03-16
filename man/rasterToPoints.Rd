@@ -36,4 +36,7 @@ if (requireNamespace("raster")) {
   rasterToPoints(r, not_convertible = list(NA, 25, c(7.1, 20.5)))
 }
 }
+\seealso{
+\code{\link{raster::rasterToPoints}} which this function simplifies
+}
 

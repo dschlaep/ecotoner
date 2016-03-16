@@ -57,8 +57,9 @@ setValidity("EcotonerFile", function(object) {
 #' @slot cores_N An integer. This project is attempted to be run on the local machine in parallel with \code{cores_N} cores, but not with more than the actual number of cores of this machine.
 #' @slot rng_seed An integer. This is the seed to set the (global) random number generator if used.
 #' @slot reproducible A logical. If \code{TRUE} then this flag sets the transect number as the seed of the random number generator for each transect function call.
-#' @slot transect_N An integer. The number of search points to generated to initiate a transect search in the neighborhood of size(s) \code{neighborhoods}.
+#' @slot searchpoints_N An integer. The target number of search points to randomly sample.
 #' @slot inhibit_searchpoints A logical. If \code{TRUE} then search points to initiate a transect search are sampled by a random simple sequential inhibition process; if \code{FALSE}, then a random (stratified) process is used to sample search points.
+#' @slot transect_N An integer. The number of search points generated to initiate a transect search in the neighborhood of size(s) \code{neighborhoods}.
 #' @slot neighborhoods An integer vector. The number(s) of cells per side of a square representing local grid window(s) around a search point within which the transect methods searches for a suitable transect. Neighborhood(s) must be odd. Note: Below a neighborhood of 333 cells, the density function may become unreliable.
 #' @slot neighbors_N An integer. The number of \code{neighborhoods}.
 #' @slot stepsHullEdge An integer vector. The step length(s), in grid cells, of the hull edge method by Gastner et al.
@@ -105,6 +106,7 @@ EcotonerSettings <- setClass("EcotonerSettings",
 										 cores_N = "integer",
 										 rng_seed = "integer",
 										 reproducible = "logical",
+										 searchpoints_N = "integer",
 										 transect_N = "integer",
 										 inhibit_searchpoints = "logical",
 										 neighborhoods = "integer",
@@ -163,7 +165,8 @@ EcotonerSettings <- setClass("EcotonerSettings",
 
 											 rng_seed = 123L,
 											 reproducible = TRUE,
-											 transect_N = 30L,
+											 searchpoints_N = 6L,
+											 transect_N = 6L,
 											 inhibit_searchpoints = FALSE,
 											 neighborhoods = c(1667L, 999L),
 											 neighbors_N = 2L,
@@ -188,8 +191,11 @@ setValidity("EcotonerSettings", function(object) {
 							object@cores_N %in% (seq_len(parallel::detectCores()) - 1))
 	tests[["rng_seed"]] <- all(length(object@rng_seed) == 1,
 							object@rng_seed > 0)
+	tests[["searchpoints_N"]] <- all(length(object@searchpoints_N) == 1,
+									object@searchpoints_N > 0)
 	tests[["transect_N"]] <- all(length(object@transect_N) == 1,
-									object@transect_N > 0)
+									object@transect_N > 0,
+									object@transect_N <= object@searchpoints_N)
 	tests[["neighborhoods"]] <- all(object@neighborhoods > 0,
 									is_odd(object@neighborhoods))
 	tests[["neighbors_N"]] <- all(length(object@neighbors_N) == 1,
@@ -262,6 +268,11 @@ setGeneric("set_global_seed<-", signature = "x", function(x, value) standardGene
 setGeneric("reproducible", signature = "x", function(x) standardGeneric("reproducible"))
 #' @export
 setGeneric("reproducible<-", signature = "x", function(x, value) standardGeneric("reproducible<-"))
+
+#' @export
+setGeneric("searchpoints_N", signature = "x", function(x) standardGeneric("searchpoints_N"))
+#' @export
+setGeneric("searchpoints_N<-", signature = "x", function(x, value) standardGeneric("searchpoints_N<-"))
 
 #' @export
 setGeneric("transect_N", signature = "x", function(x) standardGeneric("transect_N"))
@@ -438,14 +449,17 @@ setReplaceMethod("set_global_seed", "EcotonerSettings", function(x, value) initi
 setMethod("reproducible", "EcotonerSettings", function(x) slot(x, "reproducible"))
 setReplaceMethod("reproducible", "EcotonerSettings", function(x, value) initialize(x, reproducible = value))
 
-setMethod("transect_N", "EcotonerSettings", function(x) slot(x, "transect_N"))
-setReplaceMethod("transect_N", "EcotonerSettings", function(x, value) initialize(x, transect_N = as.integer(value)))
+setMethod("searchpoints_N", "EcotonerSettings", function(x) slot(x, "searchpoints_N"))
+setReplaceMethod("searchpoints_N", "EcotonerSettings", function(x, value) initialize(x, searchpoints_N = as.integer(value), transect_N = as.integer(value)))
 
 setMethod("inhibit_searchpoints", "EcotonerSettings", function(x) slot(x, "inhibit_searchpoints"))
 setReplaceMethod("inhibit_searchpoints", "EcotonerSettings", function(x, value) initialize(x, inhibit_searchpoints = value))
 
+setMethod("transect_N", "EcotonerSettings", function(x) slot(x, "transect_N"))
+setReplaceMethod("transect_N", "EcotonerSettings", function(x, value) initialize(x, transect_N = as.integer(value)))
+
 setMethod("neighborhoods", "EcotonerSettings", function(x) slot(x, "neighborhoods"))
-setReplaceMethod("neighborhoods", "EcotonerSettings", function(x, value) {x@neighborhoods <- as.integer(value); x@neighbors_N <- length(x@neighborhoods); x})
+setReplaceMethod("neighborhoods", "EcotonerSettings", function(x, value) initialize(x, neighborhoods = as.integer(value), neighbors_N = length(value)))
 setMethod("neighbors_N", "EcotonerSettings", function(x) slot(x, "neighbors_N"))
 
 setMethod("stepsHullEdge", "EcotonerSettings", function(x) slot(x, "stepsHullEdge"))

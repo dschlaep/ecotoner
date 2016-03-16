@@ -25,9 +25,11 @@ An S4-class to represent the settings of an 'ecotoner' project
 
 \item{\code{reproducible}}{A logical. If \code{TRUE} then this flag sets the transect number as the seed of the random number generator for each transect function call.}
 
-\item{\code{transect_N}}{An integer. The number of search points to generated to initiate a transect search in the neighborhood of size(s) \code{neighborhoods}.}
+\item{\code{searchpoints_N}}{An integer. The target number of search points to randomly sample.}
 
 \item{\code{inhibit_searchpoints}}{A logical. If \code{TRUE} then search points to initiate a transect search are sampled by a random simple sequential inhibition process; if \code{FALSE}, then a random (stratified) process is used to sample search points.}
+
+\item{\code{transect_N}}{An integer. The number of search points generated to initiate a transect search in the neighborhood of size(s) \code{neighborhoods}.}
 
 \item{\code{neighborhoods}}{An integer vector. The number(s) of cells per side of a square representing local grid window(s) around a search point within which the transect methods searches for a suitable transect. Neighborhood(s) must be odd. Note: Below a neighborhood of 333 cells, the density function may become unreliable.}
 

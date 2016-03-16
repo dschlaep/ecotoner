@@ -155,7 +155,8 @@ measure_ecotones_all_transects <- function(pfun, X, et_methods, ecotoner_setting
 	}
 	
 	# Convert list to data.frame
-	
+#TODO(drs): test whether this can be hold in memory - should I use an ff object?
+	res <- do.call(rbind, trans2d_list)
 	
 	X
 }

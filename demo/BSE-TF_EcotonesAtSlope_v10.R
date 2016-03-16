@@ -55,7 +55,7 @@ if (prj_status == "new") {
 	esets <- new("EcotonerSettings")
 
 	transect_type(esets) <- 4
-	transect_N(esets) <- 15000
+	searchpoints_N(esets) <- 15000
 	inhibit_searchpoints(esets) <- TRUE
 	cores_N(esets) <- min(23, parallel::detectCores() - 1) # 0 or 1 will turn off parallelization
 	reproducible(esets) <- TRUE		# If TRUE, then transects set their own unique random seed (this setup is reproducible even after re-starting a parallel function call)
@@ -71,12 +71,12 @@ if (prj_status == "new") {
 	fname_settings <- file.path(dir_init(esets), paste0(format(time_stamp, format = "%Y%m%d_%H%M"), "_ecotoner_settings.rds"))
 	bname_searchpoints <- paste0("SearchPoints_",
 									if (inhibit_searchpoints(esets)) "inhibited" else "Poisson", "_",
-									transect_N(esets), "N_",
+									searchpoints_N(esets), "N_",
 									"Veg1and2Abut.rds")
 
 	if (do.debug || do.demo) {
 		interactions[seq_along(interactions)] <- TRUE
-		transect_N(esets) <- 6
+		searchpoints_N(esets) <- 6
 
 		if (do.demo) {
 			inhibit_searchpoints(esets) <- FALSE
@@ -84,7 +84,7 @@ if (prj_status == "new") {
 			dir_big(esets) <- NA_character_
 			bname_searchpoints <- paste0("SearchPoints_",
 										if (inhibit_searchpoints(esets)) "inhibited" else "Poisson", "_",
-										transect_N(esets), "N_",
+										searchpoints_N(esets), "N_",
 										"Veg1and2Abut.rds")
 		}
 		
@@ -94,7 +94,7 @@ if (prj_status == "new") {
 	file_etsummary(esets) <- paste0("Table_transect_summary", if (do.debug) "_debug", ".csv")
 	file_searchpoints(esets) <- file.path(dir_init(esets), bname_searchpoints)
 	file_etmeasure_base(esets) <- paste0("Table_transect_measure", if (do.debug) "_debug", ".csv")
-	file_initwindow(esets) <- file.path(dir_init(esets), "owin_Veg1and2Abut", if (do.demo) "_demo", "rds")
+	file_initwindow(esets) <- file.path(dir_init(esets), paste0("owin_Veg1and2Abut", if (do.demo) "_demo", ".rds"))
 
 } else {
 	dir.init <- file.path(dir.prj, "1_Inits")
@@ -211,7 +211,6 @@ if (actions["locate_transects"] || actions["make_map"]) {
 
 ##------VEGETATION SETTINGS
 if (prj_status == "new") {
-
 	rat_veg <- if (exists("egrids") && inherits(egrids, "EcotonerGrids")) {
 					df_veg(egrids)
 				} else {
@@ -309,16 +308,25 @@ if (actions["locate_transects"]) {
 	stopifnot(exists("esets"), exists("egrids"))
 	
 	#---Get search points to initiate transects
-	cat(format(Sys.time(), format = ""), ": sampling ", transect_N(esets), " 'initpoints'\n", sep = "")
-	initpoints <- get_transect_search_points(N = transect_N(esets),
-											grid_mask1 = if (valid_grid(grid_abut(egrids))) grid_abut(egrids) else grid_veg(egrids),
-											inhibit_dist = if (inhibit_searchpoints(esets)) ceiling(res_m(specs_grid(egrids)) * max(neighborhoods(esets)) / 2) else NULL, 
-											mywindow = if (inhibit_searchpoints(esets) && file.exists(file_initwindow(esets))) readRDS(file_initwindow(esets)) else NULL,
-											grid_maskNA = grid_env(egrids),
-											initfile = file_searchpoints(esets),
-											initwindowfile = file_initwindow(esets),
-											seed = if (reproducible(esets)) get_global_seed(esets) else NULL,
-											verbose = interactions["verbose"])
+	cat(format(Sys.time(), format = ""), ": sampling ", searchpoints_N(esets), " 'initpoints'\n", sep = "")
+	initpoints <- if (prj_status == "new" || !file.exists(file_searchpoints(esets))) {
+		get_transect_search_points(N = searchpoints_N(esets),
+									grid_mask1 = if (valid_grid(grid_abut(egrids))) grid_abut(egrids) else grid_veg(egrids),
+									inhibit_dist = if (inhibit_searchpoints(esets)) ceiling(res_m(specs_grid(egrids)) * max(neighborhoods(esets)) / 2) else NULL, 
+									mywindow = if (inhibit_searchpoints(esets) && file.exists(file_initwindow(esets))) readRDS(file_initwindow(esets)) else NULL,
+									grid_maskNA = grid_env(egrids),
+									initfile = file_searchpoints(esets),
+									initwindowfile = file_initwindow(esets),
+									seed = if (reproducible(esets)) get_global_seed(esets) else NULL,
+									verbose = interactions["verbose"])
+	} else {
+		readRDS(file_searchpoints(esets))
+	}
+	
+	if (!identical(transect_N(esets), length(initpoints))) {
+		transect_N(esets) <- length(initpoints)
+		saveRDS(esets, file = fname_settings)
+	}
 	
 
 	#---Loop through random points
@@ -415,7 +423,6 @@ et_methods2 <- c("InterZoneLocation", "InterZonePatchDistr")
 }
 
 print(sessionInfo())
-stop()
 
 
 
