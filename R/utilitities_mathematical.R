@@ -39,7 +39,31 @@ prepare_RNG_streams <- function(N, iseed = NULL) {
 	seeds
 }
 
+#' @export
+set_default_seed <- function(seed, kind = "default", normal.kind = "default") {
+	RNGkind(kind = kind, normal.kind = normal.kind)
+	set.seed(seed = seed)
+}
 
+#' Sets the .Random.seed
+#'
+#' This is here defined to be called from a function being executed on nodes/slaves with a prepared seed from the function \code{\link{prepare_RNG_streams}}, i.e., calling this function will also set RNGkind accordingly to the first element of seed.
+#' 
+#' @param seed A vector appropriate for \code{\link{.Random.seed}} of the current RNG; a single integer or NULL that will be passed to set.seed(); or NA which will do no work.
+#'
+#' @seealso \code{\link{set.seed}}, \code{\link{RNGkind}}
+#' @export
+set_RNG_stream <- function(seed) {
+	if (!anyNA(seed)) {
+		if (length(seed) > 1) {
+			assign(".Random.seed", seed, envir = .GlobalEnv)
+		} else {
+			warning("'seed' was not appropriate to init '.Random.seed': ", paste(head(seed, n = 3), collapse = "/"), "/...; instead the function 'set.seed' will be used")
+			set_default_seed(seed, kind = NULL, normal.kind = NULL)
+		}
+	}
+	invisible(NULL)
+}
 
 #' Determine whether a number is odd.
 #'

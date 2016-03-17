@@ -155,7 +155,7 @@ get_transect_search_points <- function(N, grid_mask1, mywindow = NULL, inhibit_d
 		ip_N <- 0L
 	}
 	
-	if (!is.na(seed)) set.seed(seed)
+	if (!is.na(seed)) set_default_seed(seed)
 
 	if (ip_N < N) {
 		dont_inhibit <- is.null(inhibit_dist) || inhibit_dist <= 0

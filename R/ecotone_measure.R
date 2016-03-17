@@ -1,5 +1,5 @@
 #' @export
-measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed = NULL, verbose = TRUE, do_figures = TRUE) {
+measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_streams = NULL, verbose = TRUE, do_figures = TRUE) {
 	if (verbose) {
 		idh <- 1
 		cat("'ecotoner' measuring: tr = ", i, "; start at ", format(t1 <- Sys.time(), format = ""), "\n", sep = "")
@@ -65,8 +65,8 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed 
 				# loop through measurement methods 'et_methods'
 				for (etm in et_methods) {
 					iseed <- (b - 1) * length(migtypes) + im
-					etmeas[[etm]][["seeds"]][[iseed]] <- if (is.null(seed)) NULL else if (inherits(seed, "list")) seed[[((i - 1) * neighbors_N(ecotoner_settings) + (b - 1)) * length(migtypes) + im]] else NA
-					if (!anyNA(etmeas[[etm]][["seeds"]][[iseed]])) set.seed(etmeas[[etm]][["seeds"]][[iseed]])
+					etmeas[[etm]][["seeds"]][[iseed]] <- if (is.null(seed_streams)) NULL else if (inherits(seed_streams, "list")) seed_streams[[((i - 1) * neighbors_N(ecotoner_settings) + (b - 1)) * length(migtypes) + im]] else NA
+					set_RNG_stream(etmeas[[etm]][["seeds"]][[iseed]])
 
 					etmeas[[etm]] <- do.call(what = etm, args = list(i = i, b = b, migtype = migtypes[im], 
 																		ecotoner_settings = ecotoner_settings,
@@ -155,7 +155,7 @@ measure_ecotones_all_transects <- function(pfun, X, et_methods, ecotoner_setting
 	}
 	
 	# Convert list to data.frame
-#TODO(drs): test whether this can be hold in memory - should I use an ff object?
+#TODO(drs): test whether this can be hold in memory - should I use an ff::ffdf object?
 	res <- do.call(rbind, trans2d_list)
 	
 	X

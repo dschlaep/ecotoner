@@ -55,11 +55,12 @@ if (prj_status == "new") {
 	esets <- new("EcotonerSettings")
 
 	transect_type(esets) <- 4
-	searchpoints_N(esets) <- 15000
+	searchpoints_N(esets) <- 20000
 	inhibit_searchpoints(esets) <- TRUE
-	cores_N(esets) <- min(23, parallel::detectCores() - 1) # 0 or 1 will turn off parallelization
+	candidate_THAs_N(esets) <- 50
+	cores_N(esets) <- min(20, parallel::detectCores() - 1) # 0 or 1 will turn off parallelization
 	reproducible(esets) <- TRUE		# If TRUE, then transects set their own unique random seed (this setup is reproducible even after re-starting a parallel function call)
-	neighborhoods(esets) <- 667
+	neighborhoods(esets) <- 1667
 	stepsHullEdge(esets) <- c(1, 3)
 	clumpAreaClasses_m2(esets) <- c(1e4, 1e6)
 
@@ -70,7 +71,7 @@ if (prj_status == "new") {
 
 	fname_settings <- file.path(dir_init(esets), paste0(format(time_stamp, format = "%Y%m%d_%H%M"), "_ecotoner_settings.rds"))
 	bname_searchpoints <- paste0("SearchPoints_",
-									if (inhibit_searchpoints(esets)) "inhibited" else "Poisson", "_",
+									if (inhibit_searchpoints(esets)) paste0(inhibit_dist_m(esets, 1), "cells_inhibited") else "Poisson", "_",
 									searchpoints_N(esets), "N_",
 									"Veg1and2Abut.rds")
 
@@ -81,9 +82,10 @@ if (prj_status == "new") {
 		if (do.demo) {
 			inhibit_searchpoints(esets) <- FALSE
 			neighborhoods(esets) <- 667
+			candidate_THAs_N(esets) <- 20
 			dir_big(esets) <- NA_character_
 			bname_searchpoints <- paste0("SearchPoints_",
-										if (inhibit_searchpoints(esets)) "inhibited" else "Poisson", "_",
+										if (inhibit_searchpoints(esets)) paste0(inhibit_dist_m(esets, 1), "cells_inhibited") else "Poisson", "_",
 										searchpoints_N(esets), "N_",
 										"Veg1and2Abut.rds")
 		}
@@ -312,7 +314,7 @@ if (actions["locate_transects"]) {
 	initpoints <- if (prj_status == "new" || !file.exists(file_searchpoints(esets))) {
 		get_transect_search_points(N = searchpoints_N(esets),
 									grid_mask1 = if (valid_grid(grid_abut(egrids))) grid_abut(egrids) else grid_veg(egrids),
-									inhibit_dist = if (inhibit_searchpoints(esets)) ceiling(res_m(specs_grid(egrids)) * max(neighborhoods(esets)) / 2) else NULL, 
+									inhibit_dist = inhibit_dist_m(esets, res_m(specs_grid(egrids))), 
 									mywindow = if (inhibit_searchpoints(esets) && file.exists(file_initwindow(esets))) readRDS(file_initwindow(esets)) else NULL,
 									grid_maskNA = grid_env(egrids),
 									initfile = file_searchpoints(esets),
@@ -340,7 +342,7 @@ if (actions["locate_transects"]) {
 							initpoints = initpoints,
 							ecotoner_settings = esets,
 							ecotoner_grids = egrids,
-							seed = seeds_locate,
+							seed_streams = seeds_locate,
 							do_interim = interactions["save_interim"],
 							verbose = interactions["verbose"],
 							do_figures = interactions["figures"])
@@ -407,7 +409,7 @@ et_methods_choices <- c("Danz2012JVegSci_1D", "Danz2012JVegSci_2D", "Eppinga2013
 	measureTransects1 <- pfun(seq_len(transect_N(esets)), measure_ecotone_per_transect,
 								et_methods = c("Danz2012JVegSci_2D"),
 								ecotoner_settings = esets,
-								seed = seeds_measure1,
+								seed_streams = seeds_measure1,
 								verbose = interactions["verbose"],
 								do_figures = interactions["figures"])
 	

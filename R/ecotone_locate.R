@@ -433,7 +433,7 @@ identify_migration_patches <- function(i, b, ecotoner_settings, etband, etable, 
 
 # Workhorse function
 #' @export
-detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_settings, ecotoner_grids, seed = NULL, do_interim = TRUE, verbose = TRUE, do_figures = TRUE) {
+detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_settings, ecotoner_grids, seed_streams = NULL, do_interim = TRUE, verbose = TRUE, do_figures = TRUE) {
 	if (verbose) {
 		idh <- 0 #counter for debug 'here' statements
 		cat("'ecotoner' detecting: tr = ", i, "; start at ", format(t1 <- Sys.time(), format = ""), "\n", sep = "")
@@ -504,8 +504,8 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 			asp201SDCropped <- temp$grid_aspect_sd_cropped
 	
 			for (b in seq_len(neighbors_N(ecotoner_settings))) { #if no transect can be established then proceed to next initpoint
-				etransect[["seeds"]][[b]] <- if (is.null(seed)) NULL else if (inherits(seed, "list")) seed[[(i - 1) * neighbors_N(ecotoner_settings) + b]] else NA
-				if (!anyNA(etransect[["seeds"]][[b]])) set.seed(etransect[["seeds"]][[b]])
+				etransect[["seeds"]][[b]] <- if (is.null(seed_streams)) NULL else if (inherits(seed_streams, "list")) seed_streams[[(i - 1) * neighbors_N(ecotoner_settings) + b]] else NA
+				set_RNG_stream(etransect[["seeds"]][[b]])
 				
 				flag_bfig <- flag_basename(ecotoner_settings, iflag, b)
 				etransect[["status"]][b] <- "searching"

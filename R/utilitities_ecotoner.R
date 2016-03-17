@@ -18,12 +18,12 @@ simplify2result <- function(x) {
 	res
 }
 
-#' Creates the path
+#' Creates a path
 #' 
 #' This function first checks if the path exists. If the path does not exist, it attempts to create the path using
-#' \code{\link{base::dir.create}} with different default values.
+#' \code{\link{dir.create}} with different default values.
 #'
-#' @inheritParams dir.create
+#' @inheritParams base::dir.create
 #'
 #' @return The function returns invisible \code{TRUE} if the path exists
 #' or if the path could successfully (and recursively by default) be created. If the path does not exist and the path cannot

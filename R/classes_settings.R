@@ -154,8 +154,8 @@ EcotonerSettings <- setClass("EcotonerSettings",
 											 vegDefiningDensityTransect_low = 0.05,
 											 vegDefiningDensityTransect_high = 0.75,
 											 vegDefiningDensityTransectExtended_min = 0.5,
-											 Aspect_SDof201Mean_Maximum = 75 * pi/180,
-											 Aspect_DeviationAlongCandidateLines_Maximum = 30 * pi/180,
+											 Aspect_SDof201Mean_Maximum = 90 * pi/180,
+											 Aspect_DeviationAlongCandidateLines_Maximum = 60 * pi/180,
 											 bandTransect_width_cellN = 200L,
 											 res_rotate_grid = 8L,
 											 min_slope_with_aspect = 2 * pi / 180,
@@ -649,4 +649,10 @@ setMethod("verify_grid_paths", "EcotonerSettings", function(x) {
 })
 
 
+#' @export
+setGeneric("inhibit_dist_m", signature = "x", function(x, res_m) standardGeneric("inhibit_dist_m"))
+
+setMethod("inhibit_dist_m", "EcotonerSettings", function(x, res_m = 1) {
+	if (inhibit_searchpoints(x)) floor(res_m * max(neighborhoods(x)) / 3) else NULL
+})
 
