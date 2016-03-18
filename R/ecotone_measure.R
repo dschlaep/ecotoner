@@ -110,53 +110,17 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 
 
 #' @export
-measure_ecotones_all_transects <- function(pfun, X, et_methods, ecotoner_settings, verbose, do_figures) {
+measure_ecotones_all_transects <- function(pfun, X, et_methods, et_desc, ecotoner_settings, verbose, do_figures) {
 	
 	migtypes <- get("migtypes", envir = etr_vars)
 	veg_types <- c("Veg1", "Veg2")
 	
 	# Load data of transects
-#TODO(drs): Should 'transect_data' be a big data object such as ff
-	#transect_data <- pfun(X, 
+#TODO(drs): Should 'transect_data2d' be a big data object such as ff::ffdf?
+	transect_data2d <- pfun(X, get_transect_grids_as_df, etransect, et_desc, ecotoner_settings, migtypes, veg_types)
 	
-	k <- 1
-	trans2d_list <- list()
-	for (i in X) {
-		iflag <- flag_itransect(ecotoner_settings, i)
-		
-		do_measure <- TRUE
-		if (file.exists(fname_etlocated(ecotoner_settings, iflag))) {
-			load(fname_etlocated(ecotoner_settings, iflag)) #i, b, and etransect loaded
-		} else {
-			do_measure <- FALSE # no suitable transect located for search point i
-		}
-		
-		if (do_measure) for (b in seq_len(neighbors_N(ecotoner_settings))) {
-			for (im in seq_along(migtypes)) {
-				for (iveg in seq_along(veg_types)) {
-					# Interpret NAs as absences of iveg
-					y <- raster::calc(etransect[["etbands"]][[b]]$Veg[[migtypes[im]]][[veg_types[iveg]]]$grid, function(x) ifelse(is.na(x), 0, x))
-					temp <- transect_to_long(x = etransect[["etbands"]][[b]]$Env$elev$grid, y = y)
-					
-					if (im == 1 && iveg == 1) {
-						mat <- matrix(NA, nrow = nrow(temp), ncol = 2 + length(migtypes) * length(veg_types))
-						mat[, 1:3] <- temp[, c("x", "reps", "y")]
-					} else {
-						mat[, 2 + (im - 1) * length(veg_types) + iveg] <- temp[, "y"]
-					}
-				}
-			}
-			colnames(mat) <- c("x", "reps", paste(rep(paste("y", veg_types, sep = "_"), times = length(migtypes)), rep(migtypes, each = length(veg_types)), sep = "_"))
-				
-			trans2d_list[[k]] <- data.frame(transect = i, neigh = neighborhoods(ecotoner_settings)[b], mat)
-			k <- k + 1
-		}
-
-	}
-	
-	# Convert list to data.frame
-#TODO(drs): test whether this can be hold in memory - should I use an ff::ffdf object?
-	res <- do.call(rbind, trans2d_list)
+	colnames(mat) <- c("x", "reps", paste(rep(paste("y", veg_types, sep = "_"), times = length(migtypes)), rep(migtypes, each = length(veg_types)), sep = "_"))
+			
 	
 	X
 }

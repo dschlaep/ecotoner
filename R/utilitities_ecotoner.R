@@ -1,22 +1,40 @@
+#' Simplify a list to a data.frame
+#'
+#' Convert a list of elements with the same number of columns to a data.frame (discarding NULL elements) and return it unchanged otherwise.
+#'
+#' @param x A R object. See \code{Value}.
+#' @param showWarnings A logical value. If \code{TRUE} then warnings are collected and printed if there are any.
+#'
+#' @return A data.frame if x is a list of elements with the same number of columns. If the list elements do not all have the same number of columns, then a list without the NULL elements is returned. If x is not a list, then x is returned unchanged.
+#' @seealso \code{\link{simplify2array}}
 #' @export
-simplify2result <- function(x) {
-	len0 <- sapply(x, length) == 0
-	if (sum(len0) > 0) x <- x[!len0]
+simplify2result <- function(x, showWarnings = TRUE) {
+	if (inherits(x, "list")) {
+		len0 <- sapply(x, length) == 0
+		if (sum(len0) > 0) x <- x[!len0]
 	
-    dim1 <- if (inherits(x[[1]], "data.frame") || inherits(x[[1]], "matrix")) {
-				dim(x[[1]])
-			} else {
-				c(1, length(x[[1]]))
-			}
-	rows1 <- seq_len(dim1[1])
-	res <- as.data.frame(matrix(NA, nrow = length(x) * dim1[1], ncol = dim1[2], dimnames = list(NULL, colnames(x[[1]]))))
-	for (i in seq_along(x)) res[(i - 1) * dim1[1] + rows1, ] <- x[[i]]
+		dims <- sapply(x, function(d) if (inherits(d, "data.frame") || inherits(d, "matrix")) dim(d) else c(1, length(d)))
+		if (all(diff(dims[2, ]) == 0)) { # all must have same number of columns
+			cumrows <- c(0, cumsum(dims[1, ]))
+			res <- as.data.frame(matrix(NA, nrow = cumrows[1 + length(x)], ncol = dims[2, 1],
+										dimnames = list(NULL, colnames(x[[1]]))))
+			for (i in seq_along(x)) res[cumrows[i] + seq_len(dims[1, i]), ] <- x[[i]]
+			x <- res
+		}
+	}
 	
-	temp <- warnings()
-	if (length(temp) > 0) print(temp)
+	if (showWarnings) {
+		temp <- warnings()
+		if (length(temp) > 0) {
+			print(temp)
+			# TODO: according to ?warnings it is undocumented and subject to change where last.warning is stored; yet, without flushing, we carry forward old warnings - until R has a flushWarnings function, we meddle with 'baseenv'
+			assign("last.warning", NULL, envir = baseenv())
+		}
+	}
 	
-	res
+	x
 }
+
 
 #' Creates a path
 #' 

@@ -253,3 +253,53 @@ rSSI2 <- function(r, n, win, giveup = 1000, x.init = NULL, ...) {
     
 	X
 }
+
+
+get_transect_grids_as_df <- function(i, etransect, et_desc = NULL, ecotoner_settings, migtypes, veg_types) {
+	iflag <- flag_itransect(ecotoner_settings, i)
+	
+	do_measure <- TRUE
+	if (file.exists(fname_etlocated(ecotoner_settings, iflag))) {
+		load(fname_etlocated(ecotoner_settings, iflag)) #i, b, and etransect loaded
+	} else {
+		do_measure <- FALSE # no suitable transect located for search point i
+	}
+	
+	if (do_measure) {
+		res <- list()
+		if (!is.null(et_desc)) idesc_remove <- which(colnames(et_desc) %in% c("Transect_ID", "Neighbor_Cells"))
+		
+		for (b in seq_len(neighbors_N(ecotoner_settings))) {
+			for (im in seq_along(migtypes)) {
+				for (iveg in seq_along(veg_types)) {
+					# Interpret NAs as absences of iveg
+					y <- raster::calc(etransect[["etbands"]][[b]]$Veg[[migtypes[im]]][[veg_types[iveg]]]$grid, function(x) ifelse(is.na(x), 0, x))
+					temp <- transect_to_long(x = etransect[["etbands"]][[b]]$Env$elev$grid, y = y)
+				
+					if (im == 1 && iveg == 1) {
+						mat <- matrix(NA, nrow = nrow(temp), ncol = 2 + length(migtypes) * length(veg_types))
+						mat[, 1:3] <- temp[, c("x", "reps", "y")]
+					} else {
+						mat[, 2 + (im - 1) * length(veg_types) + iveg] <- temp[, "y"]
+					}
+				}
+			}
+			
+			res[[b]] <- if (is.null(et_desc)) {
+							data.frame(Transect_ID = i,
+										Neighbor_Cells = neighborhoods(ecotoner_settings)[b],
+										mat,
+										row.names = NULL)
+						} else {
+							data.frame(Transect_ID = i,
+										Neighbor_Cells = neighborhoods(ecotoner_settings)[b],
+										mat,
+										et_desc[et_desc[, "Transect_ID"] == i & et_desc[, "Neighbor_Cells"] == neighborhoods(ecotoner_settings)[b], -idesc_remove],
+										row.names = NULL)
+						}
+		}
+		
+		do.call(rbind, res)
+	} else NULL
+}
+	
