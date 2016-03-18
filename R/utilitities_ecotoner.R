@@ -28,7 +28,7 @@ simplify2result <- function(x, showWarnings = TRUE) {
 		if (length(temp) > 0) {
 			print(temp)
 			# TODO: according to ?warnings it is undocumented and subject to change where last.warning is stored; yet, without flushing, we carry forward old warnings - until R has a flushWarnings function, we meddle with 'baseenv'
-			assign("last.warning", NULL, envir = baseenv())
+			try(assign("last.warning", NULL, envir = baseenv()))
 		}
 	}
 	

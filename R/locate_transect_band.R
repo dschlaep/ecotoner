@@ -45,7 +45,7 @@ set_stband_polygon <- function(start, end, width_n, res_m, Longitude_WGS84 = 0) 
 		stop("ecotoner::set_stband_polygon(): calculated band transect is not a parallelogram")
 	}
 	# check that all angles between sides are normal, i.e., that band transect is a rectangle
-	tol <- .Machine$double.eps ^ (1 / 3)
+	tol <- res_m / 100	# this needs to be only a rectangle relative to the size of the cells and not absolute
 	if (any(!isTRUE(all.equal(as.numeric(tcrossprod(startxy2 - startxy1, endxy2 - startxy1)), 0, tolerance = tol)),
 			!isTRUE(all.equal(as.numeric(tcrossprod(startxy1 - startxy2, endxy1 - startxy2)), 0, tolerance = tol)),
 			!isTRUE(all.equal(as.numeric(tcrossprod(startxy2 - endxy1, endxy2 - endxy1)), 0, tolerance = tol)),
