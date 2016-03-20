@@ -137,7 +137,9 @@ sort_path_max_range <- function(start, path, grid_gradient) {
 	path <- sort_path(start, path, longlat = raster::isLonLat(grid_gradient))$path
 	
 	#cut out section between highest and lowest elevation
-	path[sort(which.min(path$elev):which.max(path$elev)), ]
+	i_min <- which(path$elev == min(path$elev))[1] # the first point with minimal elevation
+	i_max <- tail(which(path$elev == max(path$elev)), n = 1) # the last point with maximal elevation
+	path[sort(i_min:i_max), ]
 
 }
 

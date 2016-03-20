@@ -36,6 +36,7 @@ simplify2result <- function(x, showWarnings = TRUE) {
 }
 
 
+
 #' Creates a path
 #' 
 #' This function first checks if the path exists. If the path does not exist, it attempts to create the path using

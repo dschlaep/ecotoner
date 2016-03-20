@@ -58,6 +58,8 @@ gap.rat <- df_veg(ecotoner_grids)
 			temp_stline <- orient_transect_line(pts_tcand = temp_stline_cands$lines[[ic]], longlat = longlat(specs_grid(ecotoner_grids)))
 		
 			if (length(temp_stline) == 0) {
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
+						": transect line has 0 length after orienting along gradient and ordering by distance\n")
 				next #goto next candidate transect
 			}
 		
@@ -81,8 +83,11 @@ gap.rat <- df_veg(ecotoner_grids)
 													tfRatValue = type_ids(type_veg2(ecotoner_settings)),
 													seed = seed)
 		
-			if (is.null(temp_stband$grids)) next # goto next candidate transect
-								
+			if (is.null(temp_stband$grids)) {
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
+						": band transect is not fully contained by 'elevCropped'\n")			
+				next # goto next candidate transect
+			}				
 
 			#2c. Apply definition of zone of ecological boundary to BSE and TF
 			limits1_ZoneEcolBoundary <- determine_ecotone_linear_extent(dens_BSE=NULL, dens_Veg1=temp_stband$grids$bse_dens, end1_toLeft=end_to_left(type_veg1(ecotoner_settings)),
@@ -94,6 +99,8 @@ gap.rat <- df_veg(ecotoner_grids)
 			if (verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic, "; prog = ", idhic <- idhic + 1, "; limits1 = ", paste(limits1_ZoneEcolBoundary, collapse=", "), "\n", sep = "")
 		
 			if (anyNA(limits1_ZoneEcolBoundary)) {
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
+						": no ecological boundary zone detected (step 1)\n")			
 				next #goto next candidate transect; there is no zone of the ecological boundary according to definition
 			}
 
@@ -110,6 +117,8 @@ gap.rat <- df_veg(ecotoner_grids)
 			bseFreq <- raster::freq(temp_etband$bse)
 			temp_etband$ratValue_BSE <- bseFreq[bseFreq[, 1] %in% type_ids(type_veg1(ecotoner_settings)), 1]
 			if (length(temp_etband$ratValue_BSE) == 0) {
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
+						": no Veg1 within ecological boundary zone\n")			
 				break #no BSE in transect
 			}
 			temp_etband$level3_densities_BSE <- (dtemp <- bseFreq[itemp <- match(temp_etband$ratValue_BSE, bseFreq[, 1], nomatch = 0), 2]) / raster::ncell(temp_etband$bse)
@@ -122,6 +131,8 @@ gap.rat <- df_veg(ecotoner_grids)
 			tfFreq <- raster::freq(temp_etband$tf)
 			temp_etband$ratValue_TF <- tfFreq[tfFreq[, 1] %in% type_ids(type_veg2(ecotoner_settings)), 1]
 			if (length(temp_etband$ratValue_TF) == 0) {
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
+						": no Veg2 within ecological boundary zone\n")			
 				break #no TF in transect
 			}
 			temp_etband$level3_densities_TF <- tfFreq[match(temp_etband$ratValue_TF, tfFreq[, 1], nomatch = 0), 2] / raster::ncell(temp_etband$tf)
@@ -142,7 +153,9 @@ gap.rat <- df_veg(ecotoner_grids)
 
 			if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic, "; prog = ", idhic <- idhic + 1, "; limits2 = ", paste(limits2_ZoneEcolBoundary, collapse=", "), "\n", sep = "")
 		
-			if (any(is.na(limits2_ZoneEcolBoundary))) {
+			if (anyNA(limits2_ZoneEcolBoundary)) {
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
+						": no ecological boundary zone detected (step 2)\n")			
 				next #goto next candidate transect; there is no zone of the ecological boundary according to definition
 			} else {
 				transect_success <- TRUE
@@ -255,8 +268,8 @@ gap.rat <- df_veg(ecotoner_grids)
 				humanClump8 <- raster::clump(etband$Env$human$grid, directions=8)
 				i.largest_hC8 <- (temp <- (temp <- raster::freq(humanClump8))[complete.cases(temp), , drop=FALSE])[which.max(temp[, 2]), 1]
 				largest_hC8 <- raster::trim(raster::calc(humanClump8, fun=function(x) ifelse(x == i.largest_hC8, 1, NA)))
-				etband$Env$human$LargestClump_XExtent <- xmax(largest_hC8) - xmin(largest_hC8)
-				etband$Env$human$LargestClump_YExtent <- ymax(largest_hC8) - ymin(largest_hC8)
+				etband$Env$human$LargestClump_XExtent <- raster::xmax(largest_hC8) - raster::xmin(largest_hC8)
+				etband$Env$human$LargestClump_YExtent <- raster::ymax(largest_hC8) - raster::ymin(largest_hC8)
 				# rm(humanClump8, i.largest_hC8, largest_hC8)
 			} else {
 				etband$Env$human$LargestClump_XExtent <- etband$Env$human$LargestClump_YExtent <- 0

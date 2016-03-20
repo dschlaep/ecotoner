@@ -245,24 +245,26 @@ orient_transect_line <- function(pts_tcand, longlat) {
 	stline <- list()
 	
 	pts_N <- nrow(pts_tcand)
-	if (pts_N > 0) {
-		stline$pts_N <- pts_N
-	
-		#Test elevation transect and orient it from low -> high
-		temp <- pts_tcand[c(1, stline$pts_N), ]
-		if (which.max(temp$elev) == 1) {
-			# need to flip transect so that start=first-index is at lowest elevation
-			pts_tcand <- pts_tcand[stline$pts_N:1, ]
+	if (pts_N > 1) { # At least two points required to define start and end of a line
+		temp <- pts_tcand[c(1, pts_N), ]
+		
+		if (isTRUE(all.equal(min(temp$elev), max(temp$elev)))) { # We need a gradient > 0
+			#Test elevation transect and orient it from low (row 1) -> high (row 2)
+			if (which.max(temp$elev) == 1 && which.min(temp$elev) == 2) {
+				# need to flip transect so that start=first-index is at lowest elevation
+				pts_tcand <- pts_tcand[pts_N:1, ]
+			}
+
+			#Get transect start and end point (end point with highest elev)
+			stline$endPoints <- pts_tcand[c(1, pts_N), ]
+			stline$endPoints_WGS84 <- sp::spTransform(stline$endPoints, sp::CRS("+proj=longlat +datum=WGS84"))
+
+			#Get transect distances and sort transect line
+			temp <- sort_path(start = stline$endPoints[1, ], path = pts_tcand, longlat)
+			stline$pts <- temp$path
+			stline$dist_m <- temp$dist_m
+			stline$pts_N <- pts_N
 		}
-
-		#Get transect start and end point (end point with highest elev)
-		stline$endPoints <- pts_tcand[c(1, stline$pts_N), ]
-		stline$endPoints_WGS84 <- sp::spTransform(stline$endPoints, sp::CRS("+proj=longlat +datum=WGS84"))
-
-		#Get transect distances and sort transect line
-		temp <- sort_path(start = stline$endPoints[1, ], path = pts_tcand, longlat)
-		stline$pts <- temp$path
-		stline$dist_m <- temp$dist_m
 	}
 	
 	stline
