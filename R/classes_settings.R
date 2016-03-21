@@ -90,7 +90,8 @@ setValidity("EcotonerFile", function(object) {
 #' @slot dir_aspect_mean An 'EcotonerPath' object. The path to where the raster grid representing the mean smoothed aspect 'grid_aspect_mean' is stored (required with transect_type == 4). 
 #' @slot dir_aspect_sd An 'EcotonerPath' object. The path to where the raster grid representing the standard deviation of the smoothed aspect 'grid_aspect_sd' is stored (required with transect_type == 4). 
 #' @slot file_searchpoints An 'EcotonerFile' object. The entire file path to where the search points are/will be stored.
-#' @slot file_initwindow An 'EcotonerFile' object. The entire file path to where the spatstat::owin object for the search point generation is/will be stored.
+#' @slot file_initwindow An 'EcotonerFile' object. The entire file path to where the owin object for the search point generation with inihibition is/will be stored.
+#' @slot file_timing_locate An 'EcotonerFile' object. The entire file path to the timing of each transect location call will be stored, e.g., used by the call that removes unused temporary raster files.
 #' @slot file_etsummary An 'EcotonerFile' object. The entire file path to where the table of the transect summary are stored.
 #' @slot file_etsummary_temp An 'EcotonerFile' object. The entire file path to where temporary table of the transect summary are stored.
 #' @slot file_etmeasure_base An 'EcotonerFile' object. The entire file path (minus a flag indicating which measure type) to where temporary tables of the transect measures are stored.
@@ -145,6 +146,7 @@ EcotonerSettings <- setClass("EcotonerSettings",
 										 										 
 										 file_searchpoints = "EcotonerFile",
 										 file_initwindow = "EcotonerFile",
+										 file_timing_locate = "EcotonerFile",
 										 file_etsummary = "EcotonerFile",
 										 file_etsummary_temp = "EcotonerFile",
 										 file_etmeasure_base = "EcotonerFile"
@@ -417,6 +419,8 @@ setGeneric("file_initwindow", signature = "x", function(x) standardGeneric("file
 #' @export
 setGeneric("file_initwindow<-", signature = "x", function(x, value) standardGeneric("file_initwindow<-"))
 #' @export
+setGeneric("file_timing_locate", signature = "x", function(x) standardGeneric("file_timing_locate"))
+#' @export
 setGeneric("file_etsummary", signature = "x", function(x) standardGeneric("file_etsummary"))
 #' @export
 setGeneric("file_etsummary<-", signature = "x", function(x, value) standardGeneric("file_etsummary<-"))
@@ -538,6 +542,7 @@ setMethod("file_searchpoints", "EcotonerSettings", function(x) slot(slot(x, "fil
 setReplaceMethod("file_searchpoints", "EcotonerSettings", function(x, value) initialize(x, file_searchpoints = new("EcotonerFile", path = file.path(dir_init(x), basename(value)))))
 setMethod("file_initwindow", "EcotonerSettings", function(x) slot(slot(x, "file_initwindow"), "path"))
 setReplaceMethod("file_initwindow", "EcotonerSettings", function(x, value) initialize(x, file_initwindow = new("EcotonerFile", path = value)))
+setMethod("file_timing_locate", "EcotonerSettings", function(x) slot(slot(x, "file_timing_locate"), "path"))
 setMethod("file_etsummary", "EcotonerSettings", function(x) slot(slot(x, "file_etsummary"), "path"))
 setReplaceMethod("file_etsummary", "EcotonerSettings", function(x, value) {
 			x <- initialize(x, file_etsummary = new("EcotonerFile", path = file.path(dir_out(x), basename(value))))
@@ -573,6 +578,7 @@ setMethod("verify_project_paths", "EcotonerSettings", function(x) {
 		x@dir_init@path <- file.path(x@dir_prj@path, "1_Inits")
 		dir_create(x@dir_init@path)
 		if (!is.na(file_searchpoints(x))) file_searchpoints(x) <- basename(file_searchpoints(x))
+		x@file_timing_locate@path <- file.path(x@dir_init@path, "Timing_EcotonerLocateCalls.csv")
 		
 		x@dir_out@path <- file.path(x@dir_prj@path, "4_Output")
 		

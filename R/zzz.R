@@ -1,3 +1,7 @@
+# Function to remove temporary raster files at end of session or unloading of package
+#.my_finalizer <- function(var) unlink(x = file.path(tempdir(), "raster"), recursive = TRUE, force = TRUE)
+
+
 .onAttach <- function(libname, pkgname) {
 	if (interactive()) {
     	meta <- packageDescription("ecotoner")
@@ -19,6 +23,10 @@
 	#--- Define package level variables that should be hidden from package user and should not be changed
 	assign("transect_types", c("HighestElevation", "SteepestSlope", "Flowpath", "HomogeneousAspect"), envir = etr_vars)
 	assign("migtypes", c("AllMigration", "OnlyGoodMigration"), envir = etr_vars)
+	
+	#--- Set finalizer
+	#reg.finalizer(e = parent.env(environment()), # register the finalizer on the enclosing environment of the .onLoad function == environment of the package 'ecotoner'
+	#			  f = function (env) .my_finalizer(env$etr_vars), onexit = TRUE)
 	
 	invisible()
 }

@@ -87,7 +87,9 @@ An S4-class to represent the settings of an 'ecotoner' project
 
 \item{\code{file_searchpoints}}{An 'EcotonerFile' object. The entire file path to where the search points are/will be stored.}
 
-\item{\code{file_initwindow}}{An 'EcotonerFile' object. The entire file path to where the spatstat::owin object for the search point generation is/will be stored.}
+\item{\code{file_initwindow}}{An 'EcotonerFile' object. The entire file path to where the owin object for the search point generation with inihibition is/will be stored.}
+
+\item{\code{file_timing_locate}}{An 'EcotonerFile' object. The entire file path to the timing of each transect location call will be stored, e.g., used by the call that removes unused temporary raster files.}
 
 \item{\code{file_etsummary}}{An 'EcotonerFile' object. The entire file path to where the table of the transect summary are stored.}
 

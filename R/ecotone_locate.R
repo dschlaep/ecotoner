@@ -447,12 +447,14 @@ identify_migration_patches <- function(i, b, ecotoner_settings, etband, etable, 
 # Workhorse function
 #' @export
 detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_settings, ecotoner_grids, seed_streams = NULL, do_interim = TRUE, verbose = TRUE, do_figures = TRUE) {
+	t1t <- Sys.time()
 	if (verbose) {
 		idh <- 0 #counter for debug 'here' statements
-		cat("'ecotoner' detecting: tr = ", i, "; start at ", format(t1 <- Sys.time(), format = ""), "\n", sep = "")
+		cat("'ecotoner' detecting: tr = ", i, "; start at ", format(t1t, format = ""), "\n", sep = "")
 	}
 	
-	if (!do_interim) raster::removeTmpFiles(h=2) #clean up old temporary raster files; assuming that no call to this function takes longer than 2 hours
+	# Clean up old temporary raster files; assuming that no call to this function took much longer than previous calls
+	raster::removeTmpFiles(h = ceiling(get_max_timing(file_timing_locate(esets))))
 
 	iflag <- flag_itransect(ecotoner_settings, i)
 
@@ -517,6 +519,7 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 			asp201SDCropped <- temp$grid_aspect_sd_cropped
 	
 			for (b in seq_len(neighbors_N(ecotoner_settings))) { #if no transect can be established then proceed to next initpoint
+				t1b <- Sys.time()
 				etransect[["seeds"]][[b]] <- if (is.null(seed_streams)) NULL else if (inherits(seed_streams, "list")) seed_streams[[(i - 1) * neighbors_N(ecotoner_settings) + b]] else NA
 				set_RNG_stream(etransect[["seeds"]][[b]])
 				
@@ -609,6 +612,15 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 				} else if (b < neighbors_N(ecotoner_settings)) {
 					save(i, b, etransect, file = fname_etsearching(ecotoner_settings, iflag))
 				}
+
+				# Timing information: add only if everything was freshly calculated
+				if (do.tempData1 && do.tempData2) {
+					t2b <- Sys.time()
+					# Timing for search point and this neighborhood
+					add_new_timing(i, b, time_h = difftime(t2b, t1b, units = "hours"), file_timing_locate(esets))
+					# Timing for search point and all neighborhoods
+					add_new_timing(i, -1, time_h = difftime(t2b, t1t, units = "hours"), file_timing_locate(esets))
+				}
 			} # end for-loop through neighborhoods
 
 
@@ -639,7 +651,7 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 		load(fname_etlocated(ecotoner_settings, iflag)) # i, b, etransect
 	}
 	
-	if (verbose) cat("'ecotoner' detecting: tr = ", i, "; completed ", format(t2 <- Sys.time(), format = ""), " after ", round(difftime(t2, t1, units="hours"), 2), " hours\n", sep = "")
+	if (verbose) cat("'ecotoner' detecting: tr = ", i, "; completed ", format(t2t <- Sys.time(), format = ""), " after ", round(difftime(t2t, t1t, units = "hours"), 2), " hours\n", sep = "")
 
 	etransect$etable #if unsuccessful then NULL else data.frame: rbind works with a combination of NULL and data.frames (of the same length)
 }	

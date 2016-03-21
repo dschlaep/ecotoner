@@ -31,7 +31,7 @@ simplify2result <- function(x, showWarnings = TRUE) {
 			try(assign("last.warning", NULL, envir = baseenv()))
 		}
 	}
-	
+		
 	x
 }
 
@@ -112,6 +112,21 @@ write_ecotoner_row <- function(data_row, filename, tag_fun = "", tag_id = "") {
 #' @export
 N_of_location_calls <- function(ecotoner_settings) transect_N(ecotoner_settings) * neighbors_N(ecotoner_settings)
 
+#' @export
+N_of_measure_calls <- function(ecotoner_settings) N_of_location_calls(ecotoner_settings) * length(get("migtypes", envir = etr_vars))
 
 #' @export
-N_of_measure_calls <- function(ecotoner_settings) transect_N(ecotoner_settings) * neighbors_N(ecotoner_settings) * length(get("migtypes", envir = etr_vars))
+add_new_timing <- function(..., time_h, filename) {
+	x_cols <- matrix(c(as.numeric(unlist(list(...))), time_h), nrow = 1)
+	appT <- file.exists(filename)
+	write.table(x_cols, file = filename, append = appT, sep = ",", dec = ".", qmethod = "double", row.names = FALSE, col.names = !appT)
+}
+
+#' @export
+get_max_timing <- function(filename, add_hours = 2) {
+	add_hours + if (file.exists(filename)) {
+					x <- read.csv(filename, header = FALSE, row.names = NULL)
+					x <- x[, ncol(x)]
+					max(x, na.rm = TRUE)
+				} else 0
+}

@@ -267,6 +267,7 @@ if (any(actions)) {
 	
 	#---Verify folder setup
 	esets <- verify_project_paths(esets)
+	if (prj_status == "new") unlink(file_timing_locate(esets))
 
 	#---Setup: random number generator	
 	RNGkind_old <- RNGkind()
@@ -346,6 +347,7 @@ if (actions["locate_transects"]) {
 							do_interim = interactions["save_interim"],
 							verbose = interactions["verbose"],
 							do_figures = interactions["figures"])
+	raster::removeTmpFiles(h = 0)
 
 	#---Results
 	write.csv(resultTransects, file = file_etsummary(esets))
