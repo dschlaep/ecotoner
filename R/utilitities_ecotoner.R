@@ -125,7 +125,7 @@ add_new_timing <- function(..., time_h, filename) {
 #' @export
 get_max_timing <- function(filename, add_hours = 2) {
 	add_hours + if (file.exists(filename)) {
-					x <- read.csv(filename, header = FALSE, row.names = NULL)
+					x <- read.csv(filename, header = TRUE, row.names = NULL)
 					x <- x[, ncol(x)]
 					max(x, na.rm = TRUE)
 				} else 0

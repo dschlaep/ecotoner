@@ -5,7 +5,7 @@
 establish_ecotone_transect <- function(x) x
 #TODO(drs): devtools::document() doesn't like to export the real function below; this is a hack
 
-establish_ecotone_transect <- function(i, b, etband, etable, ipoint, ecotoner_settings, ecotoner_grids, elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped, dir_fig, figBasename, verbose, do_figures, seed) {
+establish_ecotone_transect <- function(i, b, etband, etable, ipoint, ecotoner_settings, ecotoner_grids, elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped, tempData = NULL, dir_fig, figBasename, verbose, do_figures, seed) {
 	if	(verbose) {
 		cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; start at ", format(Sys.time(), format = ""), "\n", sep = "")
 		idh <- 0 #counter for debug 'here' statements
@@ -29,7 +29,10 @@ gap.rat <- df_veg(ecotoner_grids)
 	if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
 
 	#---2. Locate candidate search-transect lines					
-	temp_stline_cands <- locate_candidate_transect_lines(transect_type = transect_type(ecotoner_settings),
+	if (!is.null(tempData) && file.exists(tempData)) {
+		temp_stline_cands <- readRDS(tempData)
+	} else {
+		temp_stline_cands <- locate_candidate_transect_lines(transect_type = transect_type(ecotoner_settings),
 								start = ipoint,
 								neighbors = neighborhoods(ecotoner_settings)[b],
 								max_neighborhood = max(neighborhoods(ecotoner_settings)),
@@ -43,6 +46,8 @@ gap.rat <- df_veg(ecotoner_grids)
 								max_aspect_sd = Aspect_SDof201Mean_Maximum(ecotoner_settings),
 								max_aspect_diff = Aspect_DeviationAlongCandidateLines_Maximum(ecotoner_settings),
 								seed = seed)
+		if (!is.null(tempData)) saveRDS(temp_stline_cands, file = tempData)
+	}
 	
 	if (temp_stline_cands$line_N > 0) {	
 		if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh <- idh + 1, "; # candidates = ", temp_stline_cands$line_N, "\n", sep = "")
@@ -58,17 +63,14 @@ gap.rat <- df_veg(ecotoner_grids)
 			temp_stline <- orient_transect_line(pts_tcand = temp_stline_cands$lines[[ic]], longlat = longlat(specs_grid(ecotoner_grids)))
 		
 			if (length(temp_stline) == 0) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
-						": transect line has 0 length after orienting along gradient and ordering by distance\n")
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+								": no transect located because transect line has 0 length after orienting along gradient and ordering by distance\n", sep = "")
 				next #goto next candidate transect
 			}
 		
 			#Store elevation transect data for analysis
 			temp.etable <- get.ElevationTransect_tempTableData(temp_Table = template_eBTable, data = temp_stline)
-## TODO(drs): organize output objects
 		
-			if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic, "; prog = ", idhic <- idhic + 1, "\n", sep = "")
-
 
 			#2b. Extract band transect along elevation transect with a width of 200 cells
 			#Calculate outline of maximal band transect along elevation transect
@@ -84,8 +86,8 @@ gap.rat <- df_veg(ecotoner_grids)
 													seed = seed)
 		
 			if (is.null(temp_stband$grids)) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
-						": band transect is not fully contained by 'elevCropped'\n")			
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+								": no transect located because band transect falls outside neighborhood window\n", sep = "")			
 				next # goto next candidate transect
 			}				
 
@@ -96,14 +98,15 @@ gap.rat <- df_veg(ecotoner_grids)
 																		veg_density_high = vegDefiningDensityTransect_high(ecotoner_settings),
 																		veg_density_extended_min = vegDefiningDensityTransectExtended_min(ecotoner_settings))
 		
-			if (verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic, "; prog = ", idhic <- idhic + 1, "; limits1 = ", paste(limits1_ZoneEcolBoundary, collapse=", "), "\n", sep = "")
 		
 			if (anyNA(limits1_ZoneEcolBoundary)) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
-						": no ecological boundary zone detected (step 1)\n")			
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+								": no transect located because there is no ecological boundary zone (step 1)\n", sep = "")			
 				next #goto next candidate transect; there is no zone of the ecological boundary according to definition
+			} else {
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic, "; prog = ", idhic <- idhic + 1, 
+								"; limits1 = ", paste(limits1_ZoneEcolBoundary, collapse=", "), "\n", sep = "")			
 			}
-
 
 			#Crop band transect to limits1_ZoneEcolBoundary
 			temp_etband <- trim1_band_to_ecotone(stband_grids = temp_stband$grids,
@@ -117,8 +120,8 @@ gap.rat <- df_veg(ecotoner_grids)
 			bseFreq <- raster::freq(temp_etband$bse)
 			temp_etband$ratValue_BSE <- bseFreq[bseFreq[, 1] %in% type_ids(type_veg1(ecotoner_settings)), 1]
 			if (length(temp_etband$ratValue_BSE) == 0) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
-						": no Veg1 within ecological boundary zone\n")			
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+								": no transect located because there is no Veg1 within ecological boundary zone\n", sep = "")			
 				break #no BSE in transect
 			}
 			temp_etband$level3_densities_BSE <- (dtemp <- bseFreq[itemp <- match(temp_etband$ratValue_BSE, bseFreq[, 1], nomatch = 0), 2]) / raster::ncell(temp_etband$bse)
@@ -131,8 +134,8 @@ gap.rat <- df_veg(ecotoner_grids)
 			tfFreq <- raster::freq(temp_etband$tf)
 			temp_etband$ratValue_TF <- tfFreq[tfFreq[, 1] %in% type_ids(type_veg2(ecotoner_settings)), 1]
 			if (length(temp_etband$ratValue_TF) == 0) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
-						": no Veg2 within ecological boundary zone\n")			
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+								": no transect located because there is no Veg2 within ecological boundary zone\n", sep = "")			
 				break #no TF in transect
 			}
 			temp_etband$level3_densities_TF <- tfFreq[match(temp_etband$ratValue_TF, tfFreq[, 1], nomatch = 0), 2] / raster::ncell(temp_etband$tf)
@@ -151,18 +154,18 @@ gap.rat <- df_veg(ecotoner_grids)
 																		veg_density_high = vegDefiningDensityTransect_high(ecotoner_settings),
 																		veg_density_extended_min = vegDefiningDensityTransectExtended_min(ecotoner_settings))
 
-			if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic, "; prog = ", idhic <- idhic + 1, "; limits2 = ", paste(limits2_ZoneEcolBoundary, collapse=", "), "\n", sep = "")
-		
 			if (anyNA(limits2_ZoneEcolBoundary)) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
-						": no ecological boundary zone detected (step 2)\n")			
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+								": no transect located because there is no ecological boundary zone (step 2)\n", sep = "")			
 				next #goto next candidate transect; there is no zone of the ecological boundary according to definition
 			} else {
+				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic, "; prog = ", idhic <- idhic + 1, 
+								"; limits2 = ", paste(limits2_ZoneEcolBoundary, collapse=", "), "\n", sep = "")			
 				transect_success <- TRUE
 				break #leave loop through candidate transects
 			}
 		} #end of loop through candidate transects
-		# rm(temp_stline_cands)
+
 
 		if (transect_success) {
 			#end of testing
@@ -479,23 +482,8 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 		dir_fig <- file.path(dir_out_fig(ecotoner_settings), iflag)
 		dir_create(dir_fig)
 
-
-		# Check whether partial (debug) output was already generated, if so read and jump there to continue
 		if(verbose) cat("'ecotoner' detecting: tr = ", i, "; prog: ", idh <- idh + 1, "\n", sep = "")
 		
-		tempData1 <- file.path(dir_fig, paste0("tempData_", i, "_2e3i.RData"))
-		tempData2 <- file.path(dir_fig, paste0("tempData_", i, "_2e3ii.RData"))
-		do.tempData1 <- do.tempData2 <- TRUE
-		if (file.exists(tempData2)) {
-			if(verbose) cat("'ecotoner' detecting: tr = ", i, "; prog: ", idh, ": 'do.tempData2' available and loaded\n", sep = "")
-			load(tempData2) #everything done!
-			do.tempData1 <- do.tempData2 <- FALSE
-		} else if (file.exists(tempData1)) {
-			if(verbose) cat("'ecotoner' detecting: tr = ", i, "; prog: ", idh, ": 'do.tempData1' available and loaded\n", sep = "")
-			load(tempData1)
-			do.tempData1 <- FALSE
-		}
-
 		#Crop rasters around ipoint to define linear transect: account for largest neighborhood
 		temp <- crop_to_neighborhood(pt_start = ipoint,
 									neighbor_n = max(neighborhoods(ecotoner_settings)),
@@ -520,19 +508,41 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 	
 			for (b in seq_len(neighbors_N(ecotoner_settings))) { #if no transect can be established then proceed to next initpoint
 				t1b <- Sys.time()
+				do_timing <- FALSE
+				
+				# Set random seed and generator
 				etransect[["seeds"]][[b]] <- if (is.null(seed_streams)) NULL else if (inherits(seed_streams, "list")) seed_streams[[(i - 1) * neighbors_N(ecotoner_settings) + b]] else NA
 				set_RNG_stream(etransect[["seeds"]][[b]])
 				
 				flag_bfig <- flag_basename(ecotoner_settings, iflag, b)
 				etransect[["status"]][b] <- "searching"
 			
-				if (do.tempData1) {
+				# Check whether partial (debug) output was already generated, if so read and jump to continue
+				tempData0 <- file.path(dir_fig, paste0("ecotoner_tmp0_candidates_tr", i, "_neigh", b, ".rds"))
+				tempData1 <- file.path(dir_fig, paste0("ecotoner_tmp1_establish_tr", i, "_neigh", b, ".RData"))
+				tempData2 <- file.path(dir_fig, paste0("ecotoner_tmp2_identify_tr", i, "_neigh", b, ".RData"))
+
+				if (file.exists(tempData2)) {
+					if(verbose) cat("'ecotoner' detecting: tr = ", i, "; prog: ", idh, ": 'do.tempData2' available and loaded\n", sep = "")
+					
+					load(file = tempData2)
+					etransect[["etbands"]][[b]] <- etband
+					etransect[["etable"]] <- etable
+				} else if (file.exists(tempData1)) {
+					if(verbose) cat("'ecotoner' detecting: tr = ", i, "; prog: ", idh, ": 'do.tempData1' available and loaded\n", sep = "")
+					
+					load(file = tempData1)
+					etransect[["etbands"]][[b]] <- etband
+					etransect[["etable"]] <- etable
+				} else {
+					do_timing <- !file.exists(tempData0)
+					
 					temp <- try(establish_ecotone_transect(i, b, 
 												etband = etransect[["etbands"]][[b]],
 												etable = etransect[["etable"]],
 												ipoint, ecotoner_settings, ecotoner_grids,
 												elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped,
-												dir_fig, figBasename = flag_bfig, verbose, do_figures,
+												tempData = if (do_interim) tempData0 else NULL, dir_fig, figBasename = flag_bfig, verbose, do_figures,
 												seed = NA), silent = TRUE)
 					
 					if (!inherits(temp, "try-error")) {
@@ -546,31 +556,33 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 					}
 			
 					if (do_interim) {
-						saveAll <- ls(all=TRUE, name=environment())
-						if(!identical(environment(), sys.frame())) saveAll <- c(saveAll, ls(all=TRUE, name=sys.frame()))
-						save(list=saveAll, file=tempData1)
+						#saveAll <- ls(all=TRUE, name=environment())
+						#if(!identical(environment(), sys.frame())) saveAll <- c(saveAll, ls(all=TRUE, name=sys.frame()))
+						etband <- etransect[["etbands"]][[b]]
+						etable <- etransect[["etable"]]
+						save(etband, etable, file = tempData1)
 					}
-				} #end of do.tempData1 == FALSE
 
-				if (do.tempData2 && etransect[["status"]][b] == "searching") {
-					temp <- try(identify_migration_patches(i, b, ecotoner_settings,
-															etband = etransect[["etbands"]][[b]],
-															etable = etransect[["etable"]],
-															dir_fig, flag_bfig, verbose, do_figures,
-															seed = NA), silent = TRUE)
+					if (etransect[["status"]][b] == "searching") {
+						temp <- try(identify_migration_patches(i, b, ecotoner_settings,
+																etband = etransect[["etbands"]][[b]],
+																etable = etransect[["etable"]],
+																dir_fig, flag_bfig, verbose, do_figures,
+																seed = NA), silent = TRUE)
 					
-					if (!inherits(temp, "try-error")) {
-						etransect[["etbands"]][[b]] <- temp[["etband"]]
-						etransect[["etable"]] <- temp[["etable"]]
-					} else {
-						etransect[["status"]][b] <- "error"
-						warning("'detect_ecotone_transects_from_searchpoint': ", temp, immediate. = TRUE)
-					}
+						if (!inherits(temp, "try-error")) {
+							etransect[["etbands"]][[b]] <- temp[["etband"]]
+							etransect[["etable"]] <- temp[["etable"]]
+						} else {
+							etransect[["status"]][b] <- "error"
+							warning("'detect_ecotone_transects_from_searchpoint': ", temp, immediate. = TRUE)
+						}
 
-					if (do_interim) {
-						saveAll <- ls(all=TRUE, name=environment())
-						if(!identical(environment(), sys.frame())) saveAll <- c(saveAll, ls(all=TRUE, name=sys.frame()))
-						save(list=saveAll, file=tempData2)
+						if (do_interim) {
+							etband <- etransect[["etbands"]][[b]]
+							etable <- etransect[["etable"]]
+							save(etband, etable, file = tempData2)
+						}
 					}
 				} #end of do.tempData2 == FALSE
 
@@ -614,22 +626,26 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 				}
 
 				# Timing information: add only if everything was freshly calculated
-				if (do.tempData1 && do.tempData2) {
+				if (do_timing) {
 					t2b <- Sys.time()
 					# Timing for search point and this neighborhood
-					add_new_timing(i, b, time_h = difftime(t2b, t1b, units = "hours"), file_timing_locate(esets))
+					add_new_timing(i, b, time_h = difftime(t2b, t1b, units = "hours"), filename = file_timing_locate(esets))
 					# Timing for search point and all neighborhoods
-					add_new_timing(i, -1, time_h = difftime(t2b, t1t, units = "hours"), file_timing_locate(esets))
+					add_new_timing(i, -1, time_h = difftime(t2b, t1t, units = "hours"), filename = file_timing_locate(esets))
 				}
 			} # end for-loop through neighborhoods
 
 
-			# Save data to RData file
+			# Save data to RData file and remove no longer used files
 			remove_fsearching <- FALSE
 			
 			if (all(etransect[["status"]] == "located")) {
 				save(i, b, etransect, file = fname_etlocated(ecotoner_settings, iflag))
-				remove_fsearching <- TRUE
+				remove_fsearching <- TRUE				
+				unlink(x = c(file.path(dir_fig, "ecotoner_tmp0_candidates_tr*.RData"),
+							 file.path(dir_fig, "ecotoner_tmp1_establish_tr*.RData"),
+							 file.path(dir_fig, "ecotoner_tmp2_identify_tr*.RData")))
+			
 			} else {
 				unlink(dir_fig, recursive = TRUE)
 				
@@ -642,8 +658,8 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 				}
 			}
 			
-			if (remove_fsearching && file.exists(fname_etsearching(ecotoner_settings, iflag))){
-				unlink(fname_etsearching(ecotoner_settings, iflag))
+			if (remove_fsearching){
+				unlink(fname_etsearching(ecotoner_settings, iflag)) #Not deleting a non-existent file is not a failure
 			}
 		}
 

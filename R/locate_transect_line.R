@@ -90,13 +90,13 @@ elongate_linear_transect <- function(x, point1, point2, efac = 1, extend.dir12 =
 	sort_path_max_range(start = point3, path = path, grid_gradient = elev)
 }
 
-# Extract that lowest to hightest value segment of the transect, identified by a homogeneous aspect
+# Extract from the longest segment that lowest to hightest value piece of the transect, identified by a homogeneous aspect
 subset_candidate_THA <- function(grid_gradient, init_spLine, init_rle){
 	temp <- raster::rasterize(x = init_spLine, y = grid_gradient)
 	path <- raster::rasterToPoints(x = temp, spatial = TRUE)
 	
 	ids <- cumsum(c(0, init_rle$lengths))
-	id <- which(temp <- (!is.na(init_rle$values) & init_rle$values == 1))[which.max(init_rle$lengths[temp])]
+	id <- init_rle$isegments[which.max(init_rle$lengths[init_rle$isegments])]
 	
 	path <- path[(ids[id]+1):ids[id+1], ] #Cut to run of focal mean aspect of init point	
 	
@@ -132,24 +132,25 @@ locate_candidate_THAs <- function(n, grid_gradient, max_neighborhood, asp201Mean
 		lowSDabuts_aspm <- raster::rasterToPoints(lowSDabuts, spatial = TRUE)
 		
 		if (!is.na(seed)) set.seed(seed)
-		lowSDabuts_aspm_20spPoint <- lowSDabuts_aspm[sample(x = nrow(lowSDabuts_aspm), size = n, replace = FALSE), ]
+		lowSDabuts_aspm_spPoints <- lowSDabuts_aspm[sample(x = nrow(lowSDabuts_aspm), size = n, replace = FALSE), ]
 
 		#3. Create lines for each potential init point in the direction of its focal mean aspect
 		extend_m <- sqrt(2) / 2 * raster::xres(grid_gradient) * (max_neighborhood - 1)
-		pcoords <- sp::coordinates(lowSDabuts_aspm_20spPoint)
-		extXY_m <- cbind(tempX <- ifelse(abs(tempA <- tan(pi / 2 - lowSDabuts_aspm_20spPoint@data[, 1])) > 1, extend_m / tempA, extend_m), tempX * tempA)
+		pcoords <- sp::coordinates(lowSDabuts_aspm_spPoints)
+		extXY_m <- cbind(tempX <- ifelse(abs(tempA <- tan(pi / 2 - lowSDabuts_aspm_spPoints@data[, 1])) > 1, extend_m / tempA, extend_m), tempX * tempA)
 		points_pos <- sp::SpatialPoints(sp::coordinates(temp <- data.frame(pcoords[, 1] + extXY_m[, 1], pcoords[, 2] + extXY_m[, 2])), proj4string = raster::crs(lowSDabuts))
 		points_neg <- sp::SpatialPoints(sp::coordinates(data.frame(pcoords[, 1] - extXY_m[, 1], pcoords[, 2] - extXY_m[, 2])), proj4string = raster::crs(lowSDabuts))
 		seq_n <- seq_len(n)
 		extLinesAspm_spLine <- sp::SpatialLines(lapply(seq_n, FUN = function(ip) sp::Lines(sp::Line(sp::rbind.SpatialPoints(points_pos[ip, ], points_neg[ip, ])), ID = ip)), proj4string = raster::crs(lowSDabuts))
 
 		#4. Extract focal mean aspect within low RMSE areas along those lines (slow call)
-		extLinesAspm_aspm <- raster::extract(asp201Mean_atlowSD, extLinesAspm_spLine, method = "simple")
+		extLinesAspm_aspm <- raster::extract(asp201Mean_atlowSD, extLinesAspm_spLine, method = "simple") # NA, if asp201SD > max_aspect_sd
 
-		#5. Retain those lines that have a sufficient length of homogeneous aspect around the init points
-##TODO(drs): should this be difference in mean aspect of init point or of mean of all points?
-		runs <- lapply(seq_n, FUN = function(il) rle(ifelse(abs(extLinesAspm_aspm[[il]] - lowSDabuts_aspm_20spPoint@data[il, 1]) < max_aspect_diff, 1, 0)))
-		good_lines <- which(sapply(runs, FUN = function(r) ifelse(length(temp1 <- (!is.na(r$values) & r$values == 1)) > 0, ifelse(max(r$lengths[temp1]) > width_N, TRUE, FALSE), FALSE)))
+		#5. Retain those lines that have a sufficient length of homogeneous aspect (i.e., !is.na) around the init points
+##TODO(drs): should this be difference from mean aspect of init point (as implemented currently) or of mean of all points?
+		runs <- lapply(seq_n, function(il) rle(ifelse(abs(extLinesAspm_aspm[[il]] - lowSDabuts_aspm_spPoints@data[il, 1]) < max_aspect_diff, 1, 0)))
+		runs <- lapply(runs, function(r) {r[["isegments"]] <- which(!is.na(r$values) & r$values == 1); r})
+		good_lines <- which(sapply(runs, function(r) length(r$isegments) > 0 && max(r$lengths[r$isegments]) > width_N))
 
 		if (length(good_lines) > 0) for(i in seq_along(good_lines)) {
 			candidates[[i]] <- subset_candidate_THA(grid_gradient = grid_gradient,
@@ -248,7 +249,7 @@ orient_transect_line <- function(pts_tcand, longlat) {
 	if (pts_N > 1) { # At least two points required to define start and end of a line
 		temp <- pts_tcand[c(1, pts_N), ]
 		
-		if (isTRUE(all.equal(min(temp$elev), max(temp$elev)))) { # We need a gradient > 0
+		if (!isTRUE(all.equal(min(temp$elev), max(temp$elev)))) { # We need a gradient > 0
 			#Test elevation transect and orient it from low (row 1) -> high (row 2)
 			if (which.max(temp$elev) == 1 && which.min(temp$elev) == 2) {
 				# need to flip transect so that start=first-index is at lowest elevation
