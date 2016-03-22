@@ -117,7 +117,7 @@ N_of_measure_calls <- function(ecotoner_settings) N_of_location_calls(ecotoner_s
 
 #' @export
 add_new_timing <- function(..., time_h, filename) {
-	x_cols <- matrix(c(as.numeric(unlist(list(...))), time_h), nrow = 1)
+	x_cols <- matrix(c(as.numeric(unlist(list(...))), round(time_h, 2)), nrow = 1)
 	appT <- file.exists(filename)
 	write.table(x_cols, file = filename, append = appT, sep = ",", dec = ".", qmethod = "double", row.names = FALSE, col.names = !appT)
 }

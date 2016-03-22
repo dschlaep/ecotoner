@@ -546,24 +546,27 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 												seed = NA), silent = TRUE)
 					
 					if (!inherits(temp, "try-error")) {
-						etransect[["etbands"]][[b]] <- temp[["etband"]]
 						etransect[["status"]][b] <- temp[["status"]]
-						etransect[["etable"]] <- temp[["etable"]]
+						
+						if (temp[["status"]] == "searching") {
+							etransect[["etbands"]][[b]] <- temp[["etband"]]
+							etransect[["etable"]] <- temp[["etable"]]
+						}
 						rm(temp)
 					} else {
 						etransect[["status"]][b] <- "error"
 						warning("'detect_ecotone_transects_from_searchpoint': ", temp, immediate. = TRUE)
 					}
 			
-					if (do_interim) {
-						#saveAll <- ls(all=TRUE, name=environment())
-						#if(!identical(environment(), sys.frame())) saveAll <- c(saveAll, ls(all=TRUE, name=sys.frame()))
-						etband <- etransect[["etbands"]][[b]]
-						etable <- etransect[["etable"]]
-						save(etband, etable, file = tempData1)
-					}
-
 					if (etransect[["status"]][b] == "searching") {
+						if (do_interim) {
+							#saveAll <- ls(all=TRUE, name=environment())
+							#if(!identical(environment(), sys.frame())) saveAll <- c(saveAll, ls(all=TRUE, name=sys.frame()))
+							etband <- etransect[["etbands"]][[b]]
+							etable <- etransect[["etable"]]
+							save(etband, etable, file = tempData1)
+						}
+
 						temp <- try(identify_migration_patches(i, b, ecotoner_settings,
 																etband = etransect[["etbands"]][[b]],
 																etable = etransect[["etable"]],
@@ -642,7 +645,7 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 			if (all(etransect[["status"]] == "located")) {
 				save(i, b, etransect, file = fname_etlocated(ecotoner_settings, iflag))
 				remove_fsearching <- TRUE				
-				unlink(x = c(file.path(dir_fig, "ecotoner_tmp0_candidates_tr*.RData"),
+				unlink(x = c(file.path(dir_fig, "ecotoner_tmp0_candidates_tr*.rds"),
 							 file.path(dir_fig, "ecotoner_tmp1_establish_tr*.RData"),
 							 file.path(dir_fig, "ecotoner_tmp2_identify_tr*.RData")))
 			
