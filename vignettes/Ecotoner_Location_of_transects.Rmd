@@ -1,0 +1,61 @@
+---
+title: "Ecotoner: How ecotones are identified and transects established"
+author: "Daniel R Schlaepfer"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Ecotoner: How ecotones are identified and transects established}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+The algorithm searches different sized windows which are centered around a search point, whether it is possible to establish a transect across an ecotone. That means that a transect can be uniquely named after the search point (location), the neighborhood window size, and the random number generator seed.
+
+
+* Generation of search points
+
+
+* Loop over each search point
+    * Call function 'crop_to_neighborhood': crop raster grids to maximum neighborhood extent
+    * Loop over each neighborhood window size
+        1. Set random seed (either arbitrarily or with a seed unique to search point and neighborhood window size)
+        1. Call function 'establish_ecotone_transect'
+            1. Call function 'locate_candidate_transect_lines'
+                1. Establish candidate transect lines of a specified transect type
+                    + If type 1 or type 3, then call 'locate_max_value' to locate the point with the maximum value of the environmental grid within the neighborhood window.
+                        - If type 1, then the one candidate line is the direct line between the maximum point and search point which is extend by factor 2 past the maximum point and from which the section between the minimum and maximum values is extracted by calling 'elongate_linear_transect'.
+                        - If type 3, then the one candidate curve is the flowpath generated with a call to 'calc_flow_path', starting from the maximum point until it reaches the minimum point within the neighborhood window.
+                    + If type 2, then call 'locate_steepest_slope' to locate the point which has the steepest mean slope when connected with the search point in a line. The one candidate line is the direct line between this point and the search point which is extend by factor 2 past both points and from which the section between the minimum and maximum values is extracted by calling 'elongate_linear_transect'.
+                    + If type 4, then call 'locate_candidate_THAs' to sample candidate lines of sufficient length along homogeneous areas of aspect
+                1. Loop over each candidate line until the first successful candidate
+                    1. Call function 'orient_transect_line'
+                    1. Call function 'locate_candidate_transect_band'
+                        * Extract band transect along elevation transect with a width of 200 cells
+                        * Calculate outline of maximal band transect along elevation transect and how to transform from original coordinates to band transect coordinates
+                    1. Call function 'determine_ecotone_linear_extent': Apply definition of zone of ecological boundary to BSE and TF
+                    1. Call function 'trim1_band_to_ecotone': Crop band transect to limits1_ZoneEcolBoundary
+                    1. Determine majority BSE and majority TF types within limits1_ZoneEcolBoundary
+                    1. Call function 'determine_ecotone_linear_extent': Apply definition of zone of ecological boundary to majority of BSE and majority of TF within limits1_ZoneEcolBoundary
+                1. If a candiate successful
+                    1. Call function 'trim_line_to_ecotone': Crop the linear transect to the ecological boundary zone
+                    1. Call function 'extract_tband_grids': Crop the band transect to the ecological boundary zone
+                    1. Call function 'trim2_band_to_ecotone': Crop band transect to zone of ecol boundary and set start of 'my' coordinate system
+                    1. Environmental gradient along transect
+                        * Extract environmental conditions along transect band
+                        * Quality/Homogeneity of environmental gradient along transect
+                            * Human footprint
+                            * Quality of aspect: local (RMSE), patches (clumps), and global (mean) aspect
+                            * Quality of elevation
+                    1. Vegetation data along transect: Need to recalculate veg1, veg2, veg1density, and veg2density based on patches
+                        * Quality: vegetation patch sizes
+        1. Call function 'identify_migration_patches':
+            1. AllMigration: all vegetation in transect
+            1. OnlyGoodMigration
+                * all vegetation minus patches whose flowpath connects to beyond y-border indicating non-x-axis migration origin
+                * identify patches that 'drain' out either at y=1 or at y=200; assumption: most likely migration route = flowpath
+            1. Call function 'calc.MigrationRoutes_EstimateFlowpaths':
+            1. Call function 'calc.Identify_GoodvsBadMigration':
+            1. Call function 'calc.RemoveBadMigration_fromVeg':
+    * end of loop for each neighborhood
+* end of loop over each search point

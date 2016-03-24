@@ -174,24 +174,30 @@ plot_Danz2012_abruptness_2D <- function(filename, xlab, preds1, preds2, data1, d
 	invisible()
 }
 
-
-tabulate_Danz2012_abruptness_2D <- function(etable, index, data) {
-#TODO(drs): consider replacing this function with 'put.ListData1Level_TableData'
-	temp <- unlist(data)
-	cname <- paste("Danz2012", names(temp), sep = "_")
+tabulate_merge_into_etable <- function(etable, index, data) {
+	cname <- if (is.vector(data)) names(data) else colnames(data)
 	cname_exist <- match(cname, colnames(etable), nomatch = 0)
-
+	
 	icol <- cname_exist > 0
-	if (any(icol)) etable[index, cname_exist[icol]] <- temp[icol]
+	if (any(icol)) etable[index, cname_exist[icol]] <- data[icol]
 
 	icol <- cname_exist == 0
 	if (any(icol)) {
-		res <- as.data.frame(matrix(NA, nrow = max(1, nrow(etable)), ncol = sum(icol), dimnames = list(NULL, cname[icol])))
-		res[index, ] <- temp[icol]
+		res <- as.data.frame(matrix(NA, nrow = max(index, nrow(etable)), ncol = sum(icol), dimnames = list(NULL, cname[icol])))
+		res[index, ] <- data[icol]
 		etable <- cbind(etable, res)
 	}
 	
 	etable
+}
+
+
+tabulate_Danz2012_abruptness_2D <- function(etable, index, data) {
+#TODO(drs): consider replacing this function with 'put.ListData1Level_TableData'
+	data <- unlist(data)
+	names(data) <- paste("Danz2012", names(data), sep = "_")
+
+	tabulate_merge_into_etable(etable, index, data)
 }
 
 

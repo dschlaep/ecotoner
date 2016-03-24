@@ -29,6 +29,24 @@ get.ElevationTransect_tempTableData <- function(temp_Table, data) {
 	return(temp_Table)
 }
 
+tabulate_merge_into_etable <- function(etable, index, data) {
+	cname <- if (is.vector(data)) names(data) else colnames(data)
+	cname_exist <- match(cname, colnames(etable), nomatch = 0)
+	
+	icol <- cname_exist > 0
+	if (any(icol)) etable[index, cname_exist[icol]] <- data[icol]
+
+	icol <- cname_exist == 0
+	if (any(icol)) {
+		res <- as.data.frame(matrix(NA, nrow = max(index, nrow(etable)), ncol = sum(icol), dimnames = list(NULL, cname[icol])))
+		res[index, ] <- data[icol]
+		etable <- cbind(etable, res)
+	}
+	
+	etable
+}
+
+
 get.CopyTempTo_TableData <- function(temp_Table, etable, b) {
 	cname <- colnames(temp_Table)
 	cname_exist <- match(cname, colnames(etable), nomatch = 0)
@@ -43,6 +61,22 @@ get.CopyTempTo_TableData <- function(temp_Table, etable, b) {
 	
 	etable
 }		
+
+put.ListData1Level_TableData <- function(etable, b, data, colFlag, listname, flag_migtype){
+	cname <- paste(flag_migtype, colFlag, listname, names(data), sep="_")
+	cname_exist <- match(cname, colnames(etable), nomatch=0)
+	if(any(icol <- (cname_exist > 0))){
+		etable[b, cname_exist[icol]] <- unlist(data[icol])
+	}
+	if(any(icol <- (cname_exist == 0))){
+		res <- matrix(NA, nrow=max(1, nrow(etable)), ncol=sum(icol), dimnames=list(NULL, cname[icol]))
+		res[b, ] <- unlist(data[icol])
+		etable <- cbind(etable, res)
+	}
+	return(etable)
+}
+
+
 
 get.LinearTransect_TableData <- function(etable, b, data) {
 	etable$Transect_StartInElevationTransect_m[b] <- data$StartInElevationTransect_m
@@ -193,20 +227,6 @@ get.BandTransect_TableDataVeg <- function(etable, b, data, flag_migtype){
 	return(etable)
 }
 
-
-put.ListData1Level_TableData <- function(etable, b, data, colFlag, listname, flag_migtype){
-	cname <- paste(flag_migtype, colFlag, listname, names(data), sep="_")
-	cname_exist <- match(cname, colnames(etable), nomatch=0)
-	if(any(icol <- (cname_exist > 0))){
-		etable[b, cname_exist[icol]] <- unlist(data[icol])
-	}
-	if(any(icol <- (cname_exist == 0))){
-		res <- matrix(NA, nrow=max(1, nrow(etable)), ncol=sum(icol), dimnames=list(NULL, cname[icol]))
-		res[b, ] <- unlist(data[icol])
-		etable <- cbind(etable, res)
-	}
-	return(etable)
-}
 
 tabulate_InterZoneLocation <- function(etable, b, data, colFlag, flag_migtype){
 	iz_N <- length(data)

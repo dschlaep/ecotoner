@@ -35,19 +35,19 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 
 	# Measure ecotones
 	if (do_measure) {
+		# Data containers
+		template_etobs <- list(	gETmeas = vector(mode = "list", length = neighbors_N(ecotoner_settings)), # list for 'gETmeas' of each neighborhood
+								seeds = vector(mode = "list", length = neighbors_N(ecotoner_settings) * length(migtypes)),
+								etable = data.frame(matrix(NA, nrow = 1, ncol = 0))) #container combining output table results with rows for each neighborhood and migtype
+		temp <- vector("list", length = length(migtypes))
+		names(temp) <- migtypes
+		template_etobs$gETmeas <- lapply(template_etobs$gETmeas, function(x) temp)
+
 		if (do_new) {
-			template_etobs <- list(	gETmeas = vector(mode = "list", length = neighbors_N(ecotoner_settings)), # list for 'gETmeas' of each neighborhood
-									seeds = vector(mode = "list", length = neighbors_N(ecotoner_settings) * length(migtypes)),
-									etable = data.frame(matrix(NA, nrow = 1, ncol = 0))) #container combining output table results with rows for each neighborhood and migtype
-			temp <- vector("list", length = length(migtypes))
-			names(temp) <- migtypes
-			template_etobs$gETmeas <- lapply(template_etobs$gETmeas, function(x) temp)
 			etmeas <- vector(mode = "list", length = length(et_methods))
 			names(etmeas) <- et_methods
 		}
 		
-		for (etm in et_methods) etmeas[[etm]] <- template_etobs
-
 		dir_fig <- file.path(dir_out_fig(ecotoner_settings), iflag)
 		dir_create(dir_fig)
 
@@ -60,10 +60,12 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 			for (im in seq_along(migtypes)) {
 				copy_FromMig1_TF <- if (migtypes[im] == "AllMigration") FALSE else !etransect$etbands[[b]]$Veg[["OnlyGoodMigration"]]$diffs_amongMigTypes_TF
 
-				if (verbose) cat("'ecotoner' measuring: tr = ", i, "; neigh = ", b, ": prog: ", idh <- idh + 1, "; mig-type: ", migtypes[im], "; method: ", etm, "\n", sep = "")
-				
 				# loop through measurement methods 'et_methods'
 				for (etm in et_methods) {
+					if (verbose) cat("'ecotoner' measuring: tr = ", i, "; neigh = ", b, ": prog: ", idh <- idh + 1, "; mig-type: ", migtypes[im], "; method: ", etm, "\n", sep = "")
+					
+					if (is.null(etmeas[[etm]])) etmeas[[etm]] <- template_etobs
+					
 					iseed <- (b - 1) * length(migtypes) + im
 					etmeas[[etm]][["seeds"]][[iseed]] <- if (is.null(seed_streams)) NULL else if (inherits(seed_streams, "list")) seed_streams[[((i - 1) * neighbors_N(ecotoner_settings) + (b - 1)) * length(migtypes) + im]] else NA
 					set_RNG_stream(etmeas[[etm]][["seeds"]][[iseed]])

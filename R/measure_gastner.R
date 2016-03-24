@@ -6,8 +6,8 @@
 get.stepMaskAndDistance <- function(steplength, res_m) {
 	sn <- matrix(NA, ncol = 1+2*steplength, nrow = 1+2*steplength)
 	sn[1+steplength, 1+steplength] <- 0 #center
-	rsn <- raster(sn, xmn = 0, xmx = ncol(sn) * res_m, ymn = 0, ymx = nrow(sn) * res_m, crs = "+proj = utm +zone = 13 +ellps = GRS80 +towgs84 = 0,0,0,0,0,0,0 +units = m +no_defs")	
-	dsn <- distance(rsn, doEdge = FALSE)
+	rsn <- raster::raster(sn, xmn = 0, xmx = ncol(sn) * res_m, ymn = 0, ymx = nrow(sn) * res_m, crs = "+proj=utm +zone=13 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")	
+	dsn <- raster::distance(rsn, doEdge = FALSE)
 	rsn[] <- dsn[] <= steplength * res_m
 	sn <- raster::as.matrix(rsn, maxpixels = raster::ncell(rsn))
 	sn[sn == 0] <- NA
@@ -31,31 +31,35 @@ calc_Gastner2010_hulledge <- function(i, steplength, veg, end_toLeft) {
 	stepwindow[,, "deltaX"] <- matrix(temp <- rep(seq_len(stepwindow_N) - (1 + steplength), times = stepwindow_N), ncol = stepwindow_N, nrow = stepwindow_N, byrow = TRUE)
 	stepwindow[,, "deltaY"] <- matrix(temp, ncol = stepwindow_N, nrow = stepwindow_N, byrow = FALSE)
 	#azimuth = clockwise angle (in radians) between possible steps and general walking direction (if end_toLeft then 'up' = North else 'down' = South)
- 	stepwindow[,, "azimuth"] <- rotate_azimuth_matrix(as.matrix(temp <- raster::atan2(raster(ifelse(end_toLeft, -1, 1) * stepwindow[,, "deltaX"], xmn = 0, xmx = stepwindow_N * res_m, ymn = 0, ymx = stepwindow_N * res_m, crs = helper_CRS), raster(ifelse(end_toLeft, 1, -1) * stepwindow[,, "deltaY"], xmn = 0, xmx = stepwindow_N * res_m, ymn = 0, ymx = stepwindow_N * res_m, crs = helper_CRS)), maxpixels = raster::ncell(temp)), 0)
+ 	rtemp1 <- rtemp2 <- raster::raster(stepwindow[,, "azimuth"],
+ 							xmn = 0, xmx = stepwindow_N * res_m,
+ 							ymn = 0, ymx = stepwindow_N * res_m,
+ 							crs = helper_CRS)
+	rtemp1 <- raster::setValues(rtemp1, {if (end_toLeft) -1 else 1} * stepwindow[,, "deltaX"])
+	rtemp2 <- raster::setValues(rtemp2, {if (end_toLeft) 1 else -1} * stepwindow[,, "deltaY"])
+ 	rtemp <- raster::atan2(rtemp1, rtemp2)
+ 	mat <- raster::as.matrix(rtemp, maxpixels = raster::ncell(rtemp))
+ 	stepwindow[,, "azimuth"] <- rotate_azimuth_matrix(mat, 0)
 		
 	#--- 1. Identify largest connected patch
 	#veg <- calc(veg, fun = function(x) ifelse(is.na(x), NA, 1))
-	vegclumps_rookIDs <- clump(veg, directions = 4)
+	vegclumps_rookIDs <- raster::clump(veg, directions = 4)
 	#Rook's case
-	vegclumps_largestID <- which.max((listFreqs <- freq(vegclumps_rookIDs))[!is.na(listFreqs[, 1]), 2])
-	#vegclumps_largest <- calc(vegclumps_rookIDs, fun = function(x) ifelse(x %in% vegclumps_largestID & !is.na(x), 1, NA))
-	vegclumps_largest <- calc(vegclumps_rookIDs, fun = function(x) ifelse(match(x, vegclumps_largestID, nomatch = 0) > 0 & !is.na(x), 1, NA))										
+	vegclumps_largestID <- which.max((listFreqs <- raster::freq(vegclumps_rookIDs))[!is.na(listFreqs[, 1]), 2])
+	vegclumps_largest <- raster::calc(vegclumps_rookIDs, fun = function(x) ifelse(match(x, vegclumps_largestID, nomatch = 0) > 0 & !is.na(x), 1, NA))										
 	#steplength larger than Rook's case
 	if (steplength > 1) {
 		vegclumps_largest_uniqueID <- 10^floor(log(sum(!is.na(listFreqs[, 1])), base = 10)+1)
-		#vegclumps_outlying <- calc(vegclumps_rookIDs, fun = function(x) ifelse(x %in% vegclumps_largestID | is.na(x), NA, x)) #raster with clumps except the largest clump
-		vegclumps_outlying <- calc(vegclumps_rookIDs, fun = function(x) ifelse(match(x, vegclumps_largestID, nomatch = 0) > 0 | is.na(x), NA, x)) #raster with clumps except the largest clump
+		vegclumps_outlying <- raster::calc(vegclumps_rookIDs, fun = function(x) ifelse(match(x, vegclumps_largestID, nomatch = 0) > 0 | is.na(x), NA, x)) #raster with clumps except the largest clump
 		ir <- 1
 		repeat { #include outlying patches into largest clump if they are within reach by steplength
-			vegclumps_largest_enlarged <- focal(vegclumps_largest, w = stepwindow[,, "mask"], fun = function(x, ...) sum(!is.na(x)), pad = TRUE, padValue = NA) #raster with largest clump made larger by steplength: this call is by ca. 5x the most time consuming within this loop
+			vegclumps_largest_enlarged <- raster::focal(vegclumps_largest, w = stepwindow[,, "mask"], fun = function(x, ...) sum(!is.na(x)), pad = TRUE, padValue = NA) #raster with largest clump made larger by steplength: this call is by ca. 5x the most time consuming within this loop
 			vegclumps_addedIDs <- raster::overlay(vegclumps_largest_enlarged, vegclumps_outlying, fun = function(x, y) ifelse(!is.na(x) & x > 0, vegclumps_largest_uniqueID, 0) + ifelse(!is.na(y), y, 0)) #raster with outlying clumps marked that overlap with enlarged largest clump, i.e., they are reachable from largest clump with a steplength
-			addedIDs_freq <- unique(vegclumps_addedIDs)
+			addedIDs_freq <- raster::unique(vegclumps_addedIDs)
 			outlyingIDs_ToAdd <- addedIDs_freq[addedIDs_freq > vegclumps_largest_uniqueID] - vegclumps_largest_uniqueID #extract IDs of clumps that are reachable from largest clump by steplength
 			if (length(outlyingIDs_ToAdd) > 0 & ir < 100) {
-				#vegclumps_largest <- raster::overlay(vegclumps_largest, vegclumps_outlying, fun = function(x, y) ifelse(!is.na(x) | y %in% outlyingIDs_ToAdd, 1, NA)) #add outlying reachable clumps to largest clump
 				vegclumps_largest <- raster::overlay(vegclumps_largest, vegclumps_outlying, fun = function(x, y) ifelse(!is.na(x) | match(y, outlyingIDs_ToAdd, nomatch = 0) > 0, 1, NA)) #add outlying reachable clumps to largest clump
-				#vegclumps_outlying <- calc(vegclumps_outlying, fun = function(x) ifelse(is.na(x) | x %in% outlyingIDs_ToAdd, NA, x)) #remove outlying added clumps from remaining outlying clumps
-				vegclumps_outlying <- calc(vegclumps_outlying, fun = function(x) ifelse(is.na(x) | match(x, outlyingIDs_ToAdd, nomatch = 0) > 0, NA, x)) #remove outlying added clumps from remaining outlying clumps
+				vegclumps_outlying <- raster::calc(vegclumps_outlying, fun = function(x) ifelse(is.na(x) | match(x, outlyingIDs_ToAdd, nomatch = 0) > 0, NA, x)) #remove outlying added clumps from remaining outlying clumps
 				ir <- ir + 1
 			} else {
 				break
@@ -83,7 +87,7 @@ calc_Gastner2010_hulledge <- function(i, steplength, veg, end_toLeft) {
 	#Init
 	grid_hullEdge <- raster::raster(veg)
 	mat_hullEdge <- matrix(NA, nrow = 0, ncol = 2, dimnames = list(NULL, c("x", "y")))
-	spLine_hullEdge <- sp::SpatialLines(list(sp::Lines(sp::Line(rbind(temp <- c(raster::xFromCol(veg, start_col), raster::yFromRow(veg, start_row)), temp)), ID = 1)), proj4string = sp::CRS(helper_CRS))
+	spLine_hullEdge <- sp::SpatialLines(list(sp::Lines(sp::Line(rbind(temp <- c(raster::xFromCol(veg, start_col), raster::yFromRow(veg, start_row)), temp)), ID = 1)), proj4string = helper_CRS)
 	iLine <- NULL
 	iazimuth <- 0 #clockwise angle between current step and general walking direction
 	irow <- start_row #matrix row (y-axis) of current position
@@ -95,47 +99,61 @@ calc_Gastner2010_hulledge <- function(i, steplength, veg, end_toLeft) {
 			#-Take step
 			grid_hullEdge[irow, icol] <- 1
 			mat_hullEdge <- rbind(mat_hullEdge, c(icol, irow))
-			spLine_hullEdge <- if (!is.null(iLine)) rgeos::gLineMerge(rbind(spLine_hullEdge, iLine)) else spLine_hullEdge
+			spLine_hullEdge <- if (!is.null(iLine)) rgeos::gLineMerge(sp::rbind.SpatialLines(spLine_hullEdge, iLine)) else spLine_hullEdge
 			if (irow == end_row && icol == end_col) break
 
 			#-Decide on next step
 			#account for edges of the grid
-			clipw <- c(ifelse(irow > steplength, 1, steplength + 2 - irow),
-						ifelse((rtemp <- nrow(veg) - irow) >= steplength, stepwindow_N, steplength + 1 + rtemp),
-						ifelse(icol > steplength, 1, steplength + 2 - icol),
-						ifelse((ctemp <- ncol(veg) - icol) >= steplength, stepwindow_N, steplength + 1 + ctemp)) #usable extent of window (row min + max, col min + max)
-			clipb <- c(ifelse(clipw[1] == 1, irow - steplength, 1),
-						1 + ifelse(clipw[1] == 1, steplength, irow - 1) + ifelse(clipw[2] == stepwindow_N, steplength, rtemp),
-						ifelse(clipw[3] == 1, icol - steplength, 1),
-						1 + ifelse(clipw[3] == 1, steplength, icol - 1) + ifelse(clipw[4] == stepwindow_N, steplength, ctemp)) #usable extent of block (row min, nrows, col min, ncols)
+			clipw <- c(if (irow > steplength) 1 else steplength + 2 - irow,
+						if ({rtemp <- nrow(veg) - irow} >= steplength) stepwindow_N else {steplength + 1 + rtemp},
+						if (icol > steplength) 1 else steplength + 2 - icol,
+						if ({ctemp <- ncol(veg) - icol} >= steplength) stepwindow_N else {steplength + 1 + ctemp}) #usable extent of window (row min + max, col min + max)
+			clipb <- c(if (clipw[1] == 1) irow - steplength else 1,
+						1 + {if (clipw[1] == 1) steplength else {irow - 1}} +
+							{if (clipw[2] == stepwindow_N) steplength else rtemp},
+						if (clipw[3] == 1) {icol - steplength} else 1,
+						1 + {if (clipw[3] == 1) steplength else {icol - 1}} +
+							{if (clipw[4] == stepwindow_N) steplength else ctemp}) #usable extent of block (row min, nrows, col min, ncols)
+
 			#apply stepwindow's mask
 			neigh_sw <- stepwindow[clipw[1]:clipw[2], clipw[3]:clipw[4], ]
-			neigh_vals <- getValuesBlock(vegclumps_largest, row = clipb[1], nrows = clipb[2], col = clipb[3], ncols = clipb[4], format = 'matrix')
+			neigh_vals <- raster::getValuesBlock(vegclumps_largest, row = clipb[1], nrows = clipb[2], col = clipb[3], ncols = clipb[4], format = 'matrix')
 			neigh_available <- neigh_vals * neigh_sw[,, "mask"]
 			neigh_available[neigh_available == 0] <- NA
 			#get the leftmost available cell(s) as seen from current direction
 			neigh_azimuths <- neigh_available * rotate_azimuth_matrix(neigh_sw[,, "azimuth"], iazimuth)
 			#loop through the cells with increasing leftmost cells and pick the first cell that doesn't cross previously walked path
 			nextStep_pos <- rep(NA, 2)
-			repeat {
+			if (any(!is.na(neigh_azimuths))) repeat {
 				leftmost_value <- min(neigh_azimuths, na.rm = TRUE)
-				if(is.infinite(leftmost_value)) break #no possible next steps to take
+				if (is.infinite(leftmost_value)) break #no possible next steps to take
 				leftmost_pos <- which(neigh_azimuths - sqrt(.Machine$double.neg.eps) <= leftmost_value & neigh_azimuths + sqrt(.Machine$double.eps) >= leftmost_value, arr.ind = TRUE, useNames = FALSE)
 				#choose the nearest leftmost cell
-				if((temp <- nrow(leftmost_pos)) > 1){
-					leftmost_pos <- leftmost_pos[which.min(sapply(seq_len(temp), FUN = function(i) neigh_sw[leftmost_pos[i, 1], leftmost_pos[i, 2], "distance"])), ]
-				} else {
-					leftmost_pos <- drop(leftmost_pos)
-				}
+				leftmost_pos <- if ((temp <- nrow(leftmost_pos)) > 1) {
+									leftmost_pos[which.min(sapply(seq_len(temp), FUN = function(i) neigh_sw[leftmost_pos[i, 1], leftmost_pos[i, 2], "distance"])), ]
+								} else {
+									drop(leftmost_pos)
+								}
 				#check that this step would not cross previously walked path c(yFromRow(veg, start_row), xFromCol(veg, start_col)
-				iLine <- sp::SpatialLines(list(Lines(Line(rbind(c(xFromCol(veg, icol), yFromRow(veg, irow)), c(xFromCol(veg, icol + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaX"]), yFromRow(veg, irow + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaY"])))), ID = 0)), proj4string = CRS(helper_CRS))
+				iLine <- sp::SpatialLines(list(sp::Lines(sp::Line(rbind(
+									c(raster::xFromCol(veg, icol), raster::yFromRow(veg, irow)),
+									c(raster::xFromCol(veg, icol + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaX"]),
+										raster::yFromRow(veg, irow + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaY"])))),
+								ID = 0)), proj4string = helper_CRS)
 				iIntersections <- rgeos::gIntersection(spLine_hullEdge, iLine)
-				#remove points of cells along walk from this intersection (i.e., walk is allowed to revisit cells, but not to cross)
-				temp1 <- apply(if(identical(class(temp <- coordinates(iIntersections)), "list")) as.matrix(temp[[1]][[1]]) else as.matrix(temp), 1, FUN = function(x) paste(round(x), collapse = "_"))
-				temp2 <- apply(rbind(as.matrix(coordinates(iLine)[[1]][[1]]), as.matrix(coordinates(spLine_hullEdge)[[1]][[1]])), 1, FUN = function(x) paste(round(x), collapse = "_"))
-				if (any(!(temp1 %in% temp2))) {
-					neigh_azimuths[neigh_azimuths == leftmost_value] <- NA #remove this leftmost value from the possible choices
-				} else { #next step found
+				has_nextStep <- FALSE
+				if (is.null(iIntersections)) {
+					has_nextStep <- TRUE
+				} else {
+					#remove points of cells along walk from this intersection (i.e., walk is allowed to revisit cells, but not to cross)
+					temp1 <- apply(if (inherits(temp <- sp::coordinates(iIntersections), "list")) as.matrix(temp[[1]][[1]]) else as.matrix(temp), 1, FUN = function(x) paste(round(x), collapse = "_"))
+					temp2 <- apply(rbind(as.matrix(sp::coordinates(iLine)[[1]][[1]]), as.matrix(sp::coordinates(spLine_hullEdge)[[1]][[1]])), 1, FUN = function(x) paste(round(x), collapse = "_"))
+				
+					if (any(!(temp1 %in% temp2))) {
+						neigh_azimuths[neigh_azimuths == leftmost_value] <- NA #remove this leftmost value from the possible choices
+					} else has_nextStep <- TRUE
+				}
+				if (has_nextStep) { #next step found
 					nextStep_pos <- leftmost_pos
 					break
 				}
@@ -186,38 +204,47 @@ calc_Gastner2010_hulledge_DistanceToStruggleZone <- function(vegOther, mat_hullE
 	#distances between hullEdge and front runners of other vegetation; negative if front runners of other vegetation stop 'before' hull edge of vegetation (i.e, no interaction)
 	runners <- calc_Eppinga2013_frontrunners(vegOther, !end_toLeft)
 	
-	ifelse(end_toLeft, -1, 1) * raster::xres(vegOther) * sapply(seq_len(width_N), FUN = function(irow) {temp <- mat_hullEdge[mat_hullEdge[, 2] == irow, 1]; return(ifelse(length(temp) > 0, ifelse(end_toLeft, min(temp, na.rm = TRUE), max(temp, na.rm = TRUE)), NA) - runners[irow])})
+	{if (end_toLeft) -1 else 1} * raster::xres(vegOther) *
+		sapply(seq_len(width_N), FUN = function(irow) {
+				temp <- mat_hullEdge[mat_hullEdge[, 2] == irow, 1]
+				{if (length(temp) > 0) {
+					if (end_toLeft) min(temp, na.rm = TRUE) else max(temp, na.rm = TRUE)
+				} else NA} - runners[irow]
+	})
 }
 
-tabulate_Gastner2010_hulledge <- function(etable, b, data, steplength, width_N, flag_migtype) {
+tabulate_Gastner2010_hulledge <- function(etable, index, data, steplength, width_N) {
 
-	place_veg <- function(etable, b, data, steplength, vegno, flag_migtype, width_N) {
-		colnamesAdd <- paste0(flag_migtype, "_Gastner2009_HullEdge_Step", steplength, "_Veg", vegno, "_", 
+	place_veg <- function(etable, index, data, steplength, vegno, width_N) {
+		colnamesAdd <- paste0("Gastner2009_HullEdge_Step", steplength, "_Veg", vegno, "_", 
 						c("Location_m", "Width_m", "Length_m", "Elev_Mean_m", "Elev_SD_m", 
 						"Slope_Mean_rad", "Slope_SD_rad", "LargestPatch_isSpanning_TF", "LargestPatch_Area_fractionOfTransect",
 						"VegDensity_atMeanHullPosition",
 						"MeanDistanceHullEdgeToOtherVegFrontRunners_m", "RowsOtherVegFrontRunnersCloserToLargestPatchOfHullEdge_Fraction", "HullEdgeAffectedByOtherVeg_TF"))
-		res <- matrix(NA, nrow = max(1, nrow(etable)), ncol = length(colnamesAdd), dimnames = list(NULL, colnamesAdd))
+		res <- as.data.frame(t(vector("numeric", length(colnamesAdd))))
+		colnames(res) <- colnamesAdd
 
-		res[b, 1] <- data$stats$position_m
-		res[b, 2] <- data$stats$width_m
-		res[b, 3] <- data$stats$length_m
-		res[b, 4] <- data$grad$Elev_Mean_m
-		res[b, 5] <- data$grad$Elev_SD_m
-		res[b, 6] <- data$grad$Slope_Mean_rad
-		res[b, 7] <- data$grad$Slope_SD_rad
-		res[b, 8] <- data$is_spanning
-		res[b, 9] <- raster::cellStats(data$grid_LargestPatch, 'sum') / raster::ncell(data$grid_LargestPatch)
-		res[b, 10] <- data$VegDensity_atMeanHullPosition
-		res[b, 11] <- mean(data$HullEdgeDistToOtherVeg_m, na.rm = TRUE)
-		res[b, 12] <- sum(data$HullEdgeDistToOtherVeg_m > 0, na.rm = TRUE) / width_N
-		res[b, 13] <- res[b, 12] > 0
+		res[1] <- data$stats$position_m
+		res[2] <- data$stats$width_m
+		res[3] <- data$stats$length_m
+		res[4] <- data$grad$Elev_Mean_m
+		res[5] <- data$grad$Elev_SD_m
+		res[6] <- data$grad$Slope_Mean_rad
+		res[7] <- data$grad$Slope_SD_rad
+		res[8] <- data$is_spanning
+		res[9] <- raster::cellStats(data$grid_LargestPatch, 'sum') / raster::ncell(data$grid_LargestPatch)
+		res[10] <- data$VegDensity_atMeanHullPosition
+		res[11] <- mean(data$HullEdgeDistToOtherVeg_m, na.rm = TRUE)
+		res[12] <- sum(data$HullEdgeDistToOtherVeg_m > 0, na.rm = TRUE) / width_N
+		res[13] <- res[12] > 0
 		
-		cbind(etable, res)
+		tabulate_merge_into_etable(etable, index, res)
 	}
 	
-	etable <- place_veg(etable, b, data = data$Veg1, steplength, vegno = 1, flag_migtype = flag_migtype, width_N = width_N)
-	etable <- place_veg(etable, b, data = data$Veg2, steplength, vegno = 2, flag_migtype = flag_migtype, width_N = width_N)
+	vegs <- c("Veg1", "Veg2")
+
+	for (iveg in seq_along(vegs))
+		etable <- place_veg(etable, index, data = data[[vegs[iveg]]], steplength, vegno = iveg, width_N)
 	
 	etable
 }
@@ -245,8 +272,8 @@ plot_Gastner2010_hulledge <- function(filename, eB_Env, eB_Veg, datFit) {
 	text(x=ext1@xmax/2, y=-strheight("0", units="user", cex=cex)*(0.5+2), labels="Transect length (m)", xpd=NA)
 	text(x=-strwidth("0", units="user", cex=cex)*(0.5+2.5), y=ext1@ymax/2, labels="Transect width (m)", srt=90)
 
-	lines(x=coordinates(datFit$Veg1$spLine_hullEdge)[[1]][[1]], col="orange")
-	lines(x=coordinates(datFit$Veg2$spLine_hullEdge)[[1]][[1]], col="green")
+	lines(x=sp::coordinates(datFit$Veg1$spLine_hullEdge)[[1]][[1]], col="orange")
+	lines(x=sp::coordinates(datFit$Veg2$spLine_hullEdge)[[1]][[1]], col="green")
 	mtext(text="(a)", line=-1, cex=cex, adj=0.01)
 
 	#Panel b: densities
@@ -283,9 +310,10 @@ Gastner2010AmNat <- function(i, b, migtype, ecotoner_settings, etband, etmeasure
 	if ("flag_bfig" %in% names(dots)) flag_bfig <- dots["flag_bfig"] else do_figures <- FALSE
 	if ("dir_fig" %in% names(dots)) dir_fig <- dots["dir_fig"] else do_figures <- FALSE
 
-	etmeasure$etable[b, "Transect_ID"] <- i
-	etmeasure$etable[b, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
-	etmeasure$etable[b, "Migration_Type"] <- migtype
+	b_migtype <- (b - 1) * length(get("migtypes", envir = etr_vars)) + which(migtype == get("migtypes", envir = etr_vars))
+	etmeasure$etable[b_migtype, "Transect_ID"] <- i
+	etmeasure$etable[b_migtype, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
+	etmeasure$etable[b_migtype, "Migration_Type"] <- migtype
 	
 	step_lengths <- stepsHullEdge(ecotoner_settings)
 	etmeasure$gETmeas[[b]][[migtype]] <- vector(mode = "list", length = length(step_lengths))
@@ -324,11 +352,10 @@ Gastner2010AmNat <- function(i, b, migtype, ecotoner_settings, etband, etmeasure
 													datFit = etmeasure$gETmeas[[b]][[migtype]][[istep]])
 		} 
 		
-		etmeasure$etable <- tabulate_Gastner2010_hulledge(etable = etmeasure$etable, b = b,
-															data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) 1 else migtype]][[istep]],
+		etmeasure$etable <- tabulate_Gastner2010_hulledge(etable = etmeasure$etable, index = b_migtype,
+															data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) "AllMigration" else migtype]][[istep]],
 															steplength = step_lengths[i_step],
-															width_N = bandTransect_width_cellN(ecotoner_settings),
-															flag_migtype = migtype)
+															width_N = bandTransect_width_cellN(ecotoner_settings))
 	}
 	
 	etmeasure

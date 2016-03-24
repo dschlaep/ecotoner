@@ -6,15 +6,20 @@ if (FALSE) { # TODO(drs): conversion package
 	dir_dev <- "~/Dropbox/Work_Stuff/2_Research/Software/GitHub_Projects"
 	setwd(file.path(dir_dev, "ecotoner"))
 	devtools::document()
-	devtools::load_all()	
+	devtools::load_all()
+	
+	if (FALSE) {
+		#devtools::use_vignette("example")
+		devtools::build_vignettes()
+	}
 }						
 
 #------------------------------------------------------------#
 ##------PROJECT NEW/CONTD
 
 prj_status <- "contd"		# one of "new" and "contd"; if "contd" then bname_settings (and bname_grids if locate_transects) must exist on disk
-bname_settings <- "20160315_0752_ecotoner_settings.rds"
-bname_grids <- "20160315_0752_ecotoner_grids.rds"
+bname_settings <- "20160323_1759_ecotoner_settings.rds"
+bname_grids <- "20160323_1759_ecotoner_grids.rds"
 time_stamp <- Sys.time()
 
 
@@ -402,14 +407,14 @@ if (actions["measure_transects"]) {
 	#---Loop through random points
 	cat(format(Sys.time(), format = ""), ": sending ", transect_N(esets), " calls to the function 'measure_ecotone_per_transect'\n", sep = "")
 
-et_methods_choices <- c("Danz2012JVegSci_1D", "Danz2012JVegSci_2D", "Eppinga2013Ecography", "Gastner2010AmNat")
+et_methods <- c("Danz2012JVegSci_1D", "Danz2012JVegSci_2D", "Eppinga2013Ecography", "Gastner2010AmNat")
 
 	seeds_measure1 <- if (reproducible(esets)) {
 							prepare_RNG_streams(N = N_of_measure_calls(esets), iseed = get_global_seed(esets))
 					  } else NULL
 					
 	measureTransects1 <- pfun(seq_len(transect_N(esets)), measure_ecotone_per_transect,
-								et_methods = c("Danz2012JVegSci_2D"),
+								et_methods = c("Danz2012JVegSci_2D", "Eppinga2013Ecography", "Gastner2010AmNat"),
 								ecotoner_settings = esets,
 								seed_streams = seeds_measure1,
 								verbose = interactions["verbose"],

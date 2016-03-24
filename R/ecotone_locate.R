@@ -26,7 +26,6 @@ gap.rat <- df_veg(ecotoner_grids)
 
 	
 	#---1. Locate neighborhood and elevation gradient: define transect across elevation
-	if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
 
 	#---2. Locate candidate search-transect lines					
 	if (!is.null(tempData) && file.exists(tempData)) {
@@ -54,16 +53,12 @@ gap.rat <- df_veg(ecotoner_grids)
 
 		transect_success <- FALSE
 		for (ic in seq_len(temp_stline_cands$line_N)) {
-			if (verbose) {
-				idhic <- 0
-				cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic, "; prog = ", idhic <- idhic + 1, "\n", sep = "")
-			}
 			
 			# "search-transect-line = temp_stline" vs. "ecotone-transect-line = temp_etline"
 			temp_stline <- orient_transect_line(pts_tcand = temp_stline_cands$lines[[ic]], longlat = longlat(specs_grid(ecotoner_grids)))
 		
 			if (length(temp_stline) == 0) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+				if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
 								": no transect located because transect line has 0 length after orienting along gradient and ordering by distance\n", sep = "")
 				next #goto next candidate transect
 			}
@@ -86,7 +81,7 @@ gap.rat <- df_veg(ecotoner_grids)
 													seed = seed)
 		
 			if (is.null(temp_stband$grids)) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+				if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
 								": no transect located because band transect falls outside neighborhood window\n", sep = "")			
 				next # goto next candidate transect
 			}				
@@ -100,11 +95,11 @@ gap.rat <- df_veg(ecotoner_grids)
 		
 		
 			if (anyNA(limits1_ZoneEcolBoundary)) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+				if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
 								": no transect located because there is no ecological boundary zone (step 1)\n", sep = "")			
 				next #goto next candidate transect; there is no zone of the ecological boundary according to definition
 			} else {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic, "; prog = ", idhic <- idhic + 1, 
+				if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
 								"; limits1 = ", paste(limits1_ZoneEcolBoundary, collapse=", "), "\n", sep = "")			
 			}
 
@@ -120,7 +115,7 @@ gap.rat <- df_veg(ecotoner_grids)
 			bseFreq <- raster::freq(temp_etband$bse)
 			temp_etband$ratValue_BSE <- bseFreq[bseFreq[, 1] %in% type_ids(type_veg1(ecotoner_settings)), 1]
 			if (length(temp_etband$ratValue_BSE) == 0) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+				if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
 								": no transect located because there is no Veg1 within ecological boundary zone\n", sep = "")			
 				break #no BSE in transect
 			}
@@ -134,7 +129,7 @@ gap.rat <- df_veg(ecotoner_grids)
 			tfFreq <- raster::freq(temp_etband$tf)
 			temp_etband$ratValue_TF <- tfFreq[tfFreq[, 1] %in% type_ids(type_veg2(ecotoner_settings)), 1]
 			if (length(temp_etband$ratValue_TF) == 0) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+				if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
 								": no transect located because there is no Veg2 within ecological boundary zone\n", sep = "")			
 				break #no TF in transect
 			}
@@ -155,11 +150,11 @@ gap.rat <- df_veg(ecotoner_grids)
 																		veg_density_extended_min = vegDefiningDensityTransectExtended_min(ecotoner_settings))
 
 			if (anyNA(limits2_ZoneEcolBoundary)) {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, 
+				if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
 								": no transect located because there is no ecological boundary zone (step 2)\n", sep = "")			
 				next #goto next candidate transect; there is no zone of the ecological boundary according to definition
 			} else {
-				if(verbose) cat("ecotoner::establish_ecotone_transect(): tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic, "; prog = ", idhic <- idhic + 1, 
+				if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
 								"; limits2 = ", paste(limits2_ZoneEcolBoundary, collapse=", "), "\n", sep = "")			
 				transect_success <- TRUE
 				break #leave loop through candidate transects
@@ -452,7 +447,7 @@ identify_migration_patches <- function(i, b, ecotoner_settings, etband, etable, 
 detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_settings, ecotoner_grids, seed_streams = NULL, do_interim = TRUE, verbose = TRUE, do_figures = TRUE) {
 	t1t <- Sys.time()
 	if (verbose) {
-		idh <- 0 #counter for debug 'here' statements
+		idh <- 0 #counter for debug statements
 		cat("'ecotoner' detecting: tr = ", i, "; start at ", format(t1t, format = ""), "\n", sep = "")
 	}
 	
@@ -469,14 +464,19 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 
 
 	# Check if transect successfully located, none found, or error occurred, then do not continue with locating a transect from search point
-	do_more <- TRUE
-	if (file.exists(fname_etlocated(ecotoner_settings, iflag)) ||
-		file.exists(fname_etnone(ecotoner_settings, iflag)) ||
-		file.exists(fname_etfailed(ecotoner_settings, iflag))) {
-		do_more <- FALSE
-	}
-			
-	if (do_more) {
+	if (file.exists(fname_etlocated(ecotoner_settings, iflag))) {
+		flag_status <- "located"
+		load(fname_etlocated(ecotoner_settings, iflag)) # i, b, etransect
+	
+	} else if (file.exists(fname_etnone(ecotoner_settings, iflag))) {
+		flag_status <- "notransect"
+	
+	} else if (file.exists(fname_etfailed(ecotoner_settings, iflag))) {
+		flag_status <- "error"
+	
+	} else {
+		flag_status <- "searching"
+		
 		ipoint <- initpoints[i, ]
 		# Directory for temporary output
 		dir_fig <- file.path(dir_out_fig(ecotoner_settings), iflag)
@@ -498,6 +498,7 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 		
 		if (is.null(elevCropped)) {
 			etransect[["status"]] <- rep("notransect", neighbors_N(ecotoner_settings))
+			flag_status <- "notransect"
 			b <- 0
 
 		} else {
@@ -645,6 +646,7 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 			if (all(etransect[["status"]] == "located")) {
 				save(i, b, etransect, file = fname_etlocated(ecotoner_settings, iflag))
 				remove_fsearching <- TRUE				
+				flag_status <- "located"
 				unlink(x = c(file.path(dir_fig, "ecotoner_tmp0_candidates_tr*.rds"),
 							 file.path(dir_fig, "ecotoner_tmp1_establish_tr*.RData"),
 							 file.path(dir_fig, "ecotoner_tmp2_identify_tr*.RData")))
@@ -655,9 +657,11 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 				if (any(etransect[["status"]] == "error")) {
 					save(i, b, etransect, file = fname_etfailed(ecotoner_settings, iflag))
 					remove_fsearching <- TRUE
+					flag_status <- "error"
 				} else if (any(etransect[["status"]] == "notransect")) {
 					save(i, b, etransect, file = fname_etnone(ecotoner_settings, iflag))
 					remove_fsearching <- TRUE
+					flag_status <- "notransect"
 				}
 			}
 			
@@ -665,12 +669,9 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 				unlink(fname_etsearching(ecotoner_settings, iflag)) #Not deleting a non-existent file is not a failure
 			}
 		}
-
-	} else if (file.exists(fname_etlocated(ecotoner_settings, iflag))) {
-		load(fname_etlocated(ecotoner_settings, iflag)) # i, b, etransect
 	}
 	
-	if (verbose) cat("'ecotoner' detecting: tr = ", i, "; completed ", format(t2t <- Sys.time(), format = ""), " after ", round(difftime(t2t, t1t, units = "hours"), 2), " hours\n", sep = "")
+	if (verbose) cat("'ecotoner' detecting: tr = ", i, "; completed with status '", flag_status, "' at ", format(t2t <- Sys.time(), format = ""), " after ", round(difftime(t2t, t1t, units = "hours"), 2), " hours\n", sep = "")
 
-	etransect$etable #if unsuccessful then NULL else data.frame: rbind works with a combination of NULL and data.frames (of the same length)
+	etransect$etable #if unsuccessful then NULL else data.frame
 }	
