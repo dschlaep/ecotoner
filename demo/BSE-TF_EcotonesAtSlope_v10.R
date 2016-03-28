@@ -1,22 +1,11 @@
 #------------------------------------------------------------#
-if (FALSE) { # TODO(drs): conversion package
-	libraries  <- c("devtools")
-	l <- lapply(libraries, FUN=function(lib) stopifnot(require(lib, character.only=TRUE, quietly=FALSE)))
-	
-	dir_dev <- "~/Dropbox/Work_Stuff/2_Research/Software/GitHub_Projects"
-	setwd(file.path(dir_dev, "ecotoner"))
-	devtools::document()
-	devtools::load_all()
-	
-	if (FALSE) {
-		#devtools::use_vignette("example")
-		devtools::build_vignettes()
-	}
-}						
+# An ecotoner project
+#
+# by Daniel R Schlaepfer, 2016
+#------------------------------------------------------------#
 
 #------------------------------------------------------------#
 ##------PROJECT NEW/CONTD
-
 prj_status <- "contd"		# one of "new" and "contd"; if "contd" then bname_settings (and bname_grids if locate_transects) must exist on disk
 bname_settings <- "20160323_1759_ecotoner_settings.rds"
 bname_grids <- "20160323_1759_ecotoner_grids.rds"
@@ -277,7 +266,7 @@ if (any(actions)) {
 	#---Setup: random number generator	
 	RNGkind_old <- RNGkind()
 
-	#---Setup: parallel, project information
+	#---Setup: parallel and project information
 	if (interactive() || (actions["make_map"] && sum(actions) == 1)) cores_N(esets) <- 1
 	
 	if (cores_N(esets) > 1) {
@@ -292,15 +281,12 @@ if (any(actions)) {
 				}
 		parallel::clusterEvalQ(cl, library("ecotoner"))
 		
-		# load balancing is reproducible if each transect sets its own unique random seed
-		pfun <- function(X, FUN, ...) simplify2result(parallel::parLapplyLB(cl, X, FUN, ...))
-	
 		# In case of abort and unable to call on.exit(); after crash, load cl and close cluster properly
 		ftemp_cl <- file.path(dir_init(esets), "ClusterData.RData")
 		save(cl, file = ftemp_cl)
-	} else {
-		pfun <- function(X, FUN, ...) simplify2result(lapply(X, FUN, ...))
 	}
+	
+	pfun <- fun_to_apply_foreach_transect(esets)
 
 	# Save project information to disk
 	if (prj_status == "new") saveRDS(esets, file = fname_settings)
@@ -404,22 +390,25 @@ if (actions["measure_transects"]) {
 
 	stopifnot(exists("esets"))
 
+	# measure options
+	et_methods_options <- c("Danz2012JVegSci_1D", "Danz2012JVegSci_2D", "Eppinga2013Ecography", "Gastner2010AmNat")
+
 	#---Loop through random points
 	cat(format(Sys.time(), format = ""), ": sending ", transect_N(esets), " calls to the function 'measure_ecotone_per_transect'\n", sep = "")
 
-et_methods <- c("Danz2012JVegSci_1D", "Danz2012JVegSci_2D", "Eppinga2013Ecography", "Gastner2010AmNat")
-
 	seeds_measure1 <- if (reproducible(esets)) {
 							prepare_RNG_streams(N = N_of_measure_calls(esets), iseed = get_global_seed(esets))
-					  } else NULL
-					
+					  } else NULL					
+
 	measureTransects1 <- pfun(seq_len(transect_N(esets)), measure_ecotone_per_transect,
-								et_methods = c("Danz2012JVegSci_2D", "Eppinga2013Ecography", "Gastner2010AmNat"),
+								et_methods = et_methods_options[2:4],
 								ecotoner_settings = esets,
 								seed_streams = seeds_measure1,
 								verbose = interactions["verbose"],
 								do_figures = interactions["figures"])
-	
+
+
+
 stop("TODO(drs): not implemented")	
 et_methods2 <- c("InterZoneLocation", "InterZonePatchDistr")
 

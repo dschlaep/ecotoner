@@ -36,6 +36,19 @@ simplify2result <- function(x, showWarnings = TRUE) {
 }
 
 
+#' Create a function to apply a function to each transect either in parallel with load balancing or in a serial process depending on the core settings
+#'
+#' @param ecotoner_settings An object of class 'EcotonerSettings' of which the cores_N(.) will be used.
+#' @return A function
+#' @export
+fun_to_apply_foreach_transect <- function(ecotoner_settings) {
+	if (cores_N(ecotoner_settings) > 1)
+		# load balancing is reproducible if each transect sets its own unique random seed
+		function(X, FUN, ...) simplify2result(parallel::parLapplyLB(cl, X, FUN, ...))
+	else
+		function(X, FUN, ...) simplify2result(lapply(X, FUN, ...))
+
+}
 
 #' Creates a path
 #' 

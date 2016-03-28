@@ -362,12 +362,16 @@ performance_bernoulli <- function(pred = NULL, obs = NULL) {
 m_glm <- function(family, data.) {
 	w <- if (data.[["is_binary"]] || identical(family[["family"]], "gaussian")) NULL else data.[["w"]]
 	mfit <- try(stats::glm(y ~ x, data = data.[c("x", "y")], family = family, weights = w), silent = TRUE)
+	#mfit0 <- try(stats::glm(y ~ 1, data = data.[c("x", "y")], family = family, weights = w), silent = TRUE)
 			
 	if (!inherits(mfit, "try-error")) {
 		mpred <- predict(mfit, newdata = data.[["newdata"]], type = "response", se.fit = TRUE)
 		
-		quals <- c(isConv = mfit$converged, edf = (temp <- extractAIC(mfit))[1], AIC = temp[2],
+		quals <- c(isConv = mfit$converged, edf = {temp <- extractAIC(mfit)}[1], AIC = temp[2],
 					logLik = logLik(mfit), deviance = deviance(mfit), df.resid = df.residual(mfit))
+					
+		# deviance-based Likelihood-Ratio-Test
+		#anova(mfit0, mfit, test = "F", dispersion = quals["deviance"] / quals["df.resid"])
 		
 		temp_se <- if (mfit$family$family %in% c("poisson", "binomial") && mfit$rank > 0) { #dispersion == 1
 						sqrt(diag(1 * chol2inv(mfit$qr$qr[p1 <- (1L:mfit$rank), p1, drop = FALSE]))[2])

@@ -80,19 +80,19 @@ calc_Danz2012_abruptness_2D <- function(x1d, z1d, x2d, z2d, seed = NULL) {
 		preds[[k]] <- fits[[k]] <- list()
 
 		for (j in seq_along(dom)) if (eval(parse(text = dom[[j]][["cond"]]))) {
-			f <- match.fun(dom[[j]][["fun"]])
-			if ("family" %in% names(formals(f))) {
-				temp <- f(family = match.fun(dom[[j]][["family"]])(link = dom[[j]][["link"]]), dats[[k]])
-			} else {
-				temp <- f(dats[[k]])
-			}
+			# call function
+			fargs <- list(data. = dats[[k]])
+			if (!is.na(dom[[j]][["family"]]))
+				fargs <- modifyList(fargs, list(family = match.fun(dom[[j]][["family"]])(link = dom[[j]][["link"]])))
+			res <- do.call(dom[[j]][["fun"]], args = fargs)
 			
-			preds[[k]][[dom[[j]][["tag"]]]] <- modifyList(temp[["preds"]], list(isConv = temp[["quals"]][["isConv"]]))
-			fits[[k]][[dom[[j]][["tag"]]]] <- temp[c("quals", "coef1", "perf")]
+			# copy result
+			preds[[k]][[dom[[j]][["tag"]]]] <- modifyList(res[["preds"]], list(isConv = res[["quals"]][["isConv"]]))
+			fits[[k]][[dom[[j]][["tag"]]]] <- res[c("quals", "coef1", "perf")]
 			
 			# rescale coef1 to original scale
-			temp <- fits[[k]][[dom[[j]][["tag"]]]][["coef1"]]
-			if (length(temp) > 0 && !anyNA(temp)) fits[[k]][[dom[[j]][["tag"]]]][["coef1"]] <- temp / dats[[k]][["scaled_scale"]]
+			cres <- fits[[k]][[dom[[j]][["tag"]]]][["coef1"]]
+			if (length(cres) > 0 && !anyNA(cres)) fits[[k]][[dom[[j]][["tag"]]]][["coef1"]] <- cres / dats[[k]][["scaled_scale"]]
 		}
 	}
 		
@@ -172,23 +172,6 @@ plot_Danz2012_abruptness_2D <- function(filename, xlab, preds1, preds2, data1, d
 				add_legend = !identical(lapply(preds1, names), lapply(preds2, names)))
 		
 	invisible()
-}
-
-tabulate_merge_into_etable <- function(etable, index, data) {
-	cname <- if (is.vector(data)) names(data) else colnames(data)
-	cname_exist <- match(cname, colnames(etable), nomatch = 0)
-	
-	icol <- cname_exist > 0
-	if (any(icol)) etable[index, cname_exist[icol]] <- data[icol]
-
-	icol <- cname_exist == 0
-	if (any(icol)) {
-		res <- as.data.frame(matrix(NA, nrow = max(index, nrow(etable)), ncol = sum(icol), dimnames = list(NULL, cname[icol])))
-		res[index, ] <- data[icol]
-		etable <- cbind(etable, res)
-	}
-	
-	etable
 }
 
 
