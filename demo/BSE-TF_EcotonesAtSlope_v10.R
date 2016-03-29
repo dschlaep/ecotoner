@@ -330,6 +330,7 @@ if (actions["locate_transects"]) {
 							prepare_RNG_streams(N = N_of_location_calls(esets), iseed = get_global_seed(esets))
 					} else NULL
 					
+	.Last <- function() raster::removeTmpFiles(h = 0)
 	resultTransects <- pfun(seq_len(transect_N(esets)), detect_ecotone_transects_from_searchpoint,
 							initpoints = initpoints,
 							ecotoner_settings = esets,

@@ -1,6 +1,6 @@
 Package: ecotoner
 Title: ecotoner - ecotones / ecological boundaries across environmental gradients
-Version: 0.0.0.9021
+Version: 0.0.0.9022
 Authors@R: person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre"))
 Description: ecotoner locates ecotones and extracts geographic and geometric measures of ecotones
 Depends:

@@ -9,7 +9,7 @@
 #' @param x A numeric vector. Predictor along the ecotone transect from left-right. The length of x has to correspond to the ecotone transect. For instance, distance along the transect.
 #' @param z A numeric vector. The outcome along the ecotone transect, e.g., vegetation density.
 #' 
-calc_Danz2012_abruptness_2D <- function(x1d, z1d, x2d, z2d, seed = NULL) {
+calc_Danz2012_abruptness_2D <- function(x1d, z1d, x2d, z2d, seed = NULL, include_lm = FALSE) {
 	# logistic regression on z ~ x with repeated 'rows' along the transect
 	# idea by ld; implementation by drs
 
@@ -26,7 +26,7 @@ calc_Danz2012_abruptness_2D <- function(x1d, z1d, x2d, z2d, seed = NULL) {
 		stop("ecotoner::calc_Danz2012_abruptness_2D(): arguments 'x1d' and 'z1d' describe the same transect and thus must have the same length")
 	}
 	if (!(inherits(x2d, "RasterLayer") && inherits(z2d, "RasterLayer")) && !(inherits(x2d, "matrix") && inherits(z2d, "matrix"))) {
-		stop("ecotoner::calc_Danz2012_abruptness_2D(): both argument(s) 'x2d' and 'z2d' must be either matrices or a rasters")
+		stop("ecotoner::calc_Danz2012_abruptness_2D(): both argument(s) 'x2d' and 'z2d' must be either matrices or rasters")
 	}
 	if (inherits(x2d, "RasterLayer") && inherits(x2d, "RasterLayer") && !raster::compareRaster(x2d, z2d)) {
 		stop("ecotoner::calc_Danz2012_abruptness_2D(): argument(s) 'x2d' and 'z2d' describe the same transect and must be comparable rasters")
@@ -36,7 +36,12 @@ calc_Danz2012_abruptness_2D <- function(x1d, z1d, x2d, z2d, seed = NULL) {
 	}	
 	
 	#---Begin function calculations
-	z2d <- raster::calc(z2d, function(x) ifelse(is.na(x), 0, x)) # Interpret NAs as absences of iveg
+	# Interpret NAs as absences of iveg
+	if (inherits(z2d, "RasterLayer")) {
+		z2d <- raster::calc(z2d, function(x) ifelse(is.na(x), 0, x))
+	} else {
+		z2d[is.na(z2d)] <- 0
+	}
 	dat2d <- transect_to_long(x2d, z2d)
 	if (nrow(dat2d) == 0 || all(is.na(dat2d))) {
 		stop("ecotoner::calc_Danz2012_abruptness_2D(): arguments 'x2d' and 'z2d' combined contain only NAs")
@@ -66,12 +71,12 @@ calc_Danz2012_abruptness_2D <- function(x1d, z1d, x2d, z2d, seed = NULL) {
 	#	Model: random intercept of rows representing repeated measures of one-cell wide transects
 	#			P(Y_ij = 1|B_j) = link(b_0 + b_1 * X_ij + b_2 * B_j) with B_j = rows as blocks
 	
-	dom <- list(#list(tag = "LM", cond = "TRUE", fun = "m_glm", family = "gaussian", link = "identity"),
-				list(tag = "logistic GLM", cond = "TRUE", fun = "m_glm", family = "binomial", link = "logit"),
-				list(tag = "logistic GLM with cloglog", cond = "TRUE", fun = "m_glm", family = "binomial", link = "cloglog"),
-				list(tag = "sigmoidal NLS", cond = "TRUE", fun = "m_sig", family = NA, link = NA),
-				list(tag = "logistic GLMM", cond = "!anyNA(dats[[k]][['r']])", fun = "m_glmm", family = "binomial", link = "logit")
+	dom <- list(lGLM = list(tag = "logistic GLM", cond = "TRUE", fun = "m_glm", family = "binomial", link = "logit"),
+				bGLMc = list(tag = "binomial GLM with cloglog", cond = "TRUE", fun = "m_glm", family = "binomial", link = "cloglog"),
+				sNLS = list(tag = "sigmoidal NLS", cond = "TRUE", fun = "m_sig", family = NA, link = NA),
+				lGLMM = list(tag = "logistic GLMM", cond = "!anyNA(dats[[k]][['r']])", fun = "m_glmm", family = "binomial", link = "logit")
 				)
+	if (include_lm) dom <- modifyList(list(lm = list(tag = "LM", cond = "TRUE", fun = "m_glm", family = "gaussian", link = "identity")), dom)
 	
 	preds <- fits <- vector("list", length = length(dats))
 	names(preds) <- names(fits) <- names(dats)
@@ -149,7 +154,12 @@ add_Danz2012_abruptness_2D_panel <- function(preds, data, end_toLeft, xlab, pane
 	if (!is.null(panel)) mtext(side = 3, adj = 0.025, text = panel, font = 2)
 	
 	if (add_legend) {
-		legend(x = if (end_toLeft) "topleft" else "topright", inset = c(0, 0.025), bty = "n",
+		x_pos <- if (any(grepl("1D LM", m_labels))) {
+					if (end_toLeft) "topleft" else "bottomleft"
+				 } else {
+					if (end_toLeft) "topleft" else "topright"
+				 }
+		legend(x = x_pos, inset = c(0, 0.025), bty = "n",
 				legend = m_labels, cex = par("cex") * 0.75,
 				lty = m_ltys, col = m_cols[["line"]],
 				pch = 22, pt.cex = 1.5, pt.lwd = 0, pt.bg = adjustcolor(m_cols[["range"]], alpha.f = 0.3))
@@ -159,17 +169,18 @@ add_Danz2012_abruptness_2D_panel <- function(preds, data, end_toLeft, xlab, pane
 }
 	
 #' @export
-plot_Danz2012_abruptness_2D <- function(filename, xlab, preds1, preds2, data1, data2, end_toLeft1, end_toLeft2) {
+plot_Danz2012_abruptness_2D <- function(filename, xlab, preds1, preds2, data1, data2, end_toLeft1, end_toLeft2, responses_equal = TRUE) {
 	pdf(height = 4.5 + 0.5, width = 2 * 5 + 0.5, file = filename)
 	layout(mat = matrix(c(0, 1, 2, 0, 0, 0), nrow = 2, ncol = 3, byrow = TRUE),
 			heights = c(4.5, 0.5), widths = c(0.5, 5, 5))
 	par_old <- par(mar = c(0.5, 0.5, 1, 0.5), mgp = c(1.5, 0.5, 0), cex = cex <- 1.25, xpd = NA)
 	on.exit({par(par_old); dev.off()}, add = TRUE)
 
-	add_Danz2012_abruptness_2D_panel(preds = preds1, data = data1, end_toLeft = end_toLeft1, xlab = xlab, panel = "(a)")
+	add_Danz2012_abruptness_2D_panel(preds = preds1, data = data1, end_toLeft = end_toLeft1, xlab = xlab, panel = "(a)",
+				add_legend = responses_equal)
 	add_Danz2012_abruptness_2D_panel(preds = preds2, data = data2, end_toLeft = end_toLeft2, xlab = xlab, panel = "(b)",
-				x_ann = TRUE, y_ann = FALSE,
-				add_legend = !identical(lapply(preds1, names), lapply(preds2, names)))
+				y_ann = !responses_equal,
+				add_legend = !identical(lapply(preds1, names), lapply(preds2, names)) || !responses_equal)
 		
 	invisible()
 }
@@ -219,6 +230,33 @@ Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 													preds1 = temp1$plot_preds, preds2 = temp2$plot_preds,
 													data1 = temp1$plot_data, data2 = temp2$plot_data,
 													end_toLeft1 = end_to_left(type_veg1(ecotoner_settings)), end_toLeft2 = end_to_left(type_veg2(ecotoner_settings)))
+
+		if (FALSE) {#TODO(drs): use a proper flag instead of a constant to execute below code
+			grid_dist <- raster::raster(etband$Env$elev$grid)
+			grid_dist[] <- rep(etband$Env$DistAlongXaxis_m, times = bandTransect_width_cellN(ecotoner_settings))			
+			
+			# Elevation versus distance
+			rtemp <- range(etband$Env$elev$YMeans_ForEachX, na.rm = TRUE)
+			elev01_1d <- transform_R_to_01(etband$Env$elev$YMeans_ForEachX, rtemp[1], rtemp[2])
+			etemp <- raster::as.matrix(etband$Env$elev$grid)
+			rtemp <- range(etemp, na.rm = TRUE)
+			elev01_2d <- raster::raster(etband$Env$elev$grid)
+			elev01_2d[] <- transform_R_to_01(etemp, rtemp[1], rtemp[2])
+			temp2 <- calc_Danz2012_abruptness_2D(x1d = etband$Env$DistAlongXaxis_m, z1d = elev01_1d,
+												 x2d = grid_dist, z2d = elev01_2d, seed = seed, include_lm = TRUE)
+			
+			# Vegetation1 versus distance
+			temp1 <- calc_Danz2012_abruptness_2D(x1d = etband$Env$DistAlongXaxis_m, z1d = etband$Veg[[migtype]]$Veg1$density,
+													x2d = grid_dist, z2d = etband$Veg[[migtype]]$Veg1$grid, seed = seed, include_lm = TRUE)
+			
+			if (do_figures) plot_Danz2012_abruptness_2D(filename = file.path(dir_fig, paste0(flag_bfig, "Danz2012_FittedBoundaryShapes_2D_", migtype, "_Veg1VsDist.pdf")),
+														xlab = "Transect length (m)",
+														preds1 = temp1$plot_preds, preds2 = temp2$plot_preds,
+														data1 = temp1$plot_data, data2 = temp2$plot_data,
+														end_toLeft1 = end_to_left(type_veg1(ecotoner_settings)), end_toLeft2 = TRUE,
+														responses_equal = FALSE)
+
+		}
 	} 
 	
 	etmeasure$etable <- tabulate_Danz2012_abruptness_2D(etable = etmeasure$etable, index = b_migtype,
