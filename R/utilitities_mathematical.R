@@ -478,7 +478,7 @@ Heaviside <- function(x, H0 = 0L) {
 }
 
 
-#---Eppinga et al. 2013: eq. 17
+#---Eppinga et al. 2013: eq. 17 - eq. 19
 transformation17 <- function(x) (2 * Heaviside(x) - 1) * log(1 + abs(x))
 
 backtransformation17 <- function(y) (2 * Heaviside(y) - 1) * (exp(abs(y)) - 1)
@@ -487,6 +487,10 @@ backtransformation17 <- function(y) (2 * Heaviside(y) - 1) * (exp(abs(y)) - 1)
 erf <- function(x) 2 * pnorm(x * sqrt(2)) - 1
 
 
+boot_mean_of_diffs <- function(d, i) mean(d[i, 1] - d[i, 2], na.rm = TRUE)
+
+
+#---
 defuzz_2rad <- function(x) {
 	x <- ifelse(x > -10*sqrt(.Machine$double.neg.eps) & x < 10*sqrt(.Machine$double.eps), 0, x)
 	ifelse(x > 2*pi - 10*sqrt(.Machine$double.neg.eps) & x < 2*pi + 10*sqrt(.Machine$double.eps), 2*pi, x)
