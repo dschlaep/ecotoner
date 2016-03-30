@@ -327,6 +327,7 @@ if (actions["locate_transects"]) {
 	cat(format(Sys.time(), format = ""), ": sending ", transect_N(esets), " calls to the function 'detect_ecotone_transects_from_searchpoint'\n", sep = "")
 
 	seeds_locate <- if (reproducible(esets)) {
+	#TODO(drs): This should also account for number of re-entry points!
 							prepare_RNG_streams(N = N_of_location_calls(esets), iseed = get_global_seed(esets))
 					} else NULL
 					

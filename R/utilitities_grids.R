@@ -257,7 +257,7 @@ rSSI2 <- function(r, n, win, giveup = 1000, x.init = NULL, ...) {
 }
 
 
-get_transect_grids_as_df <- function(i, etransect, et_desc = NULL, ecotoner_settings, migtypes, veg_types) {
+get_transect_grids_as_df <- function(i, et_desc = NULL, ecotoner_settings, migtypes, veg_types) {
 	iflag <- flag_itransect(ecotoner_settings, i)
 	
 	do_measure <- TRUE
@@ -267,7 +267,7 @@ get_transect_grids_as_df <- function(i, etransect, et_desc = NULL, ecotoner_sett
 		do_measure <- FALSE # no suitable transect located for search point i
 	}
 	
-	if (do_measure) {
+	if (do_measure && exists("etransect") && !is.null(etransect)) {
 		res <- list()
 		if (!is.null(et_desc)) idesc_remove <- which(colnames(et_desc) %in% c("Transect_ID", "Neighbor_Cells"))
 		

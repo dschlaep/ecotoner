@@ -119,7 +119,7 @@ measure_ecotones_all_transects <- function(pfun, X, et_methods, et_desc, ecotone
 	
 	# Load data of transects
 #TODO(drs): Is 'transect_data2d' going to be so large that it needs to be a big data object such as ff::ffdf?
-	transect_data2d <- pfun(X, get_transect_grids_as_df, etransect, et_desc, ecotoner_settings, migtypes, veg_types)
+	transect_data2d <- pfun(X, get_transect_grids_as_df, et_desc, ecotoner_settings, migtypes, veg_types)
 	colnames(transect_data2d)[3:8] <- c("env", "reps", paste(rep(paste("y", veg_types, sep = "_"), times = length(migtypes)), rep(migtypes, each = length(veg_types)), sep = "_"))
 			
 	m1 <- glm(y_Veg1_AllMigration ~ env * Transect_ID + 
