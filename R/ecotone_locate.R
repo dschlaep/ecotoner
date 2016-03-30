@@ -520,79 +520,83 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 				tempData2 <- file.path(dir_fig, paste0("ecotoner_tmp2_identify_tr", i, "_neigh", b, ".RData"))
 
 				if (file.exists(tempData2)) {
+					 # output from call to 'establish_ecotone_transect' available from previous run
+					 # output from call to 'identify_migration_patches' available from previous run
 					if(verbose) cat("'ecotoner' detecting: tr = ", i, "; prog: ", idh, ": 'do.tempData2' available and loaded\n", sep = "")
 					
 					load(file = tempData2)
 					etransect[["etbands"]][[b]] <- etband
 					etransect[["etable"]] <- etable
-				} else if (file.exists(tempData1)) {
-					if(verbose) cat("'ecotoner' detecting: tr = ", i, "; prog: ", idh, ": 'do.tempData1' available and loaded\n", sep = "")
-					
-					load(file = tempData1)
-					etransect[["etbands"]][[b]] <- etband
-					etransect[["etable"]] <- etable
 				} else {
-					do_timing <- !file.exists(tempData0)
+					if (file.exists(tempData1)) {
+						 # output from call to 'establish_ecotone_transect' available from previous run
+						if(verbose) cat("'ecotoner' detecting: tr = ", i, "; prog: ", idh, ": 'do.tempData1' available and loaded\n", sep = "")
+					
+						load(file = tempData1)
+						etransect[["etbands"]][[b]] <- etband
+						etransect[["etable"]] <- etable
+					} else {
+						do_timing <- !file.exists(tempData0)
 
-					# Set random seed and generator
-					etransect[["seeds"]][[b]] <- if (is.null(seed_streams)) NULL else if (inherits(seed_streams, "list")) seed_streams[[(i - 1) * neighbors_N(ecotoner_settings) + b]] else NA
-					set_RNG_stream(etransect[["seeds"]][[b]])
+						# Set random seed and generator
+						etransect[["seeds"]][[b]] <- if (is.null(seed_streams)) NULL else if (inherits(seed_streams, "list")) seed_streams[[(i - 1) * neighbors_N(ecotoner_settings) + b]] else NA
+						set_RNG_stream(etransect[["seeds"]][[b]])
 					
-					temp <- try(establish_ecotone_transect(i, b, 
-												etband = etransect[["etbands"]][[b]],
-												etable = etransect[["etable"]],
-												ipoint, ecotoner_settings, ecotoner_grids,
-												elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped,
-												tempData = if (do_interim) tempData0 else NULL, dir_fig, figBasename = flag_bfig, verbose, do_figures,
-												seed = NA), silent = TRUE)
+						temp <- try(establish_ecotone_transect(i, b, 
+													etband = etransect[["etbands"]][[b]],
+													etable = etransect[["etable"]],
+													ipoint, ecotoner_settings, ecotoner_grids,
+													elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped,
+													tempData = if (do_interim) tempData0 else NULL, dir_fig, figBasename = flag_bfig, verbose, do_figures,
+													seed = NA), silent = TRUE)
 					
-					if (!inherits(temp, "try-error")) {
-						etransect[["status"]][b] <- temp[["status"]]
+						if (!inherits(temp, "try-error")) {
+							etransect[["status"]][b] <- temp[["status"]]
 						
-						if (temp[["status"]] == "searching") {
+							if (temp[["status"]] == "searching") {
+								etransect[["etbands"]][[b]] <- temp[["etband"]]
+								etransect[["etable"]] <- temp[["etable"]]
+							}
+							rm(temp)
+						} else {
+							etransect[["status"]][b] <- "error"
+							warning("'detect_ecotone_transects_from_searchpoint': ", temp, immediate. = TRUE)
+						}
+					
+						if (do_interim) {
+							#saveAll <- ls(all=TRUE, name=environment())
+							#if(!identical(environment(), sys.frame())) saveAll <- c(saveAll, ls(all=TRUE, name=sys.frame()))
+							etband <- etransect[["etbands"]][[b]]
+							etable <- etransect[["etable"]]
+							save(etband, etable, file = tempData1)
+						}
+					} # end do.tempData1
+				
+					if (etransect[["status"]][b] == "searching") {
+						# Re-set random seed and generator (in case code reentry is here after interruption and tempData1 object already stored to disk)
+						set_RNG_stream(etransect[["seeds"]][[b]])
+					
+						temp <- try(identify_migration_patches(i, b, ecotoner_settings,
+																etband = etransect[["etbands"]][[b]],
+																etable = etransect[["etable"]],
+																dir_fig, flag_bfig, verbose, do_figures,
+																seed = NA), silent = TRUE)
+				
+						if (!inherits(temp, "try-error")) {
 							etransect[["etbands"]][[b]] <- temp[["etband"]]
 							etransect[["etable"]] <- temp[["etable"]]
+						} else {
+							etransect[["status"]][b] <- "error"
+							warning("'detect_ecotone_transects_from_searchpoint': ", temp, immediate. = TRUE)
 						}
-						rm(temp)
-					} else {
-						etransect[["status"]][b] <- "error"
-						warning("'detect_ecotone_transects_from_searchpoint': ", temp, immediate. = TRUE)
-					}
-					
-					if (do_interim) {
-						#saveAll <- ls(all=TRUE, name=environment())
-						#if(!identical(environment(), sys.frame())) saveAll <- c(saveAll, ls(all=TRUE, name=sys.frame()))
-						etband <- etransect[["etbands"]][[b]]
-						etable <- etransect[["etable"]]
-						save(etband, etable, file = tempData1)
-					}
-				}
-				
-				if (etransect[["status"]][b] == "searching") {
-					# Set random seed and generator
-					set_RNG_stream(etransect[["seeds"]][[b]])
-					
-					temp <- try(identify_migration_patches(i, b, ecotoner_settings,
-															etband = etransect[["etbands"]][[b]],
-															etable = etransect[["etable"]],
-															dir_fig, flag_bfig, verbose, do_figures,
-															seed = NA), silent = TRUE)
-				
-					if (!inherits(temp, "try-error")) {
-						etransect[["etbands"]][[b]] <- temp[["etband"]]
-						etransect[["etable"]] <- temp[["etable"]]
-					} else {
-						etransect[["status"]][b] <- "error"
-						warning("'detect_ecotone_transects_from_searchpoint': ", temp, immediate. = TRUE)
-					}
 
-					if (do_interim) {
-						etband <- etransect[["etbands"]][[b]]
-						etable <- etransect[["etable"]]
-						save(etband, etable, file = tempData2)
+						if (do_interim) {
+							etband <- etransect[["etbands"]][[b]]
+							etable <- etransect[["etable"]]
+							save(etband, etable, file = tempData2)
+						}
 					}
-				}
-
+				} # end do.tempData2
 
 				#----3. Loop through both versions of vegetation for applying the methods : Veg$AllMigration and Veg$OnlyGoodMigration
 				if (etransect[["status"]][b] == "searching") {
