@@ -45,12 +45,15 @@ calc_variogram_range <- function(grid, maxX) {
 	res <- NA
 	
 	if (requireNamespace("gstat", quietly = TRUE)) {
-		vetemp <- as(grid, "SpatialGridDataFrame")
-		if (!isTRUE(all.equal(vetemp@grid@cellsize[1], vetemp@grid@cellsize[2], tolerance=.Machine$double.eps))) {
-			warning("'ecotoner': forcing cells of 'SpatialGridDataFrame' to be square")
+		vetemp <- as(grid, "SpatialPointsDataFrame") # NAs are excluded from coercion to "SpatialPointsDataFrame" (but not if coerced to "SpatialGridDataFrame")
+		sp::gridded(vetemp) <- TRUE #upgrade to SpatialPixelDataFrame
+
+		if (!isTRUE(all.equal(vetemp@grid@cellsize[1], vetemp@grid@cellsize[2], tolerance = .Machine$double.eps, check.attributes = FALSE))) {
+			warning("ecotoner:calc_variogram_range(): forcing cells to be square")
 			vetemp@grid@cellsize[1] <- vetemp@grid@cellsize[2] <- raster::xres(grid)
 		}
-	
+				
+		# gstat::variogram will fail with error "dimensions do not match" if vetemp contains NAs
 		sample.var <- gstat::variogram(layer ~ 1, data = vetemp) #~ 1 means no regression, i.e. normal semivariogram
 		fvar <- gstat::fit.variogram(sample.var, model = gstat::vgm(1, "Sph", 3000, 1000), debug.level = 0)
 		if (fvar$range[2] > maxX) {
