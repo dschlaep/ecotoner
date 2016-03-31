@@ -41,20 +41,28 @@ crop_to_neighborhood <- function(pt_start, neighbor_n, grid_gradient, grid_veg =
 
 
 #' Determine the range of spatial autocorrelation
-calc_variogram_range <- function(grid, maxX) {
+calc_variogram_range <- function(data, maxX, res_m, na.rm = FALSE) {
 	res <- NA
 	
 	if (requireNamespace("gstat", quietly = TRUE)) {
-		vetemp <- as(grid, "SpatialPointsDataFrame") # NAs are excluded from coercion to "SpatialPointsDataFrame" (but not if coerced to "SpatialGridDataFrame")
-		sp::gridded(vetemp) <- TRUE #upgrade to SpatialPixelDataFrame
+		if (inherits(data, "SpatialPixelsDataFrame")) {
+			if (na.rm) data <- data[complete.cases(data@data), ]
+		} else {
+			if (na.rm) {
+				data <- as(data, "SpatialPointsDataFrame") # NAs are excluded from coercion to "SpatialPointsDataFrame" (but not if coerced to "SpatialGridDataFrame")
+				sp::gridded(data) <- TRUE #upgrade to SpatialPixelDataFrame
+			} else {
+				data <- as(data, "SpatialGridDataFrame") 
+			}
+		}
 
-		if (!isTRUE(all.equal(vetemp@grid@cellsize[1], vetemp@grid@cellsize[2], tolerance = .Machine$double.eps, check.attributes = FALSE))) {
+		if (!isTRUE(all.equal(data@grid@cellsize[1], data@grid@cellsize[2], tolerance = .Machine$double.eps, check.attributes = FALSE))) {
 			warning("ecotoner:calc_variogram_range(): forcing cells to be square")
-			vetemp@grid@cellsize[1] <- vetemp@grid@cellsize[2] <- raster::xres(grid)
+			data@grid@cellsize[1] <- data@grid@cellsize[2] <- res_m
 		}
 				
-		# gstat::variogram will fail with error "dimensions do not match" if vetemp contains NAs
-		sample.var <- gstat::variogram(layer ~ 1, data = vetemp) #~ 1 means no regression, i.e. normal semivariogram
+		# gstat::variogram will fail with error "dimensions do not match" if data contains NAs
+		sample.var <- gstat::variogram(layer ~ 1, data = data) #~ 1 means no regression, i.e. normal semivariogram
 		fvar <- gstat::fit.variogram(sample.var, model = gstat::vgm(1, "Sph", 3000, 1000), debug.level = 0)
 		if (fvar$range[2] > maxX) {
 			fvar <- gstat::fit.variogram(sample.var, model = gstat::vgm(1, "Gau", 3000, 1000), debug.level = 0)

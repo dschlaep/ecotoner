@@ -4,7 +4,7 @@
 \alias{calc_variogram_range}
 \title{Determine the range of spatial autocorrelation}
 \usage{
-calc_variogram_range(grid, maxX)
+calc_variogram_range(data, maxX, res_m, na.rm = FALSE)
 }
 \description{
 Determine the range of spatial autocorrelation

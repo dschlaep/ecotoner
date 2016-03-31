@@ -22,8 +22,8 @@ local' error of aspect
 y-means' error of aspect
 patches' of aspects grouped into the four cardinal directions
 overall' error of aspect
+y/x ratios' of elevation
 local' elevational error from simple linear model transect elevation gradient
 local' elevational error from y-means transect elevation gradient
-y/x ratios' of elevation
 }
 

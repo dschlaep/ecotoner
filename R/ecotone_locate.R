@@ -295,30 +295,36 @@ gap.rat <- df_veg(ecotoner_grids)
 
 			#--Quality of elevation:
 			telev <- raster::as.matrix(etband$Env$elev$grid, maxpixels = raster::ncell(etband$Env$elev$grid))
-			#'local' elevational error from simple linear model transect elevation gradient
-			resids <- rep(etband$Env$elev$Ymeans_lm, each=nrow(telev)) - telev
-			etband$Env$elev$Elevation_Cellwise_lmResiduals_RMSE <- root_mean_square(resids, na.rm = TRUE)
-			etband$Env$elev$Elevation_Cellwise_lmResiduals_95PercQuantileAbsError <- quantile_95th_of_abs(resids, na.rm = TRUE)
-			etband$Env$elev$Elevation_Cellwise_lmResiduals_MaxAbsError <- max_of_abs(resids, na.rm = TRUE)
-			#'local' elevational error from y-means transect elevation gradient
-			resids <- rep(etband$Env$elev$YMeans_ForEachX, each=nrow(telev)) - telev
-			etband$Env$elev$Elevation_Cellwise_YMeans_RMSE <- root_mean_square(resids, na.rm = TRUE)
-			etband$Env$elev$Elevation_Cellwise_YMeans_95PercQuantileAbsError <- quantile_95th_of_abs(resids, na.rm = TRUE)
-			etband$Env$elev$Elevation_Cellwise_YMeans_MaxAbsError <- max_of_abs(resids, na.rm = TRUE)
-			#global spatial autocorrelation in elevation residuals from y-means transect elevation gradient
-			mresids <- raster::raster(etband$Env$elev$grid)
-			mresids[] <- resids
-			nbw <- spdep::listw2U(spdep::nb2listw(spdep::knn2nb(spdep::knearneigh(sp::coordinates(mresids), k=8, longlat=FALSE)), style="W")) #neighbors: Queen's case; weights: row standardized ("Row standardization is recommended whenever the distribution of your features is potentially biased due to sampling design or an imposed aggregation scheme"); listw2U(): makes weight matrix symmetric
-			mimc <- spdep::moran.mc(x = mresids[], listw = nbw, alternative = "greater", nsim = 199) #Null hypothesis: Moran's I = 0 = = no spatial autocorrelation (alternative default >0)
-			etband$Env$elev$Elevation_Cellwise_YMeans_MoransI <- mimc$statistic
-			etband$Env$elev$Elevation_Cellwise_YMeans_MoransIp <- mimc$p.value			
 			#'y/x ratios' of elevation
 			yratio <- apply(telev, 2, FUN = function(x) max(x) - min(x))[-c(1, ncols <- ncol(telev))] / (tan(etband$Env$slope$YMeans_ForEachX[-c(1, ncols)])*bandTransect_width_cellN(ecotoner_settings)*res_m(specs_grid(ecotoner_grids))) #no slope in first and last column, because slope unidentifiable
 			etband$Env$elev$Elevation_RatioYrangeToExpectXrange_RMSE <- root_mean_square(yratio, na.rm = TRUE)
 			etband$Env$elev$Elevation_RatioYrangeToExpectXrange_95PercQuantileRatioAbsError <- quantile_95th_of_abs(yratio, na.rm = TRUE)
 			etband$Env$elev$Elevation_RatioYrangeToExpectXrange_MaxAbsError <- max_of_abs(yratio, na.rm = TRUE)
+
+			#'local' elevational error from simple linear model transect elevation gradient
+			resids1 <- rep(etband$Env$elev$Ymeans_lm, each=nrow(telev)) - telev
+			etband$Env$elev$Elevation_Cellwise_lmResiduals_RMSE <- root_mean_square(resids1, na.rm = TRUE)
+			etband$Env$elev$Elevation_Cellwise_lmResiduals_95PercQuantileAbsError <- quantile_95th_of_abs(resids1, na.rm = TRUE)
+			etband$Env$elev$Elevation_Cellwise_lmResiduals_MaxAbsError <- max_of_abs(resids1, na.rm = TRUE)
+			#'local' elevational error from y-means transect elevation gradient
+			resids2 <- rep(etband$Env$elev$YMeans_ForEachX, each=nrow(telev)) - telev
+			etband$Env$elev$Elevation_Cellwise_YMeans_RMSE <- root_mean_square(resids2, na.rm = TRUE)
+			etband$Env$elev$Elevation_Cellwise_YMeans_95PercQuantileAbsError <- quantile_95th_of_abs(resids2, na.rm = TRUE)
+			etband$Env$elev$Elevation_Cellwise_YMeans_MaxAbsError <- max_of_abs(resids2, na.rm = TRUE)
+			
+			#global spatial autocorrelation in elevation residuals from y-means transect elevation gradient
+			mresids <- sp::SpatialPointsDataFrame(coords = sp::coordinates(etband$Env$elev$grid),
+													data = data.frame(layer = as.vector(t(resids2))), proj4string = raster::crs(etband$Env$elev$grid))
+			sp::gridded(mresids) <- TRUE #upgrade to SpatialPixelDataFrame
+			if (anyNA(resids2)) mresids <- mresids[!is.na(mresids$layer), ] # Remove NAs for 'moran.mc' and 'calc_variogram_range'
+			
+			nbw <- spdep::listw2U(spdep::nb2listw(spdep::knn2nb(spdep::knearneigh(sp::coordinates(mresids), k=8, longlat=FALSE)), style="W")) #neighbors: Queen's case; weights: row standardized ("Row standardization is recommended whenever the distribution of your features is potentially biased due to sampling design or an imposed aggregation scheme"); listw2U(): makes weight matrix symmetric
+			mimc <- spdep::moran.mc(x = mresids$layer, listw = nbw, alternative = "greater", nsim = 199) #Null hypothesis: Moran's I = 0 = = no spatial autocorrelation (alternative default >0); spdep::moran.mc must be instructed how to deal with NAs
+			etband$Env$elev$Elevation_Cellwise_YMeans_MoransI <- mimc$statistic
+			etband$Env$elev$Elevation_Cellwise_YMeans_MoransIp <- mimc$p.value			
+			
 			#Gastner et al. 2009: we hypothesize that heterogeneity in the environmental background would not influence the model’s predictions unless the sizes of vegetation patches are smaller than the correlation length of the heterogeneity			
-			etband$Env$elev$Elevation_YMeansResiduals_VariogramRange <- calc_variogram_range(mresids, max(etband$Env$DistAlongXaxis_m)) #Spatial autocorrelation distance: range
+			etband$Env$elev$Elevation_YMeansResiduals_VariogramRange <- calc_variogram_range(mresids, max(etband$Env$DistAlongXaxis_m), res_m = res_m(specs_grid(ecotoner_grids))) #Spatial autocorrelation distance: range
 			#rm(nbw, mimc, resids, telev)
 
 			#Plot map of linear and band transect
