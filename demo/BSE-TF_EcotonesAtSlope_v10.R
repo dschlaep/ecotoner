@@ -17,7 +17,8 @@ do.debug <- FALSE
 do.demo <- TRUE		# If TRUE, then code uses the example data from the ecotoner package, i.e., can be run without additional input data
 
 
-actions <- c(	locate_transects = TRUE,	# call the transect functions detect_ecotone_transects_from_searchpoint()
+actions <- c(	preprocess_data = FALSE,	# mosaic NED tiles; project NED to crs(GAP); determine BSE-TF abutting; calculate smoothed aspect
+				locate_transects = TRUE,	# call the transect functions detect_ecotone_transects_from_searchpoint()
 				make_map = TRUE,			# draw a map of all transects
 				measure_transects = TRUE	# use methods to extract information about the located transects
 			)
@@ -133,7 +134,20 @@ if (actions["locate_transects"] || actions["make_map"]) {
 			rm(gap)
 
 			#--- Topography
-			grid_env(egrids) <- raster::raster(file.path(dir_env(esets), "ned_1s_westernUS_AEANAD83.tif"))
+			fenv <- file.path(dir_env(esets), "ned_1s_westernUS_AEANAD83.tif")
+			if (actions["preprocess_data"] && !file.exists(fenv)) {
+				fenv_temp <- file.path(dir_env(esets), "ned_1s_westernUS_GeogrNAD83.tif")
+				
+				grid_env_temp <- mosaic_tiles(dir_tiles = file.path(dir_env(esets), "grid_tiles"), chunksize = 10L, fname_grid_ned = fenv)
+				raster::crs(grid_env_temp) <- sp::CRS(paste(raster::crs(grid_env_temp, asText = TRUE), "+datum=NAD83 +vunits=m"))
+				
+				grid_env(egrids) <- project_raster(grid_from = grid_env_temp, fname_grid_to = fenv, res_to = raster::res(gap), crs_to = raster::crs(gap),
+													parallel_N = cores_N(esets), chunksize = 1e+05, maxmemory = 1e+06,
+													options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+				rm(fenv_temp, grid_env_temp)
+			} else {
+				grid_env(egrids) <- raster::raster(fenv)
+			}
 
 			if (transect_type(esets) == 4) {
 				#--- Abutting cells
