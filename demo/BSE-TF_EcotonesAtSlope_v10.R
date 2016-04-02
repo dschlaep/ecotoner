@@ -284,7 +284,7 @@ if (any(actions)) {
 	if (interactive() || (actions["make_map"] && sum(actions) == 1)) cores_N(esets) <- 1
 	
 	if (cores_N(esets) > 1) {
-		cat(format(Sys.time(), format = ""), ": setting up parallel cluster'\n", sep = "")
+		cat(format(Sys.time(), format = ""), ": setting up parallel cluster with ", cores_N(esets), " workers\n", sep = "")
 		cl  <- if (.Platform$OS.type == "unix") {
 					parallel::makeCluster(cores_N(esets), type = "FORK", outfile = "log_ecotone.txt")
 				} else if (.Platform$OS.type == "windows") {
@@ -341,10 +341,9 @@ if (actions["locate_transects"]) {
 	cat(format(Sys.time(), format = ""), ": sending ", transect_N(esets), " calls to the function 'detect_ecotone_transects_from_searchpoint'\n", sep = "")
 
 	seeds_locate <- if (reproducible(esets)) {
-	#TODO(drs): This should also account for number of re-entry points!
 							prepare_RNG_streams(N = N_of_location_calls(esets), iseed = get_global_seed(esets))
 					} else NULL
-					
+	
 	.Last <- function() raster::removeTmpFiles(h = 0)
 	resultTransects <- pfun(seq_len(transect_N(esets)), detect_ecotone_transects_from_searchpoint,
 							initpoints = initpoints,
