@@ -121,9 +121,6 @@ locate_candidate_THAs <- function(n, grid_gradient, max_neighborhood, asp201Mean
 	candidates <- list()
 
 	#1. Calculate aspect: focal mean and SD of band transect width (calls to focal() are VERY slow for large w as here)
-#	aspectCropped <- raster::overlay(asp, slope, fun = function(a, sl) ifelse(sl  >= get("min_slope_with_aspect", envir = etr_vars) * 180/pi, a / 180 * pi, NA))
-#	asp201Mean <- focal(aspectCropped, w = ifelse(is_odd(width_N), width_N, width_N+1), fun = function(x, ...) circ_mean(x, int = 2*pi, na.rm = TRUE), pad = TRUE, padValue = NA, filename = file.path(dir_fig, "asp201MeanCroppedF.tif"))
-#	asp201SD <- focal(aspectCropped, w = ifelse(is_odd(width_N), width_N, width_N+1), fun = function(x, ...) circ_sd(x, int = 2*pi, na.rm = TRUE), pad = TRUE, padValue = NA)
 	asp201Mean_atlowSD <- raster::mask(asp201Mean, raster::calc(asp201SD, fun = function(x) ifelse(x <= max_aspect_sd, x, NA)))
 
 	#2. Find potential init points among abutting locations in areas of low focal aspect RMSE, take a random sample of 20

@@ -156,8 +156,8 @@ project_raster <- function(grid_from, fname_grid_to, res_to, crs_to, parallel_N 
 
 
 #' @export
-determine_abutters <- function(grid, grid_veg1, grid_veg2, filename, ...) {
-	calc_abutting(Veg1 = grid_veg1, Veg2 = grid_veg2, filename, ...)
+determine_abutters <- function(grid, grid_veg1, grid_veg2, filename, asNA = TRUE, ...) {
+	calc_abutting(Veg1 = grid_veg1, Veg2 = grid_veg2, filename, asNA = asNA, ...)
 }
 
 #' @export			
@@ -168,10 +168,68 @@ extract_vegetation <- function(grid, ids, filename, parallel_N, ...) {
 	if (parallel_N > 1) {
 		raster::beginCluster(n = parallel_N)
 		on.exit(raster::endCluster(), add = TRUE)
-	}
 
-	raster::clusterR(x = grid, fun = grid_to_NA1, args = list(vals = ids),
-					filename = filename, ...)
+		raster::clusterR(x = grid, fun = grid_to_NA1, args = list(vals = ids),
+						filename = filename, ...)
+	} else {
+		grid_to_NA1(grid, ids, filename, ...)
+	}
 }
 
-											
+
+#' @export
+terrain_slope <- function(grid_elev, filename, ...) {
+	raster::terrain(x = grid_elev, opt = 'slope', unit = 'radians', neighbors = 8, filename = filename, ...) 
+}
+
+#' @export
+terrain_aspect <- function(grid_elev, grid_slope, min_slope, parallel_N, filename, ...) {
+	cat("ecotoner::terrain_aspect: ", format.POSIXct(Sys.time(), ""), ": aspect will be calculated using n = ", parallel_N, " cores; NOTE: this call may be very SLOW and memory intensive!", "\n", sep = "")
+
+	grid_temp <- raster::terrain(x = grid_elev, opt = 'aspect', unit = 'radians', neighbors = 8, ...) 
+
+	fun_asp_smin <- if (parallel_N > 1) {
+						compiler::cmpfun(function(x) ifelse(x[2] >= min_slope, x[1], NA))
+					} else {
+						compiler::cmpfun(function(x, y) ifelse(y >= min_slope, x, NA))
+					}
+	
+	if (parallel_N > 1) {
+		raster::beginCluster(n = parallel_N)
+		on.exit(raster::endCluster(), add = TRUE)
+
+		grid_aspect <- raster::clusterR(x = raster::brick(grid_temp, grid_slope), fun = fun_asp_smin, filename = filename, ...)
+	} else {
+		grid_aspect <- raster::overlay(grid_temp, grid_slope, fun = fun_asp_smin, filename = filename, ...)
+	}
+	
+	grid_aspect
+}
+
+
+#	asp201Mean <- focal(aspectCropped, w = ifelse(is_odd(width_N), width_N, width_N+1), fun = function(x, ...) circ_mean(x, int = 2*pi, na.rm = TRUE), pad = TRUE, padValue = NA, filename = file.path(dir_fig, "asp201MeanCroppedF.tif"))
+#	asp201SD <- focal(aspectCropped, w = ifelse(is_odd(width_N), width_N, width_N+1), fun = function(x, ...) circ_sd(x, int = 2*pi, na.rm = TRUE), pad = TRUE, padValue = NA)
+
+get_window_size <- function(N) {
+	N <- as.integer(N)
+	if (!is_odd(N)) N <- N + 1
+	if (N > 0) N else 0
+}
+
+#' @export
+homogenous_aspect <- function(grid_aspect, fun = c("mean", "sd"), window_N, filename, ...) {
+	cat("ecotoner::homogenous_aspect: ", format.POSIXct(Sys.time(), ""), ": smoothed ", fun, " of aspect will be calculated; NOTE: this call may be very SLOW and memory intensive!", "\n", sep = "")
+
+	fun <- match.arg(fun)
+	window_N <- get_window_size(window_N)
+	w <- raster::focalWeight(grid_aspect,
+					d = get_window_size(window_N) * raster::xres(grid_aspect) / 2,
+					type = "rectangle")
+	
+	fun_circ <- switch(fun,
+						mean = function(x, ...) circ_mean(x, int = 2 * pi, na.rm = TRUE),
+						sd = function(x, ...) circ_sd(x, int = 2 * pi, na.rm = TRUE))
+
+	raster::focal(grid_aspect, w = w, fun = fun_circ, pad = TRUE, padValue = NA,
+					filename = filename, progress = "text", ...)
+}										

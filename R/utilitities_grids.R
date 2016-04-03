@@ -113,20 +113,48 @@ sd_y_at_each_x <- function(grid) {
 	apply(raster::as.matrix(grid), 2, sd, na.rm = TRUE)
 }
 
-
-calc_abutting <- function(Veg1, Veg2, filename, ...) {
-	dots <- list(...)
-	
-	edge1 <- raster::boundaries(Veg1, type = "outer", classes = FALSE, directions = 4, dots)
-	edge2 <- raster::boundaries(Veg2, type = "outer", classes = FALSE, directions = 4, dots)
-	
-	if (!missing(filename)) dots$filename <- filename
-	raster::overlay(edge1, edge2, Veg1, Veg2, fun = function(e1, v1, e2, v2)
-					ifelse((e1 == 1 & v2 == 1) | (v1 == 1 & e2 == 1), 1, NA), dots)	
+grid_to_NA1 <- function(grid, vals, ...) {
+	raster::calc(grid, fun = function(x) ifelse(is.na(x) | !(x %in% vals), NA, 1), ...)
 }
 
-grid_to_NA1 <- function(grid, vals) raster::calc(grid, fun = function(x) ifelse(is.na(x) | !(x %in% vals), NA, 1))
+gridNA1_to_01 <- function(grid, ...) {
+	raster::calc(grid, fun = function(x) ifelse(!is.na(x) & sapply(x, function(x2) isTRUE(all.equal(x2, 1))), 1, 0), ...)
+}
 
+
+fun_abut <- function(e1, v1, e2, v2) ifelse((e1 == 1 & v2 == 1) | (v1 == 1 & e2 == 1), 1, NA)
+
+calc_abutting <- function(Veg1, Veg2, filename, asNA = TRUE, ...) {
+	dots_edges <- dots <- list(...)
+	
+	if (is.null(dots_edges$type)) dots_edges$type <- "outer"
+	if (is.null(dots_edges$classes)) dots_edges$classes <- FALSE
+	if (is.null(dots_edges$directions)) dots_edges$directions <- 4
+	dots_edges$asNA <- asNA
+	dots_edges$x <- Veg1
+	edge1 <- do.call(raster::boundaries, args = dots_edges)
+	dots_edges$x <- Veg2
+	edge2 <- do.call(raster::boundaries, args = dots_edges)
+	
+	
+	if (!missing(filename)) dots$filename <- filename
+	args_overlay <- c(list(x = edge1, y = edge2, Veg1, Veg2, fun = fun_abut), dots)
+	grid_res <- do.call(raster::overlay, args = args_overlay)
+	
+	if (!asNA) {
+		args_to01 <- c(list(grid = grid_res), dots)
+		if (!missing(filename)) {
+			if (is.null(args_to01$overwrite)) {
+				args_to01 <- c(args_to01, list(overwrite = TRUE))
+			} else {
+				args_to01$overwrite <- TRUE
+			}
+		}
+		grid_res <- do.call(gridNA1_to_01, args = args_to01)
+	}
+	
+	grid_res
+}
 
 set_zero_origin <- function(grid, shift_x = 0, shift_y = 0) {
 	raster::shift(grid, x = shift_x, y = shift_y)

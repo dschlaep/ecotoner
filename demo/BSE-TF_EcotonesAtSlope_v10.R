@@ -172,39 +172,45 @@ if (actions["locate_transects"] || actions["make_map"]) {
 		}
 		
 		#--- Vegetation types
-		if (!do.demo) {
-			#TODO(drs): incorporate these into EcotonerSettings and make use by the code
-			fveg1 <- file.path(dir_veg(esets), "Types", "BigSagebrushEcosystems", "gapv2_bse.tif")
-			if (actions["preprocess_data"] && !file.exists(fveg1)) {
-				grid_veg1 <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg1(esets)), filename = fveg1,
-												parallel_N = cores_N(esets), dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
-			} else {
-				grid_veg1 <- raster::raster(fveg1)
-			}
-
-			fveg2 <- file.path(dir_veg(esets), "Types", "ForestWoodlands", "gapv2_tempFor.tif")
-			if (actions["preprocess_data"] && !file.exists(fveg2)) {
-				grid_veg2 <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg2(esets)), filename = fveg2,
-												parallel_N = cores_N(esets), dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
-			} else {
-				grid_veg2 <- raster::raster(fveg2)
-			}
-
+		#TODO(drs): incorporate these into EcotonerSettings and make use by the code
+		fveg1 <- if (!do.demo) {
+						file.path(dir_veg(esets), "Types", "BigSagebrushEcosystems", "gapv2_bse.tif")
+					} else {
+						file.path(dir_veg(esets), "veg1_bse_eg.grd")
+					}
+		if (actions["preprocess_data"] && !file.exists(fveg1)) {
+			grid_veg1 <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg1(esets)), filename = fveg1,
+											parallel_N = cores_N(esets), dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+		} else {
+			grid_veg1 <- raster::raster(fveg1)
 		}
+
+		fveg2 <- if (!do.demo) {
+						file.path(dir_veg(esets), "Types", "ForestWoodlands", "gapv2_tempFor.tif")
+					} else {
+						file.path(dir_veg(esets), "veg2_tf_eg.grd")
+					}
+		if (actions["preprocess_data"] && !file.exists(fveg2)) {
+			grid_veg2 <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg2(esets)), filename = fveg2,
+											parallel_N = cores_N(esets), dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+		} else {
+			grid_veg2 <- raster::raster(fveg2)
+		}
+
 		
 		#--- Abutting cells
-		if (!do.demo) {
-			if (transect_type(esets) == 4) {
-				fabut <- file.path(dir_abut(esets), "gapv2_bseABUTtf.tif")
-				if (actions["preprocess_data"] && !file.exists(fabut)) {
-					grid_abut(egrids) <- determine_abutters(grid_veg(egrids), veg1 = grid_veg1, veg2 = grid_veg2,
-															filename = fabut, dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
-				} else {
-					grid_abut(egrids) <- raster::raster(fabut)
-				}
+		if (transect_type(esets) == 4) {
+			fabut <- if (!do.demo) {
+						file.path(dir_abut(esets), "gapv2_bseABUTtf.tif")
+					} else {
+						file.path(dir_veg(esets), "abutt_eg.grd")
+					}
+			if (actions["preprocess_data"] && !file.exists(fabut)) {
+				grid_abut(egrids) <- determine_abutters(grid_veg(egrids), grid_veg1 = grid_veg1, grid_veg2 = grid_veg2,
+														filename = fabut, dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+			} else {
+				grid_abut(egrids) <- raster::raster(fabut)
 			}
-		} else {
-			grid_abut(egrids) <- raster::raster(file.path(dir_abut(esets), "abutt_eg.grd"))
 		}
 
 		
@@ -224,42 +230,89 @@ if (actions["locate_transects"] || actions["make_map"]) {
 			} else {
 				grid_env(egrids) <- raster::raster(fenv)
 			}
-
-			if (transect_type(esets) == 4) {
-				#--- Smoothed aspect
-				# These rasters were calculated (/Users/drschlaep/Documents/drschlaepfer/3_BigData/200907_UofWyoming_PostDoc/GISonE/Data/Topography/NED_USA/NED_1arcsec/3_Calc_Terrain.R) assuming:
-				#	- min_slope_with_aspect == 2 * pi/180
-				# 	- bandTransect_width_cellN == 200
-				stopifnot(min_slope_with_aspect(esets) == 2 * pi/180, bandTransect_width_cellN(esets) == 200)
-				grid_aspect_mean(egrids) <- raster::raster(file.path(dir_aspect_mean(esets), "aspect_201Mean_ned_1s_westernUS_AEANAD83.tif"))
-				grid_aspect_sd(egrids) <- raster::raster(file.path(dir_aspect_sd(esets), "aspect_201SD_ned_1s_westernUS_AEANAD83.tif"))
-			}
-
-
-			if (transect_type(esets) == 3) {
-				#--- Flowpath
-				#	If cell x has one of the following values, then flow from x is onto that position with that value
-				#	32	64	128
-				#	16	x	1
-				#	8	4	2
-				ftemp1 <- file.path(dir_flow, "arcgis_flowpath", "flow.tif")
-				ftemp2 <- filename = file.path(dir_flow, "flow_Rraster.tif")
-				if (file.exists(ftemp1)) {
-					grid_flow(egrids) <- raster::raster(ftemp1)	#Flowpath generated in ArcGIS 10
-				} else if (file.exists(ftemp2)) {
-					grid_flow(egrids) <- raster::raster(ftemp2)	#Flowpath generated with raster::terrain
-				} else {
-					message(paste0(Sys.time(), ": 'raster::terrain' will calculate a flow path grid; this may take a moment."))
-					grid_flow(egrids) <- raster::terrain(grid_env(egrids), opt = 'flowdir', filename = ftemp2, overwrite = FALSE)
-				}
-			}
 		} else {
 			grid_env(egrids) <- raster::raster(file.path(dir_env(esets), "elev_eg.grd"))
-
-			grid_aspect_mean(egrids) <- raster::raster(file.path(dir_aspect_mean(esets), "asp201Mean_eg.grd"))
-			grid_aspect_sd(egrids) <- raster::raster(file.path(dir_aspect_sd(esets), "asp201SD_eg.grd"))
 		}
 		
+		
+		#--- Smoothed aspect
+		if (transect_type(esets) == 4) {
+			fslope <- if (!do.demo) {
+						file.path(dir_aspect_mean(esets), "slope_ned_1s_westernUS_AEANAD83.tif")
+					} else {
+						file.path(dir_aspect_mean(esets), "slope_eg.grd")
+					}
+			if (actions["preprocess_data"] && !file.exists(fslope)) {
+				grid_slope <- terrain_slope(grid_env(egrids),
+											filename = fslope, options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+			} else {
+				grid_slope <- raster::raster(fslope)
+			}
+			
+			faspect <- if (!do.demo) {
+						file.path(dir_aspect_mean(esets), "aspect_ned_1s_westernUS_AEANAD83.tif")
+					} else {
+						file.path(dir_aspect_mean(esets), "aspect_eg.grd")
+					}
+			if (actions["preprocess_data"] && !file.exists(faspect)) {
+				grid_aspect <- terrain_aspect(grid_env(egrids), grid_slope,
+											min_slope = min_slope_with_aspect(esets), parallel_N = cores_N(esets),
+											filename = faspect, options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+			} else {
+				# This rasters was calculated with: min_slope_with_aspect == 2 * pi/180
+				stopifnot(min_slope_with_aspect(esets) == 2 * pi/180)
+				grid_aspect <- raster::raster(faspect)
+			}
+			
+			fasp_m <- if (!do.demo) {
+						file.path(dir_aspect_mean(esets), "aspect_201Mean_ned_1s_westernUS_AEANAD83.tif")
+					} else {
+						file.path(dir_aspect_mean(esets), "asp201Mean_eg.grd")
+					}
+			if (actions["preprocess_data"] && !file.exists(fasp_m)) {
+				grid_aspect_mean(egrids) <- homogenous_aspect(grid_aspect, fun = "mean",
+														window_N = bandTransect_width_cellN(esets),
+														filename = fasp_m, options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+			} else {
+				# This rasters was calculated with: bandTransect_width_cellN == 200
+				stopifnot(bandTransect_width_cellN(esets) == 200)
+				grid_aspect_mean(egrids) <- raster::raster(fasp_m)
+			}
+			
+			fasp_sd <- if (!do.demo) {
+						file.path(dir_aspect_sd(esets), "aspect_201SD_ned_1s_westernUS_AEANAD83.tif")
+					} else {
+						file.path(dir_aspect_sd(esets), "asp201SD_eg.grd")
+					}
+			if (actions["preprocess_data"] && !file.exists(fasp_sd)) {
+				grid_aspect_sd(egrids) <- homogenous_aspect(grid_aspect, fun = "sd",
+														window_N = bandTransect_width_cellN(esets),
+														filename = fasp_sd, options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+			} else {
+				# This rasters was calculated with: bandTransect_width_cellN == 200
+				stopifnot(bandTransect_width_cellN(esets) == 200)
+				grid_aspect_sd(egrids) <- raster::raster(fasp_sd)
+			}
+		}
+
+
+		if (transect_type(esets) == 3) {
+			#--- Flowpath
+			#	If cell x has one of the following values, then flow from x is onto that position with that value
+			#	32	64	128
+			#	16	x	1
+			#	8	4	2
+			ftemp1 <- file.path(dir_flow, "arcgis_flowpath", "flow.tif")
+			ftemp2 <- filename = file.path(dir_flow, "flow_Rraster.tif")
+			if (file.exists(ftemp1)) {
+				grid_flow(egrids) <- raster::raster(ftemp1)	#Flowpath generated in ArcGIS 10
+			} else if (file.exists(ftemp2)) {
+				grid_flow(egrids) <- raster::raster(ftemp2)	#Flowpath generated with raster::terrain
+			} else {
+				message(paste0(Sys.time(), ": 'raster::terrain' will calculate a flow path grid; this may take a moment."))
+				grid_flow(egrids) <- raster::terrain(grid_env(egrids), opt = 'flowdir', filename = ftemp2, overwrite = FALSE)
+			}
+		}
 	} else {
 		fname_grids <- file.path(dir.init, bname_grids)
 
