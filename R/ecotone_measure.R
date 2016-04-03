@@ -1,10 +1,5 @@
 #' @export
 measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_streams = NULL, verbose = TRUE, do_figures = TRUE) {
-	if (verbose) {
-		idh <- 1
-		cat("'ecotoner' measuring: tr = ", i, "; start at ", format(t1 <- Sys.time(), format = ""), "\n", sep = "")
-	}
-	
 	# Output containers
 	iflag <- flag_itransect(ecotoner_settings, i)
 	migtypes <- get("migtypes", envir = etr_vars)
@@ -38,6 +33,11 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 		load(fname_etlocated(ecotoner_settings, iflag)) #i, b, and etransect loaded
 	} else {
 		return(i) # no suitable transect located for search point i
+	}
+
+	if (verbose) {
+		idh <- 1
+		cat("'ecotoner' measuring: tr = ", i, "; start at ", format(t1 <- Sys.time(), format = ""), "\n", sep = "")
 	}
 
 	# Measure ecotones
@@ -80,24 +80,30 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 						etmeas[[etm]][["seeds"]][[iseed]] <- if (is.null(seed_streams)) NULL else if (inherits(seed_streams, "list")) seed_streams[[((i - 1) * neighbors_N(ecotoner_settings) + (b - 1)) * length(migtypes) + im]] else NA
 						set_RNG_stream(etmeas[[etm]][["seeds"]][[iseed]])
 
-						etmeas[[etm]] <- do.call(what = etm, args = list(i = i, b = b, migtype = migtypes[im], 
+						temp <- try(do.call(what = etm, args = list(i = i, b = b, migtype = migtypes[im], 
 																			ecotoner_settings = ecotoner_settings,
 																			etband = etransect[["etbands"]][[b]],
 																			etmeasure = etmeas[[etm]],
 																			copy_FromMig1_TF = copy_FromMig1_TF,
 																			do_figures = do_figures, dir_fig = dir_fig, flag_bfig = flag_bfig,
-																			seed = NA))
+																			seed = NA)), silent = TRUE)
+				
+						if (inherits(temp, "try-error")) {
+							warning("'measure_ecotone_per_transect': ", temp, immediate. = TRUE)
+						} else {
+							etmeas[[etm]] <- temp
 
-						# Write data to disk file
-						index <- which(etmeas[[etm]]$etable[, "Neighbor_Cells"] == neighborhoods(ecotoner_settings)[b] &
-										etmeas[[etm]]$etable[, "Migration_Type"] == migtypes[im])
-						write_ecotoner_row(data_row = etmeas[[etm]]$etable[index, ],
-											filename = file_etmeasure_base(ecotoner_settings, etm),
-											tag_fun = 'measure_ecotone_per_transect',
-											tag_id = paste0(i, " 'etmeas[[", etm, "]]$etable[", paste(index, collapse = "-"), ", ]'"))
+							# Write data to disk file
+							index <- which(etmeas[[etm]]$etable[, "Neighbor_Cells"] == neighborhoods(ecotoner_settings)[b] &
+											etmeas[[etm]]$etable[, "Migration_Type"] == migtypes[im])
+							write_ecotoner_row(data_row = etmeas[[etm]]$etable[index, ],
+												filename = file_etmeasure_base(ecotoner_settings, etm),
+												tag_fun = 'measure_ecotone_per_transect',
+												tag_id = paste0(i, " 'etmeas[[", etm, "]]$etable[", paste(index, collapse = "-"), ", ]'"))
 
-						# Save data to RData disk file
-						save(i, b, im, etmeas, file = fname_etmeasured(ecotoner_settings, iflag))
+							# Save data to RData disk file
+							save(i, b, im, etmeas, file = fname_etmeasured(ecotoner_settings, iflag))
+						}
 					}
 				}
 			} # end loop through migtypes

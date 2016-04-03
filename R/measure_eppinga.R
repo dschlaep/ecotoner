@@ -90,8 +90,11 @@ calc_Eppinga2013_advancement <- function(veg, end_toLeft, optBoundary_cell) {
 calc_Eppinga2013_stats <- function(deltaF1_T17, deltaF2_T17, seed = NULL) {
 	#assumption that all frontrunners are y-row wise dispersed and do not originate from other sources
 	advanced <- all(mean(deltaF1_T17, na.rm = TRUE) > 0, mean(deltaF2_T17, na.rm = TRUE) < 0)
-	res <- list(FrontsAdvBeyondOptBoundary = advanced, FrontDiff_Mean_T17 = NA, FrontDiff_var_T17 = NA, advancement_p = NA, advancement_retro_power = NA)
-	
+	res <- list(FrontsAdvBeyondOptBoundary = advanced,
+				FrontDiff_Mean_T17 = NA, FrontDiff_var_T17 = NA,
+				FrontDiff_Mean_m = NA,
+				boots_R = NA, advancement_p = NA, advancement_retro_power = NA)
+
 	if (advanced) {
 		if (requireNamespace("boot", quietly = TRUE)) {
 			if (!is.na(seed)) set.seed(seed)
@@ -204,7 +207,7 @@ tabulate_Eppinga2013_advance <- function(etable, index, data){
 						"Veg2_DeltaFront_Mean_m", "Veg2_DeltaFront_Mean_T17", "Veg2_DeltaFront_SD_T17", 
 						"FrontsAdvBeyondOptBoundary", "FrontDiff_Mean_T17", "FrontDiff_var_T17", "FrontDiff_Mean_m",
 						"Bootstrap_reps", "advancement_p", "advancement_retrospective_power"))
-	res <- vector("numeric", length(colnamesAdd))
+	res <- rep(NA_real_, length(colnamesAdd))
 	names(res) <- colnamesAdd
 	
 	res[1] <- data$optim$pos_m

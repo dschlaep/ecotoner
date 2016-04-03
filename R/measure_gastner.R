@@ -221,7 +221,7 @@ tabulate_Gastner2010_hulledge <- function(etable, index, data, steplength, width
 						"Slope_Mean_rad", "Slope_SD_rad", "LargestPatch_isSpanning_TF", "LargestPatch_Area_fractionOfTransect",
 						"VegDensity_atMeanHullPosition",
 						"MeanDistanceHullEdgeToOtherVegFrontRunners_m", "RowsOtherVegFrontRunnersCloserToLargestPatchOfHullEdge_Fraction", "HullEdgeAffectedByOtherVeg_TF"))
-		res <- as.data.frame(t(vector("numeric", length(colnamesAdd))))
+		res <- as.data.frame(t(rep(NA_real_, length(colnamesAdd))))
 		colnames(res) <- colnamesAdd
 
 		res[1] <- data$stats$position_m
