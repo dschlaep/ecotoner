@@ -320,6 +320,8 @@ Gastner2010AmNat <- function(i, b, migtype, ecotoner_settings, etband, etmeasure
 	step_names <- paste0("Step", step_lengths)
 	names(etmeasure$gETmeas[[b]][[migtype]]) <- step_names
 	
+	etmeasure$gETmeas[[b]][[migtype]]$copy_FromMig1_TF <- copy_FromMig1_TF
+	
 	for (i_step in seq_along(step_names)) {
 		istep <- step_names[i_step]
 		if (!copy_FromMig1_TF) {

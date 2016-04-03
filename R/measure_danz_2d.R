@@ -216,6 +216,8 @@ Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 	etmeasure$etable[b_migtype, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
 	etmeasure$etable[b_migtype, "Migration_Type"] <- migtype
 	
+	etmeasure$gETmeas[[b]][[migtype]]$copy_FromMig1_TF <- copy_FromMig1_TF
+	
 	if (!copy_FromMig1_TF) {
 		# Vegetation versus elevation
 		temp1 <- calc_Danz2012_abruptness_2D(x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$Veg1$density,

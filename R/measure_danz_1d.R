@@ -237,7 +237,9 @@ Danz2012JVegSci_1D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 	etmeasure$etable[b, "Transect_ID"] <- i
 	etmeasure$etable[b, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
 	etmeasure$etable[b, "Migration_Type"] <- migtype
-	
+
+	etmeasure$gETmeas[[b]][[migtype]]$copy_FromMig1_TF <- copy_FromMig1_TF
+		
 	if (!copy_FromMig1_TF) {
 		etmeasure$gETmeas[[b]][[migtype]]$ElevVsDist_1D <- calc_Danz2012_abruptness_1D(x = etband$Env$DistAlongXaxis_m,
 															z = etband$Env$elev$YMeans_ForEachX, seed = seed)

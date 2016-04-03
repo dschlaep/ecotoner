@@ -9,20 +9,20 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 							dimnames = list(et_methods, neighborhoods(esets), migtypes))
 	
 	if (file.exists(fname_etmeasured(ecotoner_settings, iflag))) {
+		what_measure[] <- FALSE
 		load(fname_etmeasured(ecotoner_settings, iflag)) #load: i, b, im, etmeas
 		
 		# Determine measure methods status
 		started_meas <- names(etmeas) %in% et_methods
-		started_meas <- started_meas & !sapply(etmeas[started_meas], is.null)
-		etmeas <- etmeas[started_meas]
-		what_measure[et_methods %in% names(etmeas), , ] <- FALSE
+		redo_meas <- !started_meas | sapply(etmeas[started_meas], is.null)
+		what_measure[et_methods %in% names(etmeas)[redo_meas], , ] <- TRUE # do those that are only list()
+		what_measure[!(et_methods %in% names(etmeas)), , ] <- TRUE # do those that are not in etmeas yet
 		
 		# Determine if some measure methods have only partially completed
-		todo_neighsXmigs <- sapply(etmeas, function(x)
+		todo_neighsXmigs <- sapply(etmeas[!redo_meas], function(x)
 								sapply(x$gETmeas, function(b)
-									sapply(b, function(m) is.null(m)) | names(b) == "OnlyGoodMigration"))
-		# TODO(drs): "OnlyGoodMigration" is empty when copied over, i.e., there is no indicator in the current setup if this migration has been calculated or not
-		what_measure[names(etmeas), , ] <- t(todo_neighsXmigs)
+									sapply(b, function(m) is.null(m) | !is.logical(m$copy_FromMig1_TF))))
+		what_measure[names(etmeas)[!redo_meas], , ] <- t(todo_neighsXmigs)
 	}
 
 	do_measure <- any(what_measure)
