@@ -27,7 +27,7 @@ project_raster(grid_from, fname_grid_to, res_to, crs_to, parallel_N = 1, ...)
 A RasterLayer object stored on disk as \code{fname_grid_to}
 }
 \description{
-Project a raster
+This function may be very SLOW and memory intensive!
 }
 \seealso{
 This function calls \code{\link{raster::projectRaster}}

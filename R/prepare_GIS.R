@@ -152,5 +152,26 @@ project_raster <- function(grid_from, fname_grid_to, res_to, crs_to, parallel_N 
 	
 	grid_res
 }
-													
-													
+
+
+
+#' @export
+determine_abutters <- function(grid, grid_veg1, grid_veg2, filename, ...) {
+	calc_abutting(Veg1 = grid_veg1, Veg2 = grid_veg2, filename, ...)
+}
+
+#' @export			
+extract_vegetation <- function(grid, ids, filename, parallel_N, ...) {
+	parallel_N <- as.integer(parallel_N)
+	cat("ecotoner::extract_vegetation: ", format.POSIXct(Sys.time(), ""), ": vegetation will be extracted using n = ", parallel_N, " cores; NOTE: this call may be very SLOW and memory intensive!", "\n", sep = "")
+
+	if (parallel_N > 1) {
+		raster::beginCluster(n = parallel_N)
+		on.exit(raster::endCluster(), add = TRUE)
+	}
+
+	raster::clusterR(x = grid, fun = grid_to_NA1, args = list(vals = ids),
+					filename = filename, ...)
+}
+
+											

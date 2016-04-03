@@ -111,29 +111,105 @@ if (actions["locate_transects"] || actions["make_map"]) {
 	if (prj_status == "new") {
 		fname_grids <- file.path(dir_init(esets), paste0(format(time_stamp, format = "%Y%m%d_%H%M"), "_ecotoner_grids.rds"))
 
+		# Set the paths to the grids files on disk
 		if (!do.demo) {
-			# Paths to grids
 			dir.gis <- "/Volumes/BookDuo_12TB/BigData/GIS/Data"
 			dir_env(esets) <- file.path(dir.gis, "Topography", "NED_USA", "NED_1arcsec")
 			dir.veg <- file.path(dir.gis, "SpeciesVegetation", "GAP_2011_v2")
 			dir_veg(esets) <- file.path(dir.veg, "Nat_GAP_LandCover")
 			dir_abut(esets) <- file.path(dir.veg, "Types")
 			dir_aspect_mean(esets) <- dir_aspect_sd(esets) <- dir_flow(esets) <- file.path(dir_env(esets), "terrain")
+		} else {
+			path_demo <- system.file("extdata", "spatial", package = "ecotoner")
 
-			esets <- verify_grid_paths(esets)
-				
-			# Load grids
-			egrids <- new("EcotonerGrids")
+			dir_env(esets) <- path_demo
+			dir_veg(esets) <- path_demo
+			dir_abut(esets) <- path_demo
+			dir_aspect_mean(esets) <- dir_aspect_sd(esets) <- dir_flow(esets) <- path_demo
+		}
+		
+		# Check the paths and get a new EcotonerGrid object
+		esets <- verify_grid_paths(esets)
+		egrids <- new("EcotonerGrids")
 
-			#--- Vegetation
+		#--- Vegetation
+		if (!do.demo) {
 			fgap <- file.path(dir_veg(esets), "natgaplandcov_v2_1.img")
 			gap <- raster::raster(fgap)
 			raster::crs(gap) <- sp::CRS(paste(raster::crs(gap), "+datum=NAD83"))
 			grid_veg(egrids) <- gap
 			df_veg(egrids) <- foreign::read.dbf(file=paste0(fgap, ".vat.dbf")) # previously: gap.rat
 			rm(gap)
+		} else {
+			grid_veg(egrids) <- raster::raster(file.path(dir_veg(esets), "veg_eg.grd"))
+			df_veg(egrids) <- readRDS(file.path(path_demo, "gap_rat.rds"))
+		}
 
-			#--- Topography
+		#--- Vegetation metadata
+		if (all(dim(df_veg(egrids)) > 0)) {
+			# Human impact on land cover:
+			#CL - NVC_CLASS
+			#07	- "Agricultural Vegetation": all
+			#08 - "Developed & Other Human Use" (Mining and developed areas): all
+			#10 - "Recently Disturbed or Modified": all (i.e., generic disturbance, logged or harvested, disturbed/successional)
+			#	except 'recently burned' (LEVEL3: 8301, 8302, 8303, 8304)
+			type_ids(type_excl(esets)) <- na.omit(df_veg(egrids)$Value[df_veg(egrids)$CL %in% c("07", "08", "10") & !(df_veg(egrids)$LEVEL3 %in% c(8301, 8302, 8303, 8304))])
+			type_field(type_excl(esets)) <- ""
+
+			# Big sagebrush ecosystems:
+			#Value - gap.rat$LEVEL3	- gap.rat$ECOLSYS_LU:
+			#489	- 5706	- Inter-Mountain Basins Big Sagebrush Shrubland
+			#490	- 5307	- Inter-Mountain Basins Big Sagebrush Steppe
+			#491	- 5308	- Inter-Mountain Basins Montane Sagebrush Steppe
+			type_ids(type_veg1(esets)) <- c(489, 490, 491)
+			type_field(type_veg1(esets)) <- ""
+			end_to_left(type_veg1(esets)) <- FALSE
+
+			# Temperate forests:
+			type_ids(type_veg2(esets)) <- na.omit(df_veg(egrids)$Value[df_veg(egrids)$NVC_FORM %in% c("Warm Temperate Forest", "Cool Temperate Forest")]) # i.e., excluding boreal, tropical and flooded forests
+			type_field(type_veg2(esets)) <- ""
+			end_to_left(type_veg2(esets)) <- TRUE
+		}
+		
+		#--- Vegetation types
+		if (!do.demo) {
+			#TODO(drs): incorporate these into EcotonerSettings and make use by the code
+			fveg1 <- file.path(dir_veg(esets), "Types", "BigSagebrushEcosystems", "gapv2_bse.tif")
+			if (actions["preprocess_data"] && !file.exists(fveg1)) {
+				grid_veg1 <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg1(esets)), filename = fveg1,
+												parallel_N = cores_N(esets), dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+			} else {
+				grid_veg1 <- raster::raster(fveg1)
+			}
+
+			fveg2 <- file.path(dir_veg(esets), "Types", "ForestWoodlands", "gapv2_tempFor.tif")
+			if (actions["preprocess_data"] && !file.exists(fveg2)) {
+				grid_veg2 <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg2(esets)), filename = fveg2,
+												parallel_N = cores_N(esets), dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+			} else {
+				grid_veg2 <- raster::raster(fveg2)
+			}
+
+		}
+		
+		#--- Abutting cells
+		if (!do.demo) {
+			if (transect_type(esets) == 4) {
+				fabut <- file.path(dir_abut(esets), "gapv2_bseABUTtf.tif")
+				if (actions["preprocess_data"] && !file.exists(fabut)) {
+					grid_abut(egrids) <- determine_abutters(grid_veg(egrids), veg1 = grid_veg1, veg2 = grid_veg2,
+															filename = fabut, dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+				} else {
+					grid_abut(egrids) <- raster::raster(fabut)
+				}
+			}
+		} else {
+			grid_abut(egrids) <- raster::raster(file.path(dir_abut(esets), "abutt_eg.grd"))
+		}
+
+		
+		#--- Topography
+		if (!do.demo) {
 			fenv <- file.path(dir_env(esets), "ned_1s_westernUS_AEANAD83.tif")
 			if (actions["preprocess_data"] && !file.exists(fenv)) {
 				fenv_temp <- file.path(dir_env(esets), "ned_1s_westernUS_GeogrNAD83.tif")
@@ -143,16 +219,13 @@ if (actions["locate_transects"] || actions["make_map"]) {
 				
 				grid_env(egrids) <- project_raster(grid_from = grid_env_temp, fname_grid_to = fenv, res_to = raster::res(gap), crs_to = raster::crs(gap),
 													parallel_N = cores_N(esets), chunksize = 1e+05, maxmemory = 1e+06,
-													options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+													options = c("COMPRESS=NONE", "TFW=YES", "TILED=YES"))
 				rm(fenv_temp, grid_env_temp)
 			} else {
 				grid_env(egrids) <- raster::raster(fenv)
 			}
 
 			if (transect_type(esets) == 4) {
-				#--- Abutting cells
-				grid_abut(egrids) <- raster::raster(file.path(dir_abut(esets), "gapv2_bseABUTtf.tif"))
-
 				#--- Smoothed aspect
 				# These rasters were calculated (/Users/drschlaep/Documents/drschlaepfer/3_BigData/200907_UofWyoming_PostDoc/GISonE/Data/Topography/NED_USA/NED_1arcsec/3_Calc_Terrain.R) assuming:
 				#	- min_slope_with_aspect == 2 * pi/180
@@ -181,29 +254,12 @@ if (actions["locate_transects"] || actions["make_map"]) {
 				}
 			}
 		} else {
-			path_demo <- system.file("extdata", "spatial", package = "ecotoner")
-
-			dir_env(esets) <- path_demo
-			dir_veg(esets) <- path_demo
-			dir_abut(esets) <- path_demo
-			dir_aspect_mean(esets) <- dir_aspect_sd(esets) <- dir_flow(esets) <- path_demo
-			
-			esets <- verify_grid_paths(esets)
-	
-			# Load grids
-			egrids <- new("EcotonerGrids")
-
-			grid_veg(egrids) <- raster::raster(file.path(dir_veg(esets), "veg_eg.grd"))
-			
-			df_veg(egrids) <- readRDS(file.path(path_demo, "gap_rat.rds"))
-
 			grid_env(egrids) <- raster::raster(file.path(dir_env(esets), "elev_eg.grd"))
 
-			grid_abut(egrids) <- raster::raster(file.path(dir_abut(esets), "abutt_eg.grd"))
 			grid_aspect_mean(egrids) <- raster::raster(file.path(dir_aspect_mean(esets), "asp201Mean_eg.grd"))
 			grid_aspect_sd(egrids) <- raster::raster(file.path(dir_aspect_sd(esets), "asp201SD_eg.grd"))
-			
 		}
+		
 	} else {
 		fname_grids <- file.path(dir.init, bname_grids)
 
@@ -218,44 +274,6 @@ if (actions["locate_transects"] || actions["make_map"]) {
 	if (prj_status == "new") saveRDS(egrids, file = fname_grids)
 }
 
-
-##------VEGETATION SETTINGS
-if (prj_status == "new") {
-	rat_veg <- if (exists("egrids") && inherits(egrids, "EcotonerGrids")) {
-					df_veg(egrids)
-				} else {
-					if (!do.demo) {
-						fgap <- file.path(dir_veg(esets), "natgaplandcov_v2_1.img")
-						foreign::read.dbf(file=paste0(fgap, ".vat.dbf"))
-					} else {
-						path_demo <- system.file("extdata", "spatial", package = "ecotoner")
-						readRDS(file.path(path_demo, "gap_rat.rds"))
-					}
-				}
-
-	# Human impact on land cover:
-	#CL - NVC_CLASS
-	#07	- "Agricultural Vegetation": all
-	#08 - "Developed & Other Human Use" (Mining and developed areas): all
-	#10 - "Recently Disturbed or Modified": all (i.e., generic disturbance, logged or harvested, disturbed/successional)
-	#	except 'recently burned' (LEVEL3: 8301, 8302, 8303, 8304)
-	type_ids(type_excl(esets)) <- na.omit(rat_veg$Value[rat_veg$CL %in% c("07", "08", "10") & !(rat_veg$LEVEL3 %in% c(8301, 8302, 8303, 8304))])
-	type_field(type_excl(esets)) <- ""
-
-	# Big sagebrush ecosystems:
-	#Value - gap.rat$LEVEL3	- gap.rat$ECOLSYS_LU:
-	#489	- 5706	- Inter-Mountain Basins Big Sagebrush Shrubland
-	#490	- 5307	- Inter-Mountain Basins Big Sagebrush Steppe
-	#491	- 5308	- Inter-Mountain Basins Montane Sagebrush Steppe
-	type_ids(type_veg1(esets)) <- c(489, 490, 491)
-	type_field(type_veg1(esets)) <- ""
-	end_to_left(type_veg1(esets)) <- FALSE
-
-	# Temperate forests:
-	type_ids(type_veg2(esets)) <- na.omit(rat_veg$Value[rat_veg$NVC_FORM %in% c("Warm Temperate Forest", "Cool Temperate Forest")]) # i.e., excluding boreal, tropical and flooded forests
-	type_field(type_veg2(esets)) <- ""
-	end_to_left(type_veg2(esets)) <- TRUE
-}
 
 
 #------------------------------------------------------------#

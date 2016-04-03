@@ -113,12 +113,20 @@ sd_y_at_each_x <- function(grid) {
 	apply(raster::as.matrix(grid), 2, sd, na.rm = TRUE)
 }
 
-calc_abutting <- function(Veg1, Veg2) {
-	edge1 <- raster::boundaries(Veg1, type = "outer", classes = FALSE, directions = 4)
-	edge2 <- raster::boundaries(Veg2, type = "outer", classes = FALSE, directions = 4)
+
+calc_abutting <- function(Veg1, Veg2, filename, ...) {
+	dots <- list(...)
 	
-	raster::overlay(edge1, edge2, Veg1, Veg2, fun = function(e1, v1, e2, v2) ifelse((e1 == 1 & v2 == 1) | (v1 == 1 & e2 == 1), 1, NA))	
+	edge1 <- raster::boundaries(Veg1, type = "outer", classes = FALSE, directions = 4, dots)
+	edge2 <- raster::boundaries(Veg2, type = "outer", classes = FALSE, directions = 4, dots)
+	
+	if (!missing(filename)) dots$filename <- filename
+	raster::overlay(edge1, edge2, Veg1, Veg2, fun = function(e1, v1, e2, v2)
+					ifelse((e1 == 1 & v2 == 1) | (v1 == 1 & e2 == 1), 1, NA), dots)	
 }
+
+grid_to_NA1 <- function(grid, vals) raster::calc(grid, fun = function(x) ifelse(is.na(x) | !(x %in% vals), NA, 1))
+
 
 set_zero_origin <- function(grid, shift_x = 0, shift_y = 0) {
 	raster::shift(grid, x = shift_x, y = shift_y)
