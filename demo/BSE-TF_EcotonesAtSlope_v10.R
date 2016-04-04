@@ -134,7 +134,7 @@ if (actions["locate_transects"] || actions["make_map"]) {
 
 		#--- Vegetation
 		if (!do.demo) {
-			fgap <- file.path(dir_veg(esets), "natgaplandcov_v2_1.img")
+			fgap <- file.path(dir_veg(esets), "natgaplandcov_v2_W97.tif")
 			gap <- raster::raster(fgap)
 			raster::crs(gap) <- sp::CRS(paste(raster::crs(gap), "+datum=NAD83"))
 			grid_veg(egrids) <- gap
@@ -174,7 +174,7 @@ if (actions["locate_transects"] || actions["make_map"]) {
 		#--- Vegetation types
 		#TODO(drs): incorporate these into EcotonerSettings and make use by the code
 		fveg1 <- if (!do.demo) {
-						file.path(dir_veg(esets), "Types", "BigSagebrushEcosystems", "gapv2_bse.tif")
+						file.path(dir_veg(esets), "..", "Types", "BigSagebrushEcosystems", "gapv2_bse.tif")
 					} else {
 						file.path(dir_veg(esets), "veg1_bse_eg.grd")
 					}
@@ -186,7 +186,7 @@ if (actions["locate_transects"] || actions["make_map"]) {
 		}
 
 		fveg2 <- if (!do.demo) {
-						file.path(dir_veg(esets), "Types", "ForestWoodlands", "gapv2_tempFor.tif")
+						file.path(dir_veg(esets), "..", "Types", "ForestWoodlands", "gapv2_tempFor.tif")
 					} else {
 						file.path(dir_veg(esets), "veg2_tf_eg.grd")
 					}
@@ -216,17 +216,23 @@ if (actions["locate_transects"] || actions["make_map"]) {
 		
 		#--- Topography
 		if (!do.demo) {
-			fenv <- file.path(dir_env(esets), "ned_1s_westernUS_AEANAD83.tif")
+			fenv <- file.path(dir_env(esets), "NED_1arcsec_AEA83_W97.tif")
 			if (actions["preprocess_data"] && !file.exists(fenv)) {
 				fenv_temp <- file.path(dir_env(esets), "ned_1s_westernUS_GeogrNAD83.tif")
+				fenv_temp2 <- sub("_GeogrNAD83.tif", "_AEA83.tif", fenv_temp)
 				
 				grid_env_temp <- mosaic_tiles(dir_tiles = file.path(dir_env(esets), "grid_tiles"), chunksize = 10L, fname_grid_ned = fenv)
 				raster::crs(grid_env_temp) <- sp::CRS(paste(raster::crs(grid_env_temp, asText = TRUE), "+datum=NAD83 +vunits=m"))
 				
-				grid_env(egrids) <- project_raster(grid_from = grid_env_temp, fname_grid_to = fenv, res_to = raster::res(gap), crs_to = raster::crs(gap),
+				grid_env_temp2 <- project_raster(grid_from = grid_env_temp, fname_grid_to = fenv_temp2, res_to = raster::res(gap), crs_to = raster::crs(gap),
 													parallel_N = cores_N(esets), chunksize = 1e+05, maxmemory = 1e+06,
 													options = c("COMPRESS=NONE", "TFW=YES", "TILED=YES"))
-				rm(fenv_temp, grid_env_temp)
+
+				grid_env_temp3 <- raster::extend(raster::crop(grid_env_temp2, raster::extent(grid_veg(egrids))), raster::extent(grid_veg(egrids)))
+				grid_env(egrids) <- raster::overlay(grid_env_temp3, grid_veg(egrids), fun = function(x, y) ifelse(is.na(x) | is.na(y), NA, x),
+												filename = fenv, dataype = "FLT4S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+
+				rm(fenv_temp, grid_env_temp, grid_env_temp2, grid_env_temp3)
 			} else {
 				grid_env(egrids) <- raster::raster(fenv)
 			}
@@ -439,14 +445,11 @@ if (actions["make_map"]){
 	if (!inherits(resultTransects, "try-error") && nrow(resultTransects) > 0){
 		cat(format(Sys.time(), format = ""), ": drawing a map with ", nrow(resultTransects), " transects\n", sep = "")
 		
-		libraries2  <- c("maps")
-		l <- lapply(libraries2, function(lib) stopifnot(require(lib, character.only = TRUE, quietly = FALSE)))
-
-#		gadm_usa <- readRDS(file.path("~/Dropbox/Work_Stuff/2_Research/200907_UofWyoming_PostDoc/Product17_EcotoneGradients/2_Data", "20160126_GADMv28_USA_adm1.rds")) # WGS84
-#		gadm_usa_aeanad83 <- sp::spTransform(gadm_usa, raster::crs(elev))
+		gadm_usa_aeanad83 <- readRDS(file.path("~/Dropbox/Work_Stuff/2_Research/200907_UofWyoming_PostDoc/Product17_EcotoneGradients/2_Data", "20160126_GADMv28_USA_adm1_AEANAD83.rds"))
 
 		pdf(width = 14, height = 14, file = file.path(dir_out(esets), paste0("Map_Transects_All_v2.pdf")))
 			raster::plot(grid_env(egrids), col = gray(25:255/255))
+			sp::plot(gadm_usa_aeanad83, border = "blue", add = TRUE)
 		
 			raster::image(raster::calc(grid_veg(egrids), fun = function(x) ifelse(x %in% type_ids(type_veg1(esets)), 1, NA)), col = adjustcolor("red", alpha.f  =  0.3), add = TRUE)
 			raster::image(raster::calc(grid_veg(egrids), fun = function(x) ifelse(x %in% type_ids(type_veg2(esets)), 1, NA)), col = adjustcolor("darkgreen", alpha.f  =  0.3), add = TRUE)
@@ -460,8 +463,6 @@ if (actions["make_map"]){
 					 x1 = sp_end[, 1], y1 = sp_end[, 2],
 					 col = "orange", lwd = 2)
 			
-			maps::map("county", col = "blue", add = TRUE)
-#			plot(gadm_usa_aeanad83, border = "blue", add = TRUE)
 		dev.off()
 	} else {
 		cat(format(Sys.time(), format = ""), ": cannot draw a map because there are no transects; before drawing transects attempt to locate them by running the code with actions['locate_transects'] set to 'TRUE'\n", sep = "")

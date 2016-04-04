@@ -125,11 +125,12 @@ locate_candidate_THAs <- function(n, grid_gradient, max_neighborhood, asp201Mean
 
 	#2. Find potential init points among abutting locations in areas of low focal aspect RMSE, take a random sample of 20
 	lowSDabuts <- raster::mask(asp201Mean_atlowSD, abuts)
-	if ((raster::ncell(lowSDabuts) - raster::cellStats(lowSDabuts, 'countNA')) >= n) {
+	n_abuts <- raster::ncell(lowSDabuts) - raster::cellStats(lowSDabuts, 'countNA')
+	if (n_abuts > 0) {
 		lowSDabuts_aspm <- raster::rasterToPoints(lowSDabuts, spatial = TRUE)
 		
 		if (!is.na(seed)) set.seed(seed)
-		lowSDabuts_aspm_spPoints <- lowSDabuts_aspm[sample(x = nrow(lowSDabuts_aspm), size = n, replace = FALSE), ]
+		lowSDabuts_aspm_spPoints <- lowSDabuts_aspm[sample(x = nrow(lowSDabuts_aspm), size = min(n, n_abuts), replace = FALSE), ]
 
 		#3. Create lines for each potential init point in the direction of its focal mean aspect
 		extend_m <- sqrt(2) / 2 * raster::xres(grid_gradient) * (max_neighborhood - 1)
@@ -137,7 +138,7 @@ locate_candidate_THAs <- function(n, grid_gradient, max_neighborhood, asp201Mean
 		extXY_m <- cbind(tempX <- ifelse(abs(tempA <- tan(pi / 2 - lowSDabuts_aspm_spPoints@data[, 1])) > 1, extend_m / tempA, extend_m), tempX * tempA)
 		points_pos <- sp::SpatialPoints(sp::coordinates(temp <- data.frame(pcoords[, 1] + extXY_m[, 1], pcoords[, 2] + extXY_m[, 2])), proj4string = raster::crs(lowSDabuts))
 		points_neg <- sp::SpatialPoints(sp::coordinates(data.frame(pcoords[, 1] - extXY_m[, 1], pcoords[, 2] - extXY_m[, 2])), proj4string = raster::crs(lowSDabuts))
-		seq_n <- seq_len(n)
+		seq_n <- 1:nrow(pcoords)
 		extLinesAspm_spLine <- sp::SpatialLines(lapply(seq_n, FUN = function(ip) sp::Lines(sp::Line(sp::rbind.SpatialPoints(points_pos[ip, ], points_neg[ip, ])), ID = ip)), proj4string = raster::crs(lowSDabuts))
 
 		#4. Extract focal mean aspect within low RMSE areas along those lines (slow call)
