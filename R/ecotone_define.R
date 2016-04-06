@@ -7,11 +7,11 @@ determine_ecotone_linear_extent <- function(dens_BSE, dens_Veg1, end1_toLeft, de
 	if (all(is.null(dens_BSE), is.null(dens_TF), !is.null(dens_Veg1), !is.null(dens_Veg2))) {
 		cv1 <- calc_veg_decrease(dens_Veg1, end1_toLeft, veg_density_low, veg_density_high, veg_density_extended_min)
 		cv2 <- calc_veg_decrease(dens_Veg2, end2_toLeft, veg_density_low, veg_density_high, veg_density_extended_min)
-	}
+	} else 
 	if (all(!is.null(dens_BSE), !is.null(dens_TF), is.null(dens_Veg1), is.null(dens_Veg2))) {
 		cv1 <- calc_veg_decrease(dens_BSE, end1_toLeft, veg_density_low, veg_density_high, veg_density_extended_min)
 		cv2 <- calc_veg_decrease(dens_TF, end2_toLeft, veg_density_low, veg_density_high, veg_density_extended_min)
-	}
+	} else
 	if (all(!is.null(dens_BSE), !is.null(dens_TF), !is.null(dens_Veg1), !is.null(dens_Veg2))) {
 		cv1 <- calc_veg_decrease(dens_Veg1, end1_toLeft, veg_density_low, veg_density_high, veg_density_extended_min)
 		cv2 <- calc_veg_decrease(dens_Veg2, end2_toLeft, veg_density_low, veg_density_high, veg_density_extended_min)
@@ -48,6 +48,7 @@ determine_ecotone_linear_extent <- function(dens_BSE, dens_Veg1, end1_toLeft, de
 				if (length(endpos) > 0) croptemp[2] <- tail(endpos, n=1)
 			}
 		}
+
 	}
 	
 	if (all(!is.na(croptemp)) && (any(is.null(rmBSE), is.null(rmTF)) || all(!is.null(rmBSE), !is.null(rmTF), !rmBSE$values, !rmTF$values))) {
@@ -100,6 +101,7 @@ calc_veg_decrease <- function(dens_Veg, end_toLeft, veg_density_low, veg_density
 				tempi <- tempj + tail(which(rlow$values[(tempj + 1):length(rlow$values)]), n=1)
 				iend <- (1 + temps[tempi]):temps[tempi + 1]
 			}
+			
 		}
 	}
 	

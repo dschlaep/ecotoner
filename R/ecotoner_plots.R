@@ -8,7 +8,23 @@ plot_transect_density_profiles <- function(filename, distX1, distX2, elev, dens_
 	layout(mat = 1:2, widths = 1, heights = c(8, 1)/9)
 	par_old <- par(mar = c(3, 2.5, 0.1, 2.1), mgp = c(1.5, 0.5, 0), cex = cex <- 1.5)
 	on.exit({par(par_old); dev.off()}, add = TRUE)
+
+	panel_transect_density_profiles(distX1, distX2, elev, dens_Veg1, dens_BSE, dens_Veg2, dens_TF, start1_m, end1_m, start2_m, end2_m, cex)
+
+	par(mar = c(0, 2.5, 0, 0))
+	plot.new()
+	legend("left", inset = 0.05, bty = "n", cex = 2/4*cex, ncol = 3,
+		legend = c("Elevation", "Transect region", "All BSE", "Majority BSE", "All TF", "Majority TF"),
+		col = c("black", "black", "darkgoldenrod1", "red", "aquamarine", "darkgreen"),
+		lwd = c(2, -1, 1, 1, 1, 1),
+		pch = c(-1, 22, -1, -1, -1, -1),
+		pt.cex = c(-1, 2, -1, -1, -1, -1),
+		pt.bg = "gray")
+
+	invisible()
+}
 	
+panel_transect_density_profiles <- function(distX1, distX2, elev, dens_Veg1, dens_BSE, dens_Veg2, dens_TF, start1_m, end1_m, start2_m, end2_m, cex) {
 	emin <- min(elev)
 	emax <- max(elev)
 	
@@ -26,16 +42,6 @@ plot_transect_density_profiles <- function(filename, distX1, distX2, elev, dens_
 	axis(4, pos = max(at1), at = at2 <- seq(emin, emax, length = 11), labels = round(transform_R_to_01(at2, emin, emax), 1))
 	mtext(text = "Vegetation density", side = 4, cex = cex, line = 1)
 	
-	par(mar = c(0, 2.5, 0, 0))
-	plot.new()
-	legend("left", inset = 0.05, bty = "n", cex = 2/4*cex, ncol = 3,
-		legend = c("Elevation", "Transect region", "All BSE", "Majority BSE", "All TF", "Majority TF"),
-		col = c("black", "black", "darkgoldenrod1", "red", "aquamarine", "darkgreen"),
-		lwd = c(2, -1, 1, 1, 1, 1),
-		pch = c(-1, 22, -1, -1, -1, -1),
-		pt.cex = c(-1, 2, -1, -1, -1, -1),
-		pt.bg = "gray")
-
 	invisible()
 }
 

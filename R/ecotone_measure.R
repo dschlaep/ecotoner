@@ -29,19 +29,15 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 	do_new <- all(what_measure)
 	do_only_write <- all(!what_measure)
 
-	if (do_measure && file.exists(fname_etlocated(ecotoner_settings, iflag))) {
-		load(fname_etlocated(ecotoner_settings, iflag)) #i, b, and etransect loaded
-	} else {
-		return(i) # no suitable transect located for search point i
-	}
-
 	if (verbose) {
 		idh <- 1
 		cat("'ecotoner' measuring: tr = ", i, "; start at ", format(t1 <- Sys.time(), format = ""), "\n", sep = "")
 	}
 
 	# Measure ecotones
-	if (do_measure) {
+	if (do_measure && file.exists(fname_etlocated(ecotoner_settings, iflag))) {
+		load(fname_etlocated(ecotoner_settings, iflag)) #i, b, and etransect loaded
+
 		# Data containers
 		template_etobs <- list(	gETmeas = vector(mode = "list", length = neighbors_N(ecotoner_settings)), # list for 'gETmeas' of each neighborhood
 								seeds = vector(mode = "list", length = neighbors_N(ecotoner_settings) * length(migtypes)),

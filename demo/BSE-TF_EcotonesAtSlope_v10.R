@@ -17,10 +17,11 @@ do.debug <- FALSE
 do.demo <- TRUE		# If TRUE, then code uses the example data from the ecotoner package, i.e., can be run without additional input data
 
 
-actions <- c(	preprocess_data = FALSE,	# mosaic NED tiles; project NED to crs(GAP); determine BSE-TF abutting; calculate smoothed aspect
-				locate_transects = TRUE,	# call the transect functions detect_ecotone_transects_from_searchpoint()
-				make_map = TRUE,			# draw a map of all transects
-				measure_transects = TRUE	# use methods to extract information about the located transects
+actions <- c(	preprocess_data = FALSE,		# mosaic NED tiles; project NED to crs(GAP); determine BSE-TF abutting; calculate smoothed aspect
+				sample_searchpoints = FALSE,	# samples locations to initiate the location of transects
+				locate_transects = TRUE,		# call the transect functions detect_ecotone_transects_from_searchpoint()
+				make_map = TRUE,				# draw a map of all transects
+				measure_transects = TRUE		# use methods to extract information about the located transects
 			)
 
 interactions <- c(	verbose = TRUE,		# prints progress statements
@@ -386,34 +387,38 @@ if (any(actions)) {
 
 
 #------------------------------------------------------------#
-#------ECOTONER: LOCATE TRANSECTS
-if (actions["locate_transects"]) {
-	cat(format(Sys.time(), format = ""), ": using 'ecotoner' to locate ecotone transects along elevational gradients between big sagebrush and temperate forest vegetation\n", sep = "")
-	
-	stopifnot(exists("esets"), exists("egrids"))
-	
-	#---Get search points to initiate transects
-	cat(format(Sys.time(), format = ""), ": sampling ", searchpoints_N(esets), " 'initpoints'\n", sep = "")
+##------ECOTONER: SAMPLE SEARCH POINTS
+if (actions["sample_searchpoints"] || actions["locate_transects"]) {
+	cat(format(Sys.time(), format = ""), ": using 'ecotoner' to sample search locations from where to initiate the location of ecotone transects\n", sep = "")
+
+	cat(format(Sys.time(), format = ""), ": sampling ", searchpoints_N(esets), " search points/locations\n", sep = "")
 	initpoints <- if (prj_status == "new" || !file.exists(file_searchpoints(esets))) {
-		get_transect_search_points(N = searchpoints_N(esets),
-									grid_mask1 = if (valid_grid(grid_abut(egrids))) grid_abut(egrids) else grid_veg(egrids),
-									inhibit_dist = inhibit_dist_m(esets, res_m(specs_grid(egrids))), 
-									mywindow = if (inhibit_searchpoints(esets) && file.exists(file_initwindow(esets))) readRDS(file_initwindow(esets)) else NULL,
-									grid_maskNA = grid_env(egrids),
-									initfile = file_searchpoints(esets),
-									initwindowfile = file_initwindow(esets),
-									seed = if (reproducible(esets)) get_global_seed(esets) else NULL,
-									verbose = interactions["verbose"])
-	} else {
-		readRDS(file_searchpoints(esets))
-	}
+						get_transect_search_points(N = searchpoints_N(esets),
+													grid_mask1 = if (valid_grid(grid_abut(egrids))) grid_abut(egrids) else grid_veg(egrids),
+													inhibit_dist = inhibit_dist_m(esets, res_m(specs_grid(egrids))), 
+													mywindow = if (inhibit_searchpoints(esets) && file.exists(file_initwindow(esets))) readRDS(file_initwindow(esets)) else NULL,
+													grid_maskNA = grid_env(egrids),
+													initfile = file_searchpoints(esets),
+													initwindowfile = file_initwindow(esets),
+													seed = if (reproducible(esets)) get_global_seed(esets) else NULL,
+													verbose = interactions["verbose"])
+					} else {
+						readRDS(file_searchpoints(esets))
+					}
 	
 	if (!identical(transect_N(esets), length(initpoints))) {
 		transect_N(esets) <- length(initpoints)
 		saveRDS(esets, file = fname_settings)
 	}
-	
+}
 
+
+
+#------------------------------------------------------------#
+#------ECOTONER: LOCATE TRANSECTS
+if (actions["locate_transects"]) {
+	cat(format(Sys.time(), format = ""), ": using 'ecotoner' to locate ecotone transects along elevational gradients between big sagebrush and temperate forest vegetation\n", sep = "")
+	
 	#---Loop through random points
 	cat(format(Sys.time(), format = ""), ": sending ", transect_N(esets), " calls to the function 'detect_ecotone_transects_from_searchpoint'\n", sep = "")
 

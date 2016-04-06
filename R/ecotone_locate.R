@@ -553,7 +553,9 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 													etable = etransect[["etable"]],
 													ipoint, ecotoner_settings, ecotoner_grids,
 													elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped,
-													tempData = if (do_interim) tempData0 else NULL, dir_fig, figBasename = flag_bfig, verbose, do_figures,
+													tempData = if (do_interim) tempData0 else NULL,
+													dir_fig, figBasename = flag_bfig,
+													verbose, do_figures,
 													seed = NA), silent = TRUE)
 					
 						if (!inherits(temp, "try-error")) {
