@@ -36,6 +36,30 @@ simplify2result <- function(x, showWarnings = TRUE) {
 }
 
 
+#' A load balancing version of clusterApply with increased level of balancing
+#'
+#' This function is a modified copy of \code{\link{parallel::parLapplyLB}}  (v3.2.4)
+#' 
+#' Bug report is submitted under \href{https://bugs.r-project.org/bugzilla3/show_bug.cgi?id=16792}{# 16792}
+#'
+#' @inheritParams parallel::parLapplyLB
+#' @param chunksize An integer value. A suggestion on how large the number of tasks should be that are sent per job to a worker.
+#'
+#' @seealso \code{\link{parallel::parLapplyLB}} and \code{\link{parallel::parLapply}}
+#' @return A list of the same length as \code{X} each with the returned value of \code{fun}.
+#' @export
+parLapplyLBc <- function (cl = NULL, X, fun, ..., chunksize = 10L) {
+	# modified from parallel::parLapplyLB  (v3.2.4)
+    cl <- parallel:::defaultCluster(cl)
+    
+    # x <- splitList(X, length(cl)) # this is the original code, but if length(x) == length(cl), then 'dynamicClusterApply' does not load balance the tasks
+    # instead the modified version creates a list of indices much longer than there are workers
+    chunksize <- as.integer(chunksize)
+    x <- if (chunksize == 1L) X else parallel:::splitList(X, max(length(cl), round(length(X) / chunksize)))
+    
+    do.call(c, parallel::clusterApplyLB(cl, x = x, fun = lapply, fun, ...), quote = TRUE)
+}
+
 #' Create a function to apply a function to each transect either in parallel with load balancing or in a serial process depending on the core settings
 #'
 #' @param ecotoner_settings An object of class 'EcotonerSettings' of which the cores_N(.) will be used.
@@ -44,7 +68,7 @@ simplify2result <- function(x, showWarnings = TRUE) {
 fun_to_apply_foreach_transect <- function(ecotoner_settings) {
 	if (cores_N(ecotoner_settings) > 1)
 		# load balancing is reproducible if each transect sets its own unique random seed
-		function(X, FUN, ...) simplify2result(parallel::parLapplyLB(cl, X, FUN, ...))
+		function(X, FUN, ...) simplify2result(parLapplyLBc(cl, X, FUN, ...))
 	else
 		function(X, FUN, ...) simplify2result(lapply(X, FUN, ...))
 
