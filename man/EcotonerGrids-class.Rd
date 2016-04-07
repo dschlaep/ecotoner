@@ -13,7 +13,11 @@ An S4-class to represent the information of the input raster grids
 \describe{
 \item{\code{grid_env}}{A \code{\linkS4class{RasterLayer}} object. The environmental grid representing the gradient to investigate, e.g., elevation}
 
-\item{\code{grid_veg}}{A \code{\linkS4class{RasterLayer}} object. The vegetation grid representing the two vegetation (types) that make up the ecotone/ecological boundary of consideration}
+\item{\code{grid_veg}}{A \code{\linkS4class{RasterLayer}} object. The vegetation grid representing the vegetation including the two types that make up the ecotone/ecological boundary of consideration}
+
+\item{\code{grid_veg1}}{A \code{\linkS4class{RasterLayer}} object. The vegetation grid representing the first vegetation type of interest.}
+
+\item{\code{grid_veg2}}{A \code{\linkS4class{RasterLayer}} object. The vegetation grid representing the second vegetation type of interest.}
 
 \item{\code{grid_flow}}{A \code{\linkS4class{RasterLayer}} object. A grid representing the flow path of the environmental grid. Used only if \code{transect_type == 3}}
 

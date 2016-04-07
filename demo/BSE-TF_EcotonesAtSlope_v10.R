@@ -118,13 +118,15 @@ if (actions["locate_transects"] || actions["make_map"]) {
 			dir_env(esets) <- file.path(dir.gis, "Topography", "NED_USA", "NED_1arcsec")
 			dir.veg <- file.path(dir.gis, "SpeciesVegetation", "GAP_2011_v2")
 			dir_veg(esets) <- file.path(dir.veg, "Nat_GAP_LandCover")
+			dir_veg1(esets) <- file.path(dir.veg, "Types", "BigSagebrushEcosystems")
+			dir_veg2(esets) <- file.path(dir.veg, "Types", "ForestWoodlands")
 			dir_abut(esets) <- file.path(dir.veg, "Types")
 			dir_aspect_mean(esets) <- dir_aspect_sd(esets) <- dir_flow(esets) <- file.path(dir_env(esets), "terrain")
 		} else {
 			path_demo <- system.file("extdata", "spatial", package = "ecotoner")
 
 			dir_env(esets) <- path_demo
-			dir_veg(esets) <- path_demo
+			dir_veg(esets) <- dir_veg1(esets) <- dir_veg2(esets) <- path_demo
 			dir_abut(esets) <- path_demo
 			dir_aspect_mean(esets) <- dir_aspect_sd(esets) <- dir_flow(esets) <- path_demo
 		}
@@ -139,11 +141,11 @@ if (actions["locate_transects"] || actions["make_map"]) {
 			gap <- raster::raster(fgap)
 			raster::crs(gap) <- sp::CRS(paste(raster::crs(gap), "+datum=NAD83"))
 			grid_veg(egrids) <- gap
-			df_veg(egrids) <- foreign::read.dbf(file=paste0(fgap, ".vat.dbf")) # previously: gap.rat
+			df_veg(egrids) <- foreign::read.dbf(file = file.path(dir_veg(esets), "natgaplandcov_v2_1.img.vat.dbf"))
 			rm(gap)
 		} else {
 			grid_veg(egrids) <- raster::raster(file.path(dir_veg(esets), "veg_eg.grd"))
-			df_veg(egrids) <- readRDS(file.path(path_demo, "gap_rat.rds"))
+			df_veg(egrids) <- readRDS(file.path(dir_veg(esets), "gap_rat.rds"))
 		}
 
 		#--- Vegetation metadata
@@ -173,36 +175,36 @@ if (actions["locate_transects"] || actions["make_map"]) {
 		}
 		
 		#--- Vegetation types
-		#TODO(drs): incorporate these into EcotonerSettings and make use by the code
+		#TODO(drs): use them by the code
 		fveg1 <- if (!do.demo) {
-						file.path(dir_veg(esets), "..", "Types", "BigSagebrushEcosystems", "gapv2_bse.tif")
+						file.path(dir_veg1(esets), "gapv2_bse_W97.tif")
 					} else {
-						file.path(dir_veg(esets), "veg1_bse_eg.grd")
+						file.path(dir_veg1(esets), "veg1_bse_eg.grd")
 					}
 		if (actions["preprocess_data"] && !file.exists(fveg1)) {
-			grid_veg1 <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg1(esets)), filename = fveg1,
+			grid_veg1(egrids) <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg1(esets)), filename = fveg1,
 											parallel_N = cores_N(esets), dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
 		} else {
-			grid_veg1 <- raster::raster(fveg1)
+			grid_veg1(egrids) <- raster::raster(fveg1)
 		}
 
 		fveg2 <- if (!do.demo) {
-						file.path(dir_veg(esets), "..", "Types", "ForestWoodlands", "gapv2_tempFor.tif")
+						file.path(dir_veg2(esets), "gapv2_tf_W97.tif")
 					} else {
-						file.path(dir_veg(esets), "veg2_tf_eg.grd")
+						file.path(dir_veg2(esets), "veg2_tf_eg.grd")
 					}
 		if (actions["preprocess_data"] && !file.exists(fveg2)) {
-			grid_veg2 <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg2(esets)), filename = fveg2,
+			grid_veg2(egrids) <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg2(esets)), filename = fveg2,
 											parallel_N = cores_N(esets), dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
 		} else {
-			grid_veg2 <- raster::raster(fveg2)
+			grid_veg2(egrids) <- raster::raster(fveg2)
 		}
 
 		
 		#--- Abutting cells
 		if (transect_type(esets) == 4) {
 			fabut <- if (!do.demo) {
-						file.path(dir_abut(esets), "gapv2_bseABUTtf.tif")
+						file.path(dir_abut(esets), "gapv2_bseABUTtf_W97.tif")
 					} else {
 						file.path(dir_veg(esets), "abutt_eg.grd")
 					}
@@ -388,7 +390,7 @@ if (any(actions)) {
 
 #------------------------------------------------------------#
 ##------ECOTONER: SAMPLE SEARCH POINTS
-if (actions["sample_searchpoints"] || actions["locate_transects"]) {
+if (actions["sample_searchpoints"] || actions["locate_transects"] || actions["make_map"]) {
 	cat(format(Sys.time(), format = ""), ": using 'ecotoner' to sample search locations from where to initiate the location of ecotone transects\n", sep = "")
 
 	cat(format(Sys.time(), format = ""), ": sampling ", searchpoints_N(esets), " search points/locations\n", sep = "")
@@ -445,30 +447,53 @@ if (actions["locate_transects"]) {
 #------------------------------------------------------------#
 #------DRAW A MAP WITH TRANSECT LOCATIONS
 if (actions["make_map"]){
-	if (!exists("resultTransects")) resultTransects <- try(read.csv(file = file_etsummary(esets)), silent = TRUE)
+	cat(format(Sys.time(), format = ""), ": calculating vegetation meta-data\n", sep = "")
+	
+	meta_veg <- characterize_veg_data(ecotoner_settings = esets,
+									  ecotoner_grids = egrids,
+									  initpoints = initpoints,
+									  inhibit_dist = inhibit_dist_m(esets, res_m(specs_grid(egrids))))
+
+
+	if (!exists("resultTransects"))
+		resultTransects <- try(read.csv(file = file_etsummary(esets)), silent = TRUE)
 	
 	if (!inherits(resultTransects, "try-error") && nrow(resultTransects) > 0){
 		cat(format(Sys.time(), format = ""), ": drawing a map with ", nrow(resultTransects), " transects\n", sep = "")
-		
+
 		gadm_usa_aeanad83 <- readRDS(file.path("~/Dropbox/Work_Stuff/2_Research/200907_UofWyoming_PostDoc/Product17_EcotoneGradients/2_Data", "20160126_GADMv28_USA_adm1_AEANAD83.rds"))
 
-		pdf(width = 14, height = 14, file = file.path(dir_out(esets), paste0("Map_Transects_All_v2.pdf")))
-			raster::plot(grid_env(egrids), col = gray(25:255/255))
-			sp::plot(gadm_usa_aeanad83, border = "blue", add = TRUE)
+		sp_start <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_StartPoint_WGS84_Long", "TransectLinear_StartPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
+		sp_start <- sp::coordinates(sp::spTransform(sp_start, crs(specs_grid(egrids))))
+		sp_end <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_EndPoint_WGS84_Long", "TransectLinear_EndPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
+		sp_end <- sp::coordinates(sp::spTransform(sp_end, crs(specs_grid(egrids))))
 		
-			raster::image(raster::calc(grid_veg(egrids), fun = function(x) ifelse(x %in% type_ids(type_veg1(esets)), 1, NA)), col = adjustcolor("red", alpha.f  =  0.3), add = TRUE)
-			raster::image(raster::calc(grid_veg(egrids), fun = function(x) ifelse(x %in% type_ids(type_veg2(esets)), 1, NA)), col = adjustcolor("darkgreen", alpha.f  =  0.3), add = TRUE)
+		ext <- raster::union(raster::extent(grid_env(egrids)), raster::extent(grid_veg(egrids)))
+		# ext <- raster::extent(-2500000, 0, 80000, 3213514)
 
-			sp_start <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_StartPoint_WGS84_Long", "TransectLinear_StartPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
-			sp_start <- sp::coordinates(sp::spTransform(sp_start, crs(specs_grid(egrids))))
-			sp_end <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_EndPoint_WGS84_Long", "TransectLinear_EndPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
-			sp_end <- sp::coordinates(sp::spTransform(sp_end, crs(specs_grid(egrids))))
-			
+		# map
+		pdf(width = 8, height = 8, file = file.path(dir_out(esets), paste0("Map_InputData_TransectLocations.pdf")))
+			op_old <- par(mar = c(2.5, 2.5, 0.5, 0.5))
+			on.exit(par(op_old), add = TRUE)
+		
+			raster::plot(grid_env(egrids), ext = ext, col = gray(25:255/255))
+			raster::image(grid_veg(egrids), col = "gray", add = TRUE)
+
+			raster::image(grid_env(egrids), col = gray(25:255/255), add = TRUE)
+			if (!missing(map)) sp::plot(map, border = "white", add = TRUE)
+	
+			raster::image(grid_veg1(egrids), col = adjustcolor("red", alpha.f = 0.3), add = TRUE)
+			raster::image(grid_veg2(egrids), col = adjustcolor("darkgreen", alpha.f = 0.3), add = TRUE)
+
+			sp::plot(meta_veg[["initpoints_buffering"]], col = adjustcolor("skyblue", alpha.f = 0.3), border = NA, add = TRUE)
+			raster::image(grid_abut(egrids), col = "yellow", add = TRUE)
+
 			segments(x0 = sp_start[, 1], y0 = sp_start[, 2],
 					 x1 = sp_end[, 1], y1 = sp_end[, 2],
-					 col = "orange", lwd = 2)
-			
+					 col = "orange", lwd = 1.5)
+
 		dev.off()
+		
 	} else {
 		cat(format(Sys.time(), format = ""), ": cannot draw a map because there are no transects; before drawing transects attempt to locate them by running the code with actions['locate_transects'] set to 'TRUE'\n", sep = "")
 	}

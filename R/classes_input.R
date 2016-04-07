@@ -23,7 +23,9 @@ GridInfo <- setClass("GridInfo",
 #' An S4-class to represent the information of the input raster grids
 #'
 #' @slot grid_env A \code{\linkS4class{RasterLayer}} object. The environmental grid representing the gradient to investigate, e.g., elevation
-#' @slot grid_veg A \code{\linkS4class{RasterLayer}} object. The vegetation grid representing the two vegetation (types) that make up the ecotone/ecological boundary of consideration
+#' @slot grid_veg A \code{\linkS4class{RasterLayer}} object. The vegetation grid representing the vegetation including the two types that make up the ecotone/ecological boundary of consideration
+#' @slot grid_veg1 A \code{\linkS4class{RasterLayer}} object. The vegetation grid representing the first vegetation type of interest.
+#' @slot grid_veg2 A \code{\linkS4class{RasterLayer}} object. The vegetation grid representing the second vegetation type of interest.
 #' @slot grid_flow A \code{\linkS4class{RasterLayer}} object. A grid representing the flow path of the environmental grid. Used only if \code{transect_type == 3}
 #' @slot grid_abut A \code{\linkS4class{RasterLayer}} object. A grid marking the cells where neighboring cells are of the opposite vegetation (type).
 #' @slot grid_aspect_mean A \code{\linkS4class{RasterLayer}} object. A grid representing the mean smoothed aspect of the environmental grid. Used only if \code{transect_type == 4}
@@ -35,6 +37,8 @@ GridInfo <- setClass("GridInfo",
 EcotonerGrids <- setClass("EcotonerGrids", 
 							slots = list(grid_env = structure("RasterLayer", package = "raster"),
 										grid_veg = structure("RasterLayer", package = "raster"),
+										grid_veg1 = structure("RasterLayer", package = "raster"),
+										grid_veg2 = structure("RasterLayer", package = "raster"),
 										grid_flow = structure("RasterLayer", package = "raster"),
 										grid_abut = structure("RasterLayer", package = "raster"),
 										grid_aspect_mean = structure("RasterLayer", package = "raster"),
@@ -74,6 +78,8 @@ setValidity("EcotonerGrids", function(object) {
 	
 	grid_list <- list(grid_env = object@grid_env,
 						grid_veg = object@grid_veg,
+						grid_veg1 = object@grid_veg1,
+						grid_veg2 = object@grid_veg2,
 						grid_flow = object@grid_flow,
 						grid_abut = object@grid_abut,
 						grid_aspect_mean = object@grid_aspect_mean,
@@ -108,6 +114,10 @@ setGeneric("grid_env", signature = "x", function(x) standardGeneric("grid_env"))
 #' @export
 setGeneric("grid_veg", signature = "x", function(x) standardGeneric("grid_veg"))
 #' @export
+setGeneric("grid_veg1", signature = "x", function(x) standardGeneric("grid_veg1"))
+#' @export
+setGeneric("grid_veg2", signature = "x", function(x) standardGeneric("grid_veg2"))
+#' @export
 setGeneric("grid_flow", signature = "x", function(x) standardGeneric("grid_flow"))
 #' @export
 setGeneric("grid_abut", signature = "x", function(x) standardGeneric("grid_abut"))
@@ -130,6 +140,8 @@ setMethod("rotation", "GridInfo", function(x) slot(x, "rotation"))
 
 setMethod("grid_env", "EcotonerGrids", function(x) slot(x, "grid_env"))
 setMethod("grid_veg", "EcotonerGrids", function(x) slot(x, "grid_veg"))
+setMethod("grid_veg1", "EcotonerGrids", function(x) slot(x, "grid_veg1"))
+setMethod("grid_veg2", "EcotonerGrids", function(x) slot(x, "grid_veg2"))
 setMethod("grid_flow", "EcotonerGrids", function(x) slot(x, "grid_flow"))
 setMethod("grid_abut", "EcotonerGrids", function(x) slot(x, "grid_abut"))
 setMethod("grid_aspect_mean", "EcotonerGrids", function(x) slot(x, "grid_aspect_mean"))
@@ -149,6 +161,10 @@ setGeneric("rotation<-", signature = "x", function(x, value) standardGeneric("ro
 setGeneric("grid_env<-", signature = "x", function(x, value) standardGeneric("grid_env<-"))
 #' @export
 setGeneric("grid_veg<-", signature = "x", function(x, value) standardGeneric("grid_veg<-"))
+#' @export
+setGeneric("grid_veg1<-", signature = "x", function(x, value) standardGeneric("grid_veg1<-"))
+#' @export
+setGeneric("grid_veg2<-", signature = "x", function(x, value) standardGeneric("grid_veg2<-"))
 #' @export
 setGeneric("grid_flow<-", signature = "x", function(x, value) standardGeneric("grid_flow<-"))
 #' @export
@@ -185,6 +201,8 @@ set_grid <- function(x, name, value) {
 
 setReplaceMethod("grid_env", "EcotonerGrids", function(x, value) set_grid(x, "grid_env", value))
 setReplaceMethod("grid_veg", "EcotonerGrids", function(x, value) set_grid(x, "grid_veg", value))
+setReplaceMethod("grid_veg1", "EcotonerGrids", function(x, value) set_grid(x, "grid_veg1", value))
+setReplaceMethod("grid_veg2", "EcotonerGrids", function(x, value) set_grid(x, "grid_veg2", value))
 setReplaceMethod("grid_flow", "EcotonerGrids", function(x, value) set_grid(x, "grid_flow", value))
 setReplaceMethod("grid_abut", "EcotonerGrids", function(x, value) set_grid(x, "grid_abut", value))
 setReplaceMethod("grid_aspect_mean", "EcotonerGrids", function(x, value) set_grid(x, "grid_aspect_mean", value))

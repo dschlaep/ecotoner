@@ -85,6 +85,8 @@ setValidity("EcotonerFile", function(object) {
 #' @slot dir_out_dat An 'EcotonerPath' object. The path that contains the folders where the transect data are stored.  This path is automatically generated.
 #' @slot dir_env An 'EcotonerPath' object. The path to where the raster grid representing the environmental gradient 'grid_env' is stored. 
 #' @slot dir_veg An 'EcotonerPath' object. The path to where the raster grid representing the vegetation 'grid_veg' is stored. 
+#' @slot dir_veg1 An 'EcotonerPath' object. The path to where the raster grid representing the vegetation 'grid_veg1' is stored. 
+#' @slot dir_veg2 An 'EcotonerPath' object. The path to where the raster grid representing the vegetation 'grid_veg2' is stored. 
 #' @slot dir_flow An 'EcotonerPath' object. The path to where the raster grid representing the flow paths 'grid_flow' is stored (required with transect_type == 3). 
 #' @slot dir_abut An 'EcotonerPath' object. The path to where the raster grid representing the abutting cells of vegetation types 1 and 2 'grid_abut' is stored (required with transect_type == 4). 
 #' @slot dir_aspect_mean An 'EcotonerPath' object. The path to where the raster grid representing the mean smoothed aspect 'grid_aspect_mean' is stored (required with transect_type == 4). 
@@ -139,6 +141,8 @@ EcotonerSettings <- setClass("EcotonerSettings",
 										 
 										 dir_env = "EcotonerPath",
 										 dir_veg = "EcotonerPath",
+										 dir_veg1 = "EcotonerPath",
+										 dir_veg2 = "EcotonerPath",
 										 dir_flow = "EcotonerPath",
 										 dir_abut = "EcotonerPath",
 										 dir_aspect_mean = "EcotonerPath",
@@ -395,6 +399,14 @@ setGeneric("dir_veg", signature = "x", function(x) standardGeneric("dir_veg"))
 #' @export
 setGeneric("dir_veg<-", signature = "x", function(x, value) standardGeneric("dir_veg<-"))
 #' @export
+setGeneric("dir_veg1", signature = "x", function(x) standardGeneric("dir_veg1"))
+#' @export
+setGeneric("dir_veg1<-", signature = "x", function(x, value) standardGeneric("dir_veg1<-"))
+#' @export
+setGeneric("dir_veg2", signature = "x", function(x) standardGeneric("dir_veg2"))
+#' @export
+setGeneric("dir_veg2<-", signature = "x", function(x, value) standardGeneric("dir_veg2<-"))
+#' @export
 setGeneric("dir_flow", signature = "x", function(x) standardGeneric("dir_flow"))
 #' @export
 setGeneric("dir_flow<-", signature = "x", function(x, value) standardGeneric("dir_flow<-"))
@@ -529,6 +541,10 @@ setMethod("dir_env", "EcotonerSettings", function(x) slot(slot(x, "dir_env"), "p
 setReplaceMethod("dir_env", "EcotonerSettings", function(x, value) initialize(x, dir_env = new("EcotonerPath", path = value)))
 setMethod("dir_veg", "EcotonerSettings", function(x) slot(slot(x, "dir_veg"), "path"))
 setReplaceMethod("dir_veg", "EcotonerSettings", function(x, value) initialize(x, dir_veg = new("EcotonerPath", path = value)))
+setMethod("dir_veg1", "EcotonerSettings", function(x) slot(slot(x, "dir_veg1"), "path"))
+setReplaceMethod("dir_veg1", "EcotonerSettings", function(x, value) initialize(x, dir_veg1 = new("EcotonerPath", path = value)))
+setMethod("dir_veg2", "EcotonerSettings", function(x) slot(slot(x, "dir_veg2"), "path"))
+setReplaceMethod("dir_veg2", "EcotonerSettings", function(x, value) initialize(x, dir_veg2 = new("EcotonerPath", path = value)))
 setMethod("dir_flow", "EcotonerSettings", function(x) slot(slot(x, "dir_flow"), "path"))
 setReplaceMethod("dir_flow", "EcotonerSettings", function(x, value) initialize(x, dir_flow = new("EcotonerPath", path = value)))
 setMethod("dir_abut", "EcotonerSettings", function(x) slot(slot(x, "dir_abut"), "path"))
@@ -625,6 +641,18 @@ setMethod("verify_grid_paths", "EcotonerSettings", function(x) {
 		x@dir_veg@path <- normalizePath(x@dir_veg@path, mustWork = NA)
 	} else {
 		warning("'ecotoner' requires a 'grid_veg' to locate ecotone transects: currently, no path to such a grid is set")
+	}
+
+	if (!is.na(x@dir_veg1@path)) {
+		x@dir_veg1@path <- normalizePath(x@dir_veg1@path, mustWork = NA)
+	} else {
+		warning("'ecotoner' requires a 'grid_veg1' to locate ecotone transects: currently, no path to such a grid is set")
+	}
+
+	if (!is.na(x@dir_veg2@path)) {
+		x@dir_veg2@path <- normalizePath(x@dir_veg2@path, mustWork = NA)
+	} else {
+		warning("'ecotoner' requires a 'grid_veg2' to locate ecotone transects: currently, no path to such a grid is set")
 	}
 
 	if (!is.na(x@dir_flow@path)) {

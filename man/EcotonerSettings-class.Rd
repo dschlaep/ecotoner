@@ -77,6 +77,10 @@ An S4-class to represent the settings of an 'ecotoner' project
 
 \item{\code{dir_veg}}{An 'EcotonerPath' object. The path to where the raster grid representing the vegetation 'grid_veg' is stored.}
 
+\item{\code{dir_veg1}}{An 'EcotonerPath' object. The path to where the raster grid representing the vegetation 'grid_veg1' is stored.}
+
+\item{\code{dir_veg2}}{An 'EcotonerPath' object. The path to where the raster grid representing the vegetation 'grid_veg2' is stored.}
+
 \item{\code{dir_flow}}{An 'EcotonerPath' object. The path to where the raster grid representing the flow paths 'grid_flow' is stored (required with transect_type == 3).}
 
 \item{\code{dir_abut}}{An 'EcotonerPath' object. The path to where the raster grid representing the abutting cells of vegetation types 1 and 2 'grid_abut' is stored (required with transect_type == 4).}

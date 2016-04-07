@@ -233,3 +233,53 @@ homogenous_aspect <- function(grid_aspect, fun = c("mean", "sd"), window_N, file
 	raster::focal(grid_aspect, w = w, fun = fun_circ, pad = TRUE, padValue = NA,
 					filename = filename, progress = "text", ...)
 }										
+
+
+#' @export
+characterize_veg_data <- function(ecotoner_settings, ecotoner_grids, initpoints, inhibit_dist) {
+	ftemp <- file.path(dir_out(ecotoner_settings), "Metadata_vegetation.rds")
+	
+	if (file.exists(ftemp)) {
+		res <- readRDS(ftemp)
+	} else {
+
+		# grid prevalence
+		lgrids <- list(veg = grid_veg(ecotoner_grids), veg1 = grid_veg1(ecotoner_grids), veg2 = grid_veg2(ecotoner_grids), abut = grid_abut(ecotoner_grids))
+		dat_grids <- sapply(lgrids, FUN = function(x)
+								c(	ncell_total = temp <- raster::ncell(x), 
+									ncell_narm = temp -  raster::cellStats(x, "countNA"),
+									sum_values = raster::cellStats(x, "sum"),
+									fsize_GB = 1e-9 * file.size(x@file@name)))
+								
+		prevalence <- dat_grids["ncell_narm", ] / dat_grids["ncell_narm", "veg"]
+	
+	
+		# packing intensity
+		row.names(initpoints) <- 1:length(initpoints)
+		# method with gBuffer: is much slower, but seems to be more accurate
+		initpoints_buffering <- rgeos::gBuffer(initpoints, byid = TRUE, id = 1:length(initpoints), width = inhibit_dist / 2)
+		cells_buffering <- raster::extract(grid_abut(ecotoner_grids), y = initpoints_buffering, fun = sum, na.rm = TRUE, df = TRUE)
+
+		cells_total <- dat_grids["ncell_narm", "abut"]
+		tau_packing <- sum(cells_buffering[, "gapv2_bseABUTtf"]) / cells_total
+
+		# method with extract(buffer): seems to be less accurate and slightly more inclusive
+		if (FALSE) {
+			cells_buffering2 <- raster::extract(grid_abut(ecotoner_grids), y = initpoints,
+												buffer = inhibit_dist / 2, fun = sum, na.rm = TRUE, df = TRUE)
+			plot(cells_buffering2[, "gapv2_bseABUTtf"], cells_buffering[, "gapv2_bseABUTtf"])
+		
+			tau_packing2 <- sum(cells_buffering2[, "gapv2_bseABUTtf"]) / cells_total
+		}
+
+		res <- list(dat_grids = dat_grids,
+					prevalence = prevalence,
+					tau_packing = tau_packing,
+					initpoints_buffering = initpoints_buffering,
+					cells_buffering = cells_buffering)
+					
+		saveRDS(res, file = ftemp)
+	}
+
+	res
+}
