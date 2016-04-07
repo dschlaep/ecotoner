@@ -89,19 +89,19 @@ calc_Gastner2010_hulledge <- function(i, steplength, veg, end_toLeft) {
 	#---3. Biased walk
 	#Init
 	grid_hullEdge <- raster::raster(veg)
-	mat_hullEdge <- matrix(NA, nrow = 0, ncol = 2, dimnames = list(NULL, c("x", "y")))
+	mat_hullEdge <- matrix(NA, nrow = 0, ncol = 3, dimnames = list(NULL, c("x", "y", "azimuth")))
 	spLine_hullEdge <- sp::SpatialLines(list(sp::Lines(sp::Line(rbind(temp <- c(raster::xFromCol(veg, start_col), raster::yFromRow(veg, start_row)), temp)), ID = 1)), proj4string = helper_CRS)
 	iLine <- NULL
 	iazimuth <- 0 #clockwise angle between current step and general walking direction
 	irow <- start_row #matrix row (y-axis) of current position
 	icol <- start_col #matrix column (x-axis) of current position
-	nextStep_pos <- rep(NA, 2)
+
 	#Walk
 	if (requireNamespace("rgeos", quietly = TRUE)) {
 		repeat {
 			#-Take step
 			grid_hullEdge[irow, icol] <- 1
-			mat_hullEdge <- rbind(mat_hullEdge, c(icol, irow))
+			mat_hullEdge <- rbind(mat_hullEdge, c(icol, irow, iazimuth))
 			spLine_hullEdge <- if (!is.null(iLine)) rgeos::gLineMerge(sp::rbind.SpatialLines(spLine_hullEdge, iLine)) else spLine_hullEdge
 			if (irow == end_row && icol == end_col) break
 
@@ -125,8 +125,9 @@ calc_Gastner2010_hulledge <- function(i, steplength, veg, end_toLeft) {
 			neigh_available[neigh_available == 0] <- NA
 			#get the leftmost available cell(s) as seen from current direction
 			neigh_azimuths <- neigh_available * rotate_azimuth_matrix(neigh_sw[,, "azimuth"], iazimuth)
+			
 			#loop through the cells with increasing leftmost cells and pick the first cell that doesn't cross previously walked path
-			nextStep_pos <- rep(NA, 2)
+			take_nextStep <- FALSE
 			if (any(!is.na(neigh_azimuths))) repeat {
 				leftmost_value <- min(neigh_azimuths, na.rm = TRUE)
 				if (is.infinite(leftmost_value)) break #no possible next steps to take
@@ -137,16 +138,20 @@ calc_Gastner2010_hulledge <- function(i, steplength, veg, end_toLeft) {
 								} else {
 									drop(leftmost_pos)
 								}
+				
+				icol_next <- icol + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaX"]
+				irow_next <- irow + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaY"]
+				iazimuth_next <- rotate_azimuth_matrix(neigh_sw[leftmost_pos[1], leftmost_pos[2], "azimuth"], pi)
+				
 				#check that this step would not cross previously walked path c(yFromRow(veg, start_row), xFromCol(veg, start_col)
+				has_next1 <- FALSE
 				iLine <- sp::SpatialLines(list(sp::Lines(sp::Line(rbind(
 									c(raster::xFromCol(veg, icol), raster::yFromRow(veg, irow)),
-									c(raster::xFromCol(veg, icol + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaX"]),
-										raster::yFromRow(veg, irow + neigh_sw[leftmost_pos[1], leftmost_pos[2], "deltaY"])))),
+									c(raster::xFromCol(veg, icol_next), raster::yFromRow(veg, irow_next)))),
 								ID = 0)), proj4string = helper_CRS)
 				iIntersections <- rgeos::gIntersection(spLine_hullEdge, iLine)
-				has_nextStep <- FALSE
 				if (is.null(iIntersections)) {
-					has_nextStep <- TRUE
+					has_next1 <- TRUE
 				} else {
 					#remove points of cells along walk from this intersection (i.e., walk is allowed to revisit cells, but not to cross)
 					temp1 <- apply(if (inherits(temp <- sp::coordinates(iIntersections), "list")) as.matrix(temp[[1]][[1]]) else as.matrix(temp), 1, FUN = function(x) paste(round(x), collapse = "_"))
@@ -154,20 +159,32 @@ calc_Gastner2010_hulledge <- function(i, steplength, veg, end_toLeft) {
 				
 					if (any(!(temp1 %in% temp2))) {
 						neigh_azimuths[neigh_azimuths == leftmost_value] <- NA #remove this leftmost value from the possible choices
-					} else has_nextStep <- TRUE
+					} else has_next1 <- TRUE
 				}
-				if (has_nextStep) { #next step found
-					nextStep_pos <- leftmost_pos
+				
+				# check that this step would not retrace previously walked path in the same direction
+				this_sequence <- rbind(mat_hullEdge[nrow(mat_hullEdge), ],
+										c(icol_next, irow_next, iazimuth_next))
+				sequences_unique <- sapply(1:nrow(mat_hullEdge), FUN = function(i) {
+										if (i > 1) {
+											sum(abs(mat_hullEdge[(i - 1):i, ] - this_sequence)) > sqrt(.Machine$double.eps)
+										} else TRUE
+									})
+				has_next2 <- all(sequences_unique)
+				
+				# next step found
+				if (has_next1 && has_next2) {
+					take_nextStep <- TRUE
 					break
 				}
 			}
 
-			if (all(is.na(nextStep_pos))) break #no next step: i.e. walk ended (probably prematurely)
+			if (!take_nextStep) break #no next step: i.e. walk ended (probably prematurely)
 		
 			#-Prepare this step
-			irow <- irow + neigh_sw[nextStep_pos[1], nextStep_pos[2], "deltaY"]
-			icol <- icol + neigh_sw[nextStep_pos[1], nextStep_pos[2], "deltaX"]
-			iazimuth <- rotate_azimuth_matrix(neigh_sw[nextStep_pos[1], nextStep_pos[2], "azimuth"], pi)
+			irow <- irow_next
+			icol <- icol_next
+			iazimuth <- iazimuth_next
 		}
 	} else {
 		warning("Package 'rgeos' not installed: 'calc_Gastner2010_hulledge' will not performe the biased walk")
