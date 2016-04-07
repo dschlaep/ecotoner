@@ -3,17 +3,20 @@
 #------Gastner, M., Oborny, B., Zimmermann, D.K. & Pruessner, G. (2009) Transition from connected to fragmented vegetation across an environmental gradient: scaling laws in ecotone geometry. The American Naturalist, 174, E23-E39.
 
 #---Gastner et al. 2009: percolation neighborhoods based on Fig. 1A
-get.stepMaskAndDistance <- function(steplength, res_m) {
-	sn <- matrix(NA, ncol = 1+2*steplength, nrow = 1+2*steplength)
-	sn[1+steplength, 1+steplength] <- 0 #center
-	rsn <- raster::raster(sn, xmn = 0, xmx = ncol(sn) * res_m, ymn = 0, ymx = nrow(sn) * res_m, crs = "+proj=utm +zone=13 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")	
-	dsn <- raster::distance(rsn, doEdge = FALSE)
-	rsn[] <- dsn[] <= steplength * res_m
-	sn <- raster::as.matrix(rsn, maxpixels = raster::ncell(rsn))
-	sn[sn == 0] <- NA
-	sn[1+steplength, 1+steplength] <- 0
+get.stepMaskAndDistance <- function(steplength, res_m, pk = 100) {
+	sn <- array(NA, dim = rep(1 + 2 * steplength, 2))
+	sn[1 + steplength, 1 + steplength] <- 0 #center from which to compute distances
 	
-	list(sn = sn, dsn = raster::as.matrix(dsn, maxpixels = raster::ncell(dsn)))
+	dsn <- raster::raster(sn, xmn = 0, xmx = ncol(sn) * res_m, ymn = 0, ymx = nrow(sn) * res_m, crs = "+proj=utm +zone=13 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")	
+	dsn <- raster::as.matrix(raster::distance(dsn, doEdge = FALSE))
+	dsn <- round(dsn * pk / res_m) * res_m / pk # round to res_m / pk
+	
+	sn <- dsn <= {steplength * res_m + sqrt(.Machine$double.eps)}
+	sn[!sn] <- NA
+	mode(sn) <- "integer"
+	sn[1 + steplength, 1 + steplength] <- 0 #center
+	
+	list(sn = sn, dsn = dsn)
 }
 
 
@@ -158,6 +161,7 @@ calc_Gastner2010_hulledge <- function(i, steplength, veg, end_toLeft) {
 					break
 				}
 			}
+
 			if (all(is.na(nextStep_pos))) break #no next step: i.e. walk ended (probably prematurely)
 		
 			#-Prepare this step
