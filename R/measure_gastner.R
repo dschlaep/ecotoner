@@ -1,6 +1,7 @@
-
-
 #------Gastner, M., Oborny, B., Zimmermann, D.K. & Pruessner, G. (2009) Transition from connected to fragmented vegetation across an environmental gradient: scaling laws in ecotone geometry. The American Naturalist, 174, E23-E39.
+
+version_Gastner2010AmNat <- function() numeric_version("0.1.0")
+
 
 #---Gastner et al. 2009: percolation neighborhoods based on Fig. 1A
 get.stepMaskAndDistance <- function(steplength, res_m, pk = 100) {
@@ -341,6 +342,8 @@ Gastner2010AmNat <- function(i, b, migtype, ecotoner_settings, etband, etmeasure
 	step_names <- paste0("Step", step_lengths)
 	names(etmeasure$gETmeas[[b]][[migtype]]) <- step_names
 	
+	etmeasure$gETmeas[[b]][[migtype]]$method <- "Gastner2010AmNat"
+	etmeasure$gETmeas[[b]][[migtype]]$version <- version_Gastner2010AmNat()
 	etmeasure$gETmeas[[b]][[migtype]]$copy_FromMig1_TF <- copy_FromMig1_TF
 	
 	for (i_step in seq_along(step_names)) {

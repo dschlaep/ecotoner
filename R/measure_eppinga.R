@@ -1,5 +1,8 @@
 #------Eppinga, M.B., Pucko, C.A., Baudena, M., Beckage, B. & Molofsky, J. (2013) A new method to infer vegetation boundary movement from ‘snapshot’ data. Ecography, 36, 622-635.
 
+version_Eppinga2013Ecography <- function() numeric_version("0.2.0")
+
+
 #---Eppinga et al. 2013: 'Analytical analysis of vegetation boundary movement' (Fig. 1)
 calc_Eppinga2013_optpos <- function(Veg1, Veg2){
 	# in our cases, d(veg1) + d(veg2) <= 1
@@ -209,6 +212,8 @@ Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmea
 	etmeasure$etable[b_migtype, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
 	etmeasure$etable[b_migtype, "Migration_Type"] <- migtype
 	
+	etmeasure$gETmeas[[b]][[migtype]]$method <- "Eppinga2013Ecography"
+	etmeasure$gETmeas[[b]][[migtype]]$version <- version_Eppinga2013Ecography()
 	etmeasure$gETmeas[[b]][[migtype]]$copy_FromMig1_TF <- copy_FromMig1_TF
 	
 	if (!copy_FromMig1_TF) {

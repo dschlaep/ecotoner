@@ -2,6 +2,8 @@
 #------Danz, N.P., Frelich, L.E., Reich, P.B. & Niemi, G.J. (2012) Do vegetation boundaries display smooth or abrupt spatial transitions along environmental gradients? Evidence from the prairie–forest biome boundary of historic Minnesota, USA. Journal of Vegetation Science, n/a-n/a.
 
 
+version_Danz2012JVegSci_1D <- function() numeric_version("0.1.0")
+
 
 #---Danz et al. 2012: 'Spatial change in vegetation across the boundary', 'Spatial change in climate across the boundary', and 'Spatial vegetation/climate relationships across the boundary'
 #' Estimates the abruptness of outcome y against x
@@ -238,6 +240,8 @@ Danz2012JVegSci_1D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 	etmeasure$etable[b, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
 	etmeasure$etable[b, "Migration_Type"] <- migtype
 
+	etmeasure$gETmeas[[b]][[migtype]]$method <- "Danz2012JVegSci_1D"
+	etmeasure$gETmeas[[b]][[migtype]]$version <- version_Danz2012JVegSci_1D()
 	etmeasure$gETmeas[[b]][[migtype]]$copy_FromMig1_TF <- copy_FromMig1_TF
 		
 	if (!copy_FromMig1_TF) {

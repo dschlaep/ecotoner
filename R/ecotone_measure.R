@@ -12,6 +12,10 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 		what_measure[] <- FALSE
 		load(fname_etmeasured(ecotoner_settings, iflag)) #load: i, b, im, etmeas
 		
+		# Collect up-to-date method version numbers
+		cur_versions <- lapply(et_methods, function(etm) getFromNamespace(paste0("version_", etm), "ecotoner")())
+		names(cur_versions) <- et_methods
+		
 		# Determine measure methods status
 		started_meas <- names(etmeas) %in% et_methods
 		redo_meas <- !started_meas | sapply(etmeas[started_meas], is.null)
@@ -21,7 +25,9 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 		# Determine if some measure methods have only partially completed
 		todo_neighsXmigs <- sapply(etmeas[!redo_meas], function(x)
 								sapply(x$gETmeas, function(b)
-									sapply(b, function(m) is.null(m) | !is.logical(m$copy_FromMig1_TF))))
+									sapply(b, function(m)
+										(is.null(m) | !is.logical(m$copy_FromMig1_TF)) &
+										isTRUE(m$version < cur_versions[[m$method]]))))
 		what_measure[names(etmeas)[!redo_meas], , ] <- t(todo_neighsXmigs)
 	}
 
@@ -77,12 +83,12 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 						set_RNG_stream(etmeas[[etm]][["seeds"]][[iseed]])
 
 						temp <- try(do.call(what = etm, args = list(i = i, b = b, migtype = migtypes[im], 
-																			ecotoner_settings = ecotoner_settings,
-																			etband = etransect[["etbands"]][[b]],
-																			etmeasure = etmeas[[etm]],
-																			copy_FromMig1_TF = copy_FromMig1_TF,
-																			do_figures = do_figures, dir_fig = dir_fig, flag_bfig = flag_bfig,
-																			seed = NA)), silent = TRUE)
+																	ecotoner_settings = ecotoner_settings,
+																	etband = etransect[["etbands"]][[b]],
+																	etmeasure = etmeas[[etm]],
+																	copy_FromMig1_TF = copy_FromMig1_TF,
+																	do_figures = do_figures, dir_fig = dir_fig, flag_bfig = flag_bfig,
+																	seed = NA)), silent = TRUE)
 				
 						if (inherits(temp, "try-error")) {
 							warning("'measure_ecotone_per_transect': ", temp, immediate. = TRUE)
