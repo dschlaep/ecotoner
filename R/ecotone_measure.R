@@ -22,12 +22,11 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 		what_measure[et_methods %in% names(etmeas)[redo_meas], , ] <- TRUE # do those that are only list()
 		what_measure[!(et_methods %in% names(etmeas)), , ] <- TRUE # do those that are not in etmeas yet
 		
-		# Determine if some measure methods have only partially completed
+		# Determine if some measure methods have only partially completed or were calculated by an outdated version
 		todo_neighsXmigs <- sapply(etmeas[!redo_meas], function(x)
 								sapply(x$gETmeas, function(b)
 									sapply(b, function(m)
-										(is.null(m) | !is.logical(m$copy_FromMig1_TF)) &
-										isTRUE(m$version < cur_versions[[m$method]]))))
+										length(m) <= 1 || is.null(m$meta) || isTRUE(m$meta$version < cur_versions[[m$meta$method]]))))
 		what_measure[names(etmeas)[!redo_meas], , ] <- t(todo_neighsXmigs)
 	}
 

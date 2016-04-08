@@ -212,9 +212,10 @@ Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmea
 	etmeasure$etable[b_migtype, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
 	etmeasure$etable[b_migtype, "Migration_Type"] <- migtype
 	
-	etmeasure$gETmeas[[b]][[migtype]]$method <- "Eppinga2013Ecography"
-	etmeasure$gETmeas[[b]][[migtype]]$version <- version_Eppinga2013Ecography()
-	etmeasure$gETmeas[[b]][[migtype]]$copy_FromMig1_TF <- copy_FromMig1_TF
+	etmeasure$gETmeas[[b]][[migtype]]$meta <- list()
+	etmeasure$gETmeas[[b]][[migtype]]$meta$method <- "Eppinga2013Ecography"
+	etmeasure$gETmeas[[b]][[migtype]]$meta$version <- version_Eppinga2013Ecography()
+	etmeasure$gETmeas[[b]][[migtype]]$meta$copy_FromMig1_TF <- copy_FromMig1_TF
 	
 	if (!copy_FromMig1_TF) {
 		etmeasure$gETmeas[[b]][[migtype]]$optim <- calc_Eppinga2013_optpos(Veg1 = etband$Veg[[migtype]]$Veg1$grid,

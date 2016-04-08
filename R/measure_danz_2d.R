@@ -216,9 +216,10 @@ Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 	etmeasure$etable[b_migtype, "Neighbor_Cells"] <- neighborhoods(ecotoner_settings)[b]
 	etmeasure$etable[b_migtype, "Migration_Type"] <- migtype
 	
-	etmeasure$gETmeas[[b]][[migtype]]$method <- "Danz2012JVegSci_2D"
-	etmeasure$gETmeas[[b]][[migtype]]$version <- version_Danz2012JVegSci_2D()
-	etmeasure$gETmeas[[b]][[migtype]]$copy_FromMig1_TF <- copy_FromMig1_TF
+	etmeasure$gETmeas[[b]][[migtype]]$meta <- list()
+	etmeasure$gETmeas[[b]][[migtype]]$meta$method <- "Danz2012JVegSci_2D"
+	etmeasure$gETmeas[[b]][[migtype]]$meta$version <- version_Danz2012JVegSci_2D()
+	etmeasure$gETmeas[[b]][[migtype]]$meta$copy_FromMig1_TF <- copy_FromMig1_TF
 	
 	if (!copy_FromMig1_TF) {
 		# Vegetation versus elevation

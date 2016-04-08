@@ -342,9 +342,10 @@ Gastner2010AmNat <- function(i, b, migtype, ecotoner_settings, etband, etmeasure
 	step_names <- paste0("Step", step_lengths)
 	names(etmeasure$gETmeas[[b]][[migtype]]) <- step_names
 	
-	etmeasure$gETmeas[[b]][[migtype]]$method <- "Gastner2010AmNat"
-	etmeasure$gETmeas[[b]][[migtype]]$version <- version_Gastner2010AmNat()
-	etmeasure$gETmeas[[b]][[migtype]]$copy_FromMig1_TF <- copy_FromMig1_TF
+	etmeasure$gETmeas[[b]][[migtype]]$meta <- list()
+	etmeasure$gETmeas[[b]][[migtype]]$meta$method <- "Gastner2010AmNat"
+	etmeasure$gETmeas[[b]][[migtype]]$meta$version <- version_Gastner2010AmNat()
+	etmeasure$gETmeas[[b]][[migtype]]$meta$copy_FromMig1_TF <- copy_FromMig1_TF
 	
 	for (i_step in seq_along(step_names)) {
 		istep <- step_names[i_step]
