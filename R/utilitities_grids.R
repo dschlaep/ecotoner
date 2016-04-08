@@ -242,7 +242,7 @@ rasterToPoints <- function(x, fun = NULL, spatial = FALSE, not_convertible = lis
 				if (length(not_convertible[i][[1]]) == 2) {
 					iremove <- res[, 'layer'] >= not_convertible[i][[1]][1] & res[, 'layer'] <= not_convertible[i][[1]][2]
 				}
-				if (sum(iremove) > 0) res <- res[!iremove, , drop = FALSE]
+				if (any(iremove)) res <- res[!iremove, , drop = FALSE]
 			}
 		}
 

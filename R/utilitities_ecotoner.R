@@ -11,7 +11,7 @@
 simplify2result <- function(x, showWarnings = TRUE) {
 	if (inherits(x, "list")) {
 		len0 <- sapply(x, length) == 0
-		if (sum(len0) > 0) x <- x[!len0]
+		if (any(len0)) x <- x[!len0]
 	
 		dims <- sapply(x, function(d) if (inherits(d, "data.frame") || inherits(d, "matrix")) dim(d) else c(1, length(d)))
 		if (all(diff(dims[2, ]) == 0)) { # all must have same number of columns

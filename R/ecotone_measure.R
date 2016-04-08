@@ -18,16 +18,21 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 		
 		# Determine measure methods status
 		started_meas <- names(etmeas) %in% et_methods
-		redo_meas <- !started_meas | sapply(etmeas[started_meas], is.null)
-		what_measure[et_methods %in% names(etmeas)[redo_meas], , ] <- TRUE # do those that are only list()
+		redo_meas <- !started_meas
+		if (any(started_meas)) redo_meas <- redo_meas | sapply(etmeas[started_meas], is.null)
+		if (any(redo_meas)) what_measure[et_methods %in% names(etmeas)[redo_meas], , ] <- TRUE # do those that are only list()
 		what_measure[!(et_methods %in% names(etmeas)), , ] <- TRUE # do those that are not in etmeas yet
 		
 		# Determine if some measure methods have only partially completed or were calculated by an outdated version
-		todo_neighsXmigs <- sapply(etmeas[!redo_meas], function(x)
-								sapply(x$gETmeas, function(b)
-									sapply(b, function(m)
-										length(m) <= 1 || is.null(m$meta) || isTRUE(m$meta$version < cur_versions[[m$meta$method]]))))
-		what_measure[names(etmeas)[!redo_meas], , ] <- t(todo_neighsXmigs)
+		if (any(!redo_meas)) {
+			todo_neighsXmigs <- sapply(etmeas[!redo_meas], function(x)
+									sapply(x$gETmeas, function(b)
+										sapply(b, function(m)
+											isTRUE(length(m) <= 1) ||
+											is.null(m$meta) ||
+											isTRUE(m$meta$version < cur_versions[[m$meta$method]]))))
+			what_measure[names(etmeas)[!redo_meas], , ] <- t(todo_neighsXmigs)
+		}
 	}
 
 	do_measure <- any(what_measure)

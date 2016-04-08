@@ -223,7 +223,7 @@ majority <- function(x, use_mode = TRUE, return_single = TRUE, na.rm = FALSE, se
 			x <- na.exclude(x)
 			with_mode <- TRUE
 		}
-		if (!na.rm && sum(ina) > 0 && !inherits(x, "integer")) {
+		if (!na.rm && any(ina) && !inherits(x, "integer")) {
 			na_val <- min(x, na.rm = TRUE) - 100
 			x[ina] <- na_val
 			with_mode <- TRUE
