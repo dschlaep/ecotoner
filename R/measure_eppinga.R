@@ -12,51 +12,6 @@ calc_Eppinga2013_optpos <- function(Veg1, Veg2){
 	# find location where veg1 would end if all of veg1 were arranged to the left and if transect width was reduced according to empty cells
 	opt <- cov1 * raster::ncol(VegT)/ covT
 	
-	
-	if (FALSE) {
-		# plot illustrating how I adjusted the method for grids with 'empty' cells
-		mat1 <- raster::as.matrix(Veg1, maxpixels = ncells)
-		matT <- raster::as.matrix(VegT, maxpixels = ncells)
-		
-		add_transect_frame <- function(matT, res = 1) {
-			axis(side = 1, pos = 0, at = c(axTicks(1), res * ncol(matT)))
-			axis(side = 2, pos = 0, at = c(axTicks(2), res * nrow(matT)))
-			rect(0, 0, res * ncol(matT), res* nrow(matT), lwd = 1)
-			
-			invisible(NULL)
-		}	
-
-		pdf(height = 4, width = 12, file = file.path(dir_fig, paste0(flag_bfig, "Eppinga2013_OptimalBoundaryLocation_", migtype, ".pdf")))
-		op_old <- par(mfrow = c(1, 3), mar = c(2.5, 2.5, 1, 0.1), mgp = c(1.15, 0.15, 0), tcl = 0.5, cex = cex <- 1)
-		
-		# (a) map of transect band
-		raster::image(Veg1, col = "red", main = "", xlab = "Transect length (m)", ylab = "Transect width (m)", asp = 1, axes = FALSE)
-		raster::image(Veg2, col = "darkgreen", add = TRUE)
-		add_transect_frame(matT, res = raster::xres(Veg1))
-		mtext(side = 3, line = -1, text = "(a)", font = 2, adj = -0.075, cex = cex)
-		
-		# (b) vegetation separated from 'empty' cells
-		ctveg <- apply(matT, 2, sum)
-		cveg1 <- apply(mat1, 2, sum, na.rm = TRUE)
-		
-		barplot(ctveg, width = 1, space = 0, border = NA, col = "darkgreen", axes = FALSE, asp = 1, xlim = c(1, ncol(matT)), ylim = c(1, nrow(matT)), xlab = "Transect length (# column)", ylab = "Transect width (# row)")
-		barplot(cveg1, width = 1, space = 0, border = NA, col = "red", axes = FALSE, add = TRUE)
-		add_transect_frame(matT)
-		mtext(side = 3, line = -1, text = "(b)", font = 2, adj = -0.075, cex = cex)
-
-		# (c) vegetation optimally organized and 'empty' cells reduced transect width (spread fairly among vegetation types)
-		y_empty <- covT / ncol(matT)
-		
-		plot(1, type = "n", axes = FALSE, asp = 1, xlim = c(1, ncol(matT)), ylim = c(1, nrow(matT)), xlab = "Transect length (# column)", ylab = "")
-		rect(0, 0, ncol(matT), y_empty, border = NA, col = "darkgreen")
-		rect(0, 0, opt, y_empty, border = NA, col = "red")
-		add_transect_frame(matT)
-		mtext(side = 3, line = -1, text = "(c)", font = 2, adj = -0.075, cex = cex)
-		
-		par(op_old)
-		dev.off()
-	}
-	
 	list(pos_cell = round(opt), pos_m = raster::xres(Veg1) * opt,
 		dr1 = cov1 / covT, dr2 = 1 - cov1 / covT, totd = covT / ncells)
 }
@@ -74,58 +29,81 @@ calc_Eppinga2013_frontrunners <- function(veg, end_toLeft){
 
 #---Eppinga et al. 2013: 'Analytical analysis of vegetation boundary movement' and 'Statistical analyses'
 calc_Eppinga2013_advancement <- function(veg, end_toLeft, optBoundary_cell) {
-	deltaF_m <- raster::xres(veg) * (calc_Eppinga2013_frontrunners(veg, end_toLeft) - optBoundary_cell)
-	TdeltaF <- transformation17(deltaF_m)
-	tm <- mean(TdeltaF, na.rm = TRUE)
-	bt_fmean <- backtransformation17(tm)
+	# front runner distance to optimal boundary in meters
+	FR_dist_m <- raster::xres(veg) * (calc_Eppinga2013_frontrunners(veg, end_toLeft) - optBoundary_cell)
+	FR_dist_T17 <- transformation17(FR_dist_m)
+	FR_dist_mean_T17 <- mean(FR_dist_T17, na.rm = TRUE)
 		
-	list(deltaFrontRunners_T17 = TdeltaF, deltaFrontRunners_m = deltaF_m,
-		deltaFrontRunners_Mean_m = backtransformation17(tm),
-		deltaFrontRunners_Mean_T17 = tm, deltaFrontRunners_SD_T17 = sd(TdeltaF, na.rm = TRUE))
+	list(FR_dist_T17 = FR_dist_T17, FR_dist_m = FR_dist_m,
+		FR_dist_mean_m = backtransformation17(FR_dist_mean_T17),
+		FR_dist_mean_T17 = FR_dist_mean_T17,
+		FR_dist_sd_T17 = sd(FR_dist_T17, na.rm = TRUE))
 }
 
 
 
 #---Eppinga et al. 2013: 'Statistical analyses'
-calc_Eppinga2013_stats <- function(deltaF1_T17, deltaF2_T17, seed = NULL) {
+calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_dist_T17_veg2, FR_dist_mean_T17_veg2, seed = NULL) {
 	#assumption that all frontrunners are y-row wise dispersed and do not originate from other sources
-	advanced <- all(mean(deltaF1_T17, na.rm = TRUE) > 0, mean(deltaF2_T17, na.rm = TRUE) < 0)
-	res <- list(FrontsAdvBeyondOptBoundary = advanced,
-				FrontDiff_Mean_T17 = NA, FrontDiff_var_T17 = NA,
-				FrontDiff_Mean_m = NA,
-				boots_R = NA, advancement_p = NA, advancement_retro_power = NA)
 
-	if (advanced) {
+	res_names <- c("FrontsAdvBeyondOptBoundary", "FD_mean_T17", "FD_sd_T17", "FD_mean_m",
+					"FD_iidboots_R", "FD_iidboots_mean", "FD_iidboots_bias", "FD_iidboots_se", "FD_iidboots_bca_ci0_p", "FD_iidboots_freq_p",
+					"FD_WSRT_Z", "FD_WSRT_p", "FD_WSRT_midp",
+					"FD_retro_power")
+	res <- as.list(rep(NA, length(res_names)))
+	names(res) <- res_names
+	res[["FrontsAdvBeyondOptBoundary"]] <- all(FR_dist_mean_T17_veg1 > 0, FR_dist_mean_T17_veg2 < 0)
+
+	
+	if (res[["FrontsAdvBeyondOptBoundary"]]) {
+		if (!is.na(seed)) set.seed(seed)
+		
+		#---Test if vegetation types have advanced comparably
+		#	i.e., test if difference between front runner distances (FD) of veg1 vs veg2 is 0: eq. 18
+		res[["FD_mean_T17"]] = mean(FR_dist_T17_veg1 + FR_dist_T17_veg2, na.rm = TRUE)
+		res[["FD_sd_T17"]] = sd(FR_dist_T17_veg1 + FR_dist_T17_veg2, na.rm = TRUE)
+		res[["FD_mean_m"]] = backtransformation17(res[["FD_mean_T17"]])
+
 		if (requireNamespace("boot", quietly = TRUE)) {
-			if (!is.na(seed)) set.seed(seed)
+			#- Bootstrap approach assuming independent data (as used by Eppinga et al. 2013)
+			res[["FD_iidboots_R"]] <- 1e5L # Eppinga et al. 2013: R = 1e5
+			bmd <- boot::boot(data = cbind(FR_dist_T17_veg1, -FR_dist_T17_veg2),
+							  statistic = boot_mean_of_diffs,
+							  R = res[["FD_iidboots_R"]], stype = "i", sim = "ordinary", parallel = "no")
 			
-			# Test if vegetation types have same distance of front runners, i.e., test if difference is 0: eq. 18
-			R <- 1e5L
-			data <- cbind(deltaF1_T17, -deltaF2_T17)
-			bmd <- boot::boot(data, boot_mean_of_diffs, R = R, stype = "i", sim = "ordinary", parallel = "no")
+			res[["FD_iidboots_mean"]] = mean(bmd$t, na.rm = TRUE)
+			res[["FD_iidboots_bias"]] <- res[["FD_iidboots_mean"]] - res[["FD_mean_T17"]]
+			res[["FD_iidboots_se"]] <- as.numeric(sqrt(var(bmd$t, na.rm = TRUE)))
 			
-			#bmd_ci <- boot::boot.ci(bmd, conf = 0.95, type = "bca") # Test: is 0 contained in ci?
-			
-			# Calculate p-value (for H0: diff = 0); eq. 19
-			# Direct interpretation of eq. 19: sum(Heaviside(abs(bmd$t) + abs(bmd$t0) - abs(bmd$t + bmd$t0))) / bmd$R
+			# Test approach 1a: Is 0 contained in ci?
+			bmd_ci <- boot::boot.ci(bmd, conf = c(0.95, 0.99, 0.999), type = "bca") #adjusted bootstrap percentile (BCa) interval
 			ptol <- sqrt(.Machine$double.eps)
 			ntol <- -sqrt(.Machine$double.neg.eps)
-			advancement_p <- (if (bmd$t0 > ptol) sum(bmd$t <= ptol) else if (bmd$t0 < ntol) sum(bmd$t >= ntol) else bmd$R) / bmd$R
-
-			# Retrospective power: eq. 20
-			FrontDiff_T17_var <- as.numeric(var(bmd$t))
-			tau <- 0.2 #effect size
-			n <- sum(complete.cases(data))
-			tcrit <- qt(0.95, df = n) #95% confidence
-			advancement_retro_power <- 1 - (1/2 * (1 + erf((tcrit - tau * sqrt(n) / sqrt(FrontDiff_T17_var)) / (sqrt(2 * FrontDiff_T17_var)))))
-
-			res <- list(FrontsAdvBeyondOptBoundary = advanced,
-					FrontDiff_Mean_T17 = bmd$t0, FrontDiff_var_T17 = FrontDiff_T17_var,
-					FrontDiff_Mean_m = backtransformation17(bmd$t0),
-					boots_R = R, advancement_p = advancement_p, advancement_retro_power = advancement_retro_power)
+			pid <- !(as.integer(apply(bmd_ci$bca[, 4:5], 1, function(x) sum(x > ptol))) == 1)
+			res[["FD_iidboots_bca_ci0_p"]] <- 1 - if (sum(pid) > 0) max(bmd_ci$bca[pid, "conf"]) else 0 # 'FD_iidboots_bca_ci0_p' represents steps of 1, 0.05, 0.01, and 0.001 as upper bound of the p-value
+			
+			# Test approach 1b: Calculate p-value (for H0: diff = 0); eq. 19
+			# Direct interpretation of eq. 19: sum(Heaviside(abs(bmd$t) + abs(bmd$t0) - abs(bmd$t + bmd$t0))) / bmd$R
+			res[["FD_iidboots_freq_p"]] <- (if (bmd$t0 > ptol) sum(bmd$t <= ptol) else if (bmd$t0 < ntol) sum(bmd$t >= ntol) else bmd$R) / bmd$R
 		} else {
-			warning("Package 'boot' not installed: 'calc_Eppinga2013_stats' will not be estimated")
+			warning("Package 'boot' not installed: 'calc_Eppinga2013_stats' will not completely be estimated")
 		}
+			
+		if (requireNamespace("coin", quietly = TRUE)) {
+			# Test approach 2: exact Wilcoxon signed rank test (with Pratt correction of zeros)
+			wsrt <- coin::wilcoxsign_test(FR_dist_T17_veg1 ~ FR_dist_T17_veg2, distribution = "exact", alternative = "two.sided")
+			res[["FD_WSRT_Z"]] <- coin::statistic(wsrt, type = "test")
+			res[["FD_WSRT_p"]] <- coin::pvalue(wsrt)
+			res[["FD_WSRT_midp"]] <- coin::midpvalue(wsrt)
+		} else {
+			warning("Package 'coin' not installed: 'calc_Eppinga2013_stats' will not completely be estimated")
+		}
+			
+		#---Retrospective power: Eppinga et al. 2013: eq. 20
+		tau <- 0.2 #effect size
+		n <- sum(complete.cases(data))
+		tcrit <- qt(0.95, df = n) #95% confidence
+		res[["FD_retro_power"]] <- 1 - (1/2 * (1 + erf((tcrit - tau * sqrt(n) / res[["FD_sd_T17"]]) / (sqrt(2) * res[["FD_sd_T17"]]))))
 	}
 
 	res
@@ -161,69 +139,52 @@ map_front_runners_Eppinga2013 <- function(filename, eB_Env, eB_Veg, datFit) {
 	# Front runners
 	ys <- res_m * (raster::nrow(eB_Env$elev$grid):1) - res_m / 2
 	copt <- res_m * datFit$optim$pos_cell - res_m / 2
-	isnotna <- !is.na(datFit$adv_veg1$deltaFrontRunners_m)
-	points(x = (copt + datFit$adv_veg1$deltaFrontRunners_m)[isnotna], y = ys[isnotna], pch = 46, col = "magenta")
-	isnotna <- !is.na(datFit$adv_veg2$deltaFrontRunners_m)
-	points(x = (copt + datFit$adv_veg2$deltaFrontRunners_m)[isnotna], y = ys[isnotna], pch = 46, col = "green")
+	isnotna <- !is.na(datFit$adv_veg1$FR_dist_m)
+	points(x = (copt + datFit$adv_veg1$FR_dist_m)[isnotna], y = ys[isnotna], pch = 46, cex = 2, col = "magenta")
+	isnotna <- !is.na(datFit$adv_veg2$FR_dist_m)
+	points(x = (copt + datFit$adv_veg2$FR_dist_m)[isnotna], y = ys[isnotna], pch = 46, cex = 2, col = "green")
 
 	if (datFit$adv_stats$FrontsAdvBeyondOptBoundary) {
-		padv <- datFit$adv_stats$advancement_p < 0.05 && datFit$adv_stats$advancement_retro_power > 0.8
-		p12 <- padv && datFit$adv_stats$FrontDiff_Mean_T17 > 0
-		p21 <- padv && datFit$adv_stats$FrontDiff_Mean_T17 < 0
-		p_str <- ifelse(datFit$adv_stats$advancement_p > 0.001, formatC(datFit$adv_stats$advancement_p, format = "f", digits = 3), "0.001")
+		p_max2 <- max(with(datFit$adv_stats, c(FD_iidboots_freq_p, FD_WSRT_p)), na.rm = TRUE)
+		p_max <- max(c(datFit$adv_stats$FD_iidboots_bca_ci0_p, p_max2), na.rm = TRUE) # 'FD_iidboots_bca_ci0_p' only comes in steps of 1, 0.05, 0.01, and 0.001 as upper bound of the p-value
+		p_value <- if (abs(p_max - 1) < sqrt(.Machine$double.eps)) p_max2 else p_max
+		padv <- p_max < 0.05
+		p12 <- padv && datFit$adv_stats$FD_mean_T17 > 0
+		p21 <- padv && datFit$adv_stats$FD_mean_T17 < 0
+		p_str <- ifelse(p_max > 0.001, formatC(p_value, format = "f", digits = 3), "0.001")
 		
-		if (padv && abs(datFit$adv_stats$FrontDiff_Mean_m) > 2 * res_m) {
+		if (padv && abs(datFit$adv_stats$FD_mean_m) > 2 * res_m) {
 			# Mean front runner advancement
-			pos1 <- copt + datFit$adv_veg1$deltaFrontRunners_Mean_m
+			pos1 <- copt + datFit$adv_veg1$FR_dist_mean_m
 			segments(x0 = pos1, y0 = ext1@ymin, x1 = pos1, y1 = ext1@ymax, lwd = 2, col = adjustcolor("magenta", alpha.f = 0.7))
-			pos2 <- copt + datFit$adv_veg2$deltaFrontRunners_Mean_m
+			pos2 <- copt + datFit$adv_veg2$FR_dist_mean_m
 			segments(x0 = pos2, y0 = ext1@ymin, x1 = pos2, y1 = ext1@ymax, lwd = 2, col = adjustcolor("green", alpha.f = 0.7))
 			arrows(x0 = copt, y0 = ext1@ymax + res_m,
 				   x1 = if (p12) pos1 else if (p21) pos2 else 0, y1 = ext1@ymax + res_m,
 				   lwd = 2, col = if (p12) "magenta" else if (p21) "green" else "white")
 		}
 
-		ptext <- paste0("adv(Veg1 = ", signif(datFit$adv_veg1$deltaFrontRunners_Mean_m, 2), " m) ",
+		ptext <- paste0("adv(Veg1 = ", signif(datFit$adv_veg1$FR_dist_mean_m, 2), " m) ",
 						if (p12) ">" else if (p21) "<" else "=",
-						" adv(Veg2 = ", signif(-datFit$adv_veg2$deltaFrontRunners_Mean_m, 2), " m):",
-						"\np ", if (datFit$adv_stats$advancement_p < 0.05) "<" else ">=", " ", p_str,
-						" based on ", datFit$adv_stats$boots_R, " bootstrap replicates,",
-						"\nand with a retrospective power of ", signif(datFit$adv_stats$advancement_retro_power, 3))
+						" adv(Veg2 = ", signif(-datFit$adv_veg2$FR_dist_mean_m, 2), " m):",
+						"\np ", if (p_max < 0.05) "<" else ">=", " ", p_str,
+						" with a retrospective power of ", signif(datFit$adv_stats$FD_retro_power, 3))
 
 
 	} else {
 		ptext <- paste0("no advancement beyond optimal boundary location")
 	}
-	text(x = ext1@xmax / 2, y = ext1@ymax + 3 * strheight("0", units = "user", cex = 2 / 3 * cex), labels = ptext, cex = 2/3)
+	text(x = ext1@xmax / 2, y = ext1@ymax + 2 * strheight("0", units = "user", cex = 2 / 3 * cex), labels = ptext, cex = 2/3)
 	
 	invisible()
 }
 
 
-tabulate_Eppinga2013_advance <- function(etable, index, data){
-	colnamesAdd <- paste0("Eppinga2013_",
-						c("OptimalPosition_AlongXaxis_m",
-						"Veg1_DeltaFront_Mean_m", "Veg1_DeltaFront_Mean_T17", "Veg1_DeltaFront_SD_T17", 
-						"Veg2_DeltaFront_Mean_m", "Veg2_DeltaFront_Mean_T17", "Veg2_DeltaFront_SD_T17", 
-						"FrontsAdvBeyondOptBoundary", "FrontDiff_Mean_T17", "FrontDiff_var_T17", "FrontDiff_Mean_m",
-						"Bootstrap_reps", "advancement_p", "advancement_retrospective_power"))
-	res <- rep(NA_real_, length(colnamesAdd))
-	names(res) <- colnamesAdd
-	
-	res[1] <- data$optim$pos_m
-	res[2] <- data$adv_veg1$deltaFrontRunners_Mean_m
-	res[3] <- data$adv_veg1$deltaFrontRunners_Mean_T17
-	res[4] <- data$adv_veg1$deltaFrontRunners_SD_T17
-	res[5] <- data$adv_veg2$deltaFrontRunners_Mean_m
-	res[6] <- data$adv_veg2$deltaFrontRunners_Mean_T17
-	res[7] <- data$adv_veg2$deltaFrontRunners_SD_T17
-	res[8] <- data$adv_stats$FrontsAdvBeyondOptBoundary
-	res[9] <- data$adv_stats$FrontDiff_Mean_T17
-	res[10] <- data$adv_stats$FrontDiff_var_T17
-	res[11] <- data$adv_stats$FrontDiff_Mean_m
-	res[12] <- data$adv_stats$boots_R
-	res[13] <- data$adv_stats$advancement_p
-	res[14] <- data$adv_stats$advancement_retro_power
+tabulate_Eppinga2013_advance <- function(etable, index, data) {
+	res <- c(unlist(data$optim),
+			 unlist(data$adv_veg1[c("FR_dist_mean_m", "FR_dist_mean_T17", "FR_dist_sd_T17")]),
+			 unlist(data$adv_veg2[c("FR_dist_mean_m", "FR_dist_mean_T17", "FR_dist_sd_T17")]),
+			 unlist(data$adv_stats))
 	
 	tabulate_merge_into_etable(etable, index, res)
 }
@@ -261,8 +222,10 @@ Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmea
 																		end_toLeft = end_to_left(type_veg2(ecotoner_settings)),
 																		optBoundary_cell = etmeasure$gETmeas[[b]][[migtype]]$optim$pos_cell)
 		
-		etmeasure$gETmeas[[b]][[migtype]]$adv_stats <- calc_Eppinga2013_stats(deltaF1_T17 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg1$deltaFrontRunners_T17,
-																		deltaF2_T17 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg2$deltaFrontRunners_T17,
+		etmeasure$gETmeas[[b]][[migtype]]$adv_stats <- calc_Eppinga2013_stats(FR_dist_T17_veg1 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg1$FR_dist_T17,
+																		FR_dist_mean_T17_veg1 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg1$FR_dist_mean_T17,
+																		FR_dist_T17_veg2 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg2$FR_dist_T17,
+																		FR_dist_mean_T17_veg2 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg2$FR_dist_mean_T17,
 																		seed = seed)
 
 		if(do_figures) map_front_runners_Eppinga2013(filename = file.path(dir_fig, paste0(flag_bfig, "Eppinga2013_FittedBoundaryAdvancement_", migtype, ".pdf")),
