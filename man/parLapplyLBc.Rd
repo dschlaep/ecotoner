@@ -7,16 +7,13 @@
 parLapplyLBc(cl = NULL, X, fun, ..., chunksize = 10L)
 }
 \arguments{
-\item{cl}{a cluster object, created by this package or by package
-    \href{{https://CRAN.R-project.org/package=snow}{\pkg{snow}}}.  If \code{NULL}, use the registered default cluster.}
+\item{cl}{A cluster object, created by this package or by package \href{https://CRAN.R-project.org/package=snow}{\pkg{snow}}. If \code{NULL}, use the registered default cluster.}
 
-\item{X}{A vector (atomic or list) for \code{parLapply} and
-    \code{parSapply}, an array for \code{parApply}.}
+\item{X}{A vector (atomic or list).}
 
-\item{fun}{function or character string naming a function.}
+\item{fun}{A function or character string naming a function.}
 
-\item{...}{additional arguments to pass to \code{fun} or \code{FUN}:
-    beware of partial matching to earlier arguments.}
+\item{...}{Additional arguments to pass to \code{fun}; beware of partial matching to earlier arguments.}
 
 \item{chunksize}{An integer value. A suggestion on how large the number of tasks should be that are sent per job to a worker.}
 }

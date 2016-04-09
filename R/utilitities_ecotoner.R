@@ -42,7 +42,10 @@ simplify2result <- function(x, showWarnings = TRUE) {
 #' 
 #' Bug report is submitted under \href{https://bugs.r-project.org/bugzilla3/show_bug.cgi?id=16792}{# 16792}
 #'
-#' @inheritParams parallel::parLapplyLB
+#' @param cl A cluster object, created by this package or by package \href{https://CRAN.R-project.org/package=snow}{\pkg{snow}}. If \code{NULL}, use the registered default cluster.
+#' @param X A vector (atomic or list).
+#' @param fun A function or character string naming a function.
+#' @param ... Additional arguments to pass to \code{fun}; beware of partial matching to earlier arguments.
 #' @param chunksize An integer value. A suggestion on how large the number of tasks should be that are sent per job to a worker.
 #'
 #' @seealso \code{\link{parallel::parLapplyLB}} and \code{\link{parallel::parLapply}}
