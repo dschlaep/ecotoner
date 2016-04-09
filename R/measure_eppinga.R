@@ -71,7 +71,7 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 			#- Bootstrap approach assuming independent data (as used by Eppinga et al. 2013)
 			res[["FD_iidboots_R"]] <- 1e5L # Eppinga et al. 2013: R = 1e5
 			bmd <- boot::boot(data = cbind(FR_dist_T17_veg1, -FR_dist_T17_veg2),
-							  statistic = boot_mean_of_diffs,
+							  statistic = indexed_mean_of_diffs,
 							  R = res[["FD_iidboots_R"]], stype = "i", sim = "ordinary", parallel = "no")
 			
 			res[["FD_iidboots_mean"]] = mean(bmd$t, na.rm = TRUE)

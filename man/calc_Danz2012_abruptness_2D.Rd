@@ -4,7 +4,7 @@
 \alias{calc_Danz2012_abruptness_2D}
 \title{Estimates the abruptness of outcome y against x}
 \usage{
-calc_Danz2012_abruptness_2D(x1d, z1d, x2d, z2d, seed = NULL,
+calc_Danz2012_abruptness_2D(doms, use_dims, x1d, z1d, x2d, z2d, seed = NULL,
   include_lm = FALSE)
 }
 \arguments{

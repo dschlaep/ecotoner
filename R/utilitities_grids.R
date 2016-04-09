@@ -259,12 +259,13 @@ transect_to_long <- function(x, y, na.rm = TRUE) {
 	
 	if (inherits(x, "matrix") && inherits(y, "matrix") && nrow(x) == nrow(y) && ncol(x) >= 3 && ncol(y) >= 3) {
 		isnotna <- if (na.rm) !(is.na(x[, 3]) | is.na(y[, 3])) else rep(TRUE, nrow(x))
-		res <- matrix(NA, nrow = sum(isnotna), ncol = 3, dimnames = list(NULL, c("x", "y", "reps")))
-		res[, "x"] <- x[isnotna, 3]
-		res[, "y"] <- y[isnotna, 3]
-		res[, "reps"] <- x[isnotna, 2]
+		res <- matrix(NA, nrow = sum(isnotna), ncol = 4, dimnames = list(NULL, c("x", "y", "cols", "rows")))
+		res[, "x"] <- x[isnotna, 3] # values of first raster
+		res[, "y"] <- y[isnotna, 3] # values of second raster
+		res[, "cols"] <- x[isnotna, 1] # coordinates along length of transect
+		res[, "rows"] <- x[isnotna, 2] # coordinates along width of transect
 	} else {
-		res <- matrix(NA, nrow = 0, ncol = 3, dimnames = list(NULL, c("x", "y", "reps")))
+		res <- matrix(NA, nrow = 0, ncol = 4, dimnames = list(NULL, c("x", "y", "cols", "rows")))
 	}
 	
 	res
@@ -326,10 +327,10 @@ get_transect_grids_as_df <- function(i, et_desc = NULL, ecotoner_settings, migty
 					temp <- transect_to_long(x = etransect[["etbands"]][[b]]$Env$elev$grid, y = y)
 				
 					if (im == 1 && iveg == 1) {
-						mat <- matrix(NA, nrow = nrow(temp), ncol = 2 + length(migtypes) * length(veg_types))
-						mat[, 1:3] <- temp[, c("x", "reps", "y")]
+						mat <- matrix(NA, nrow = nrow(temp), ncol = 3 + length(migtypes) * length(veg_types))
+						mat[, 1:4] <- temp[, c("x", "cols", "rows", "y")]
 					} else {
-						mat[, 2 + (im - 1) * length(veg_types) + iveg] <- temp[, "y"]
+						mat[, 3 + (im - 1) * length(veg_types) + iveg] <- temp[, "y"]
 					}
 				}
 			}

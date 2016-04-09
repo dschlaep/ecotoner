@@ -358,14 +358,35 @@ performance_bernoulli <- function(pred = NULL, obs = NULL) {
 	perf
 }
 
+m_transform_y <- function(data., ytrans = NULL, ytransinv = NULL) {
+	y_transformed <- FALSE
+	m <- 1
+	
+	if (!is.null(ytrans) && !is.null(ytransinv)) {
+		temp1 <- try(ytrans(data.[["y"]]), silent = TRUE)
+		temp2 <- try(ytransinv(temp1), silent = TRUE)
+		if (!inherits(temp1, "try-error") && !inherits(temp2, "try-error") && isTRUE(all.equal(data.[["y"]], temp2))) {
+			data.[["y"]] <- temp1
+			y_transformed <- TRUE
+			m <- sign(cor(temp2, temp1, method = "spearman"))
+		}
+	}
+	
+	list(d = data., y_transformed = y_transformed, coef1_mult = m)
+}
 
-m_glm <- function(family, data.) {
+m_glm <- function(family, data., ytrans = NULL, ytransinv = NULL) {
+	# Prepare data
 	w <- if (data.[["is_binary"]] || identical(family[["family"]], "gaussian")) NULL else data.[["w"]]
-	mfit <- try(stats::glm(y ~ x, data = data.[c("x", "y")], family = family, weights = w), silent = TRUE)
-	#mfit0 <- try(stats::glm(y ~ 1, data = data.[c("x", "y")], family = family, weights = w), silent = TRUE)
+	transdat <- m_transform_y(data., ytrans, ytransinv)
+	
+	# Fit model
+	mfit <- try(stats::glm(y ~ x, data = transdat[["d"]][c("x", "y")], family = family, weights = w), silent = TRUE)
+	#mfit0 <- try(stats::glm(y ~ 1, data = transdat[["d"]][c("x", "y")], family = family, weights = w), silent = TRUE)
 			
 	if (!inherits(mfit, "try-error")) {
-		mpred <- predict(mfit, newdata = data.[["newdata"]], type = "response", se.fit = TRUE)
+		mpred <- predict(mfit, newdata = transdat[["d"]][["newdata"]], type = "response", se.fit = TRUE)
+		if (transdat[["y_transformed"]]) mpred$fit <- ytransinv(mpred$fit)
 		
 		quals <- c(isConv = mfit$converged, edf = {temp <- extractAIC(mfit)}[1], AIC = temp[2],
 					logLik = logLik(mfit), deviance = deviance(mfit), df.resid = df.residual(mfit))
@@ -379,9 +400,9 @@ m_glm <- function(family, data.) {
 						coef(summary(mfit))[2, "Std. Error"]
 					}
 		coef1 <- c(beta = as.numeric(coef(mfit)[2]), se = temp_se)
+		if (transdat[["y_transformed"]]) coef1["beta"] <- coef1["beta"] * transdat[["coef1_mult"]]
 		
-		perf <- if (data.[["is_binary"]]) performance_bernoulli(pred = fitted(mfit), obs = data.[["y"]]) else performance_bernoulli()
-	
+		perf <- if (transdat[["d"]][["is_binary"]]) performance_bernoulli(pred = fitted(mfit), obs = transdat[["d"]][["y"]]) else performance_bernoulli()
 	} else {
 		mpred <- list()
 		coef1 <- c(beta = NA_integer_, se = NA_integer_)
@@ -392,23 +413,32 @@ m_glm <- function(family, data.) {
 	list(m = mfit, preds = mpred, quals = quals, coef1 = coef1, perf = perf)
 }
 
-m_glmm <- function(family, data.) {
+m_glmm <- function(family, data., ytrans = NULL, ytransinv = NULL) {
 	mpred <- list()
 	coef1 <- c(beta = NA_integer_, se = NA_integer_)
 	quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
 	perf <- performance_bernoulli()
 
 	if (requireNamespace("lme4", quietly = TRUE) && requireNamespace("Matrix", quietly = TRUE)) {
-		mfit <- try(lme4::glmer(y ~ x + (x|r), data = data.[c("x", "y", "r")], family = family), silent = TRUE)
+		# Prepare data
+		transdat <- m_transform_y(data., ytrans, ytransinv)
+
+		# Fit model
+		mfit <- try(lme4::glmer(y ~ x + (x|r), data = transdat[["d"]][c("x", "y", "r")], family = family), silent = TRUE)
+		#mfit2 <- try(lme4::glmer(y ~ x + (x|r) + (x|c), data = transdat[["d"]][c("x", "y", "r", "c")], family = family), silent = TRUE)
 	
 		if (!inherits(mfit, "try-error")) {
 			# unconditional (level-0 random effect) prediction
-			mpred <- list(fit = predict(mfit, newdata = data.[["newdata"]], re.form = ~ 0, type = "response"))
+			mpred <- list(fit = predict(mfit, newdata = transdat[["d"]][["newdata"]], re.form = ~ 0, type = "response"))
+			if (transdat[["y_transformed"]]) mpred <- ytransinv(mpred)
+			
 			quals <- c(isConv = TRUE, edf = attr(logLik(mfit), "df"),
 						lme4::llikAIC(mfit)[["AICtab"]][c("AIC", "logLik", "deviance", "df.resid")])
 			coef1 <- c(beta = as.numeric(lme4::fixef(mfit)[2]),
 						se = sqrt(Matrix::diag(vcov(mfit, use.hessian = TRUE))[2]))
-			perf <- if (data.[["is_binary"]]) performance_bernoulli(pred = fitted(mfit), obs = data.[["y"]])
+			if (transdat[["y_transformed"]]) coef1["beta"] <- coef1["beta"] * transdat[["coef1_mult"]]
+			
+			perf <- if (transdat[["d"]][["is_binary"]]) performance_bernoulli(pred = fitted(mfit), obs = transdat[["d"]][["y"]])
 		}
 	} else {
 		mfit <- try(stop("Package 'lme4' and/or 'Matrix' not installed: 'GLMM' not estimated"), silent = TRUE)
@@ -417,17 +447,22 @@ m_glmm <- function(family, data.) {
 	list(m = mfit, preds = mpred, quals = quals, coef1 = coef1, perf = perf)
 }
 
-m_sig <- function(data.) {
+m_sig <- function(data., ytrans = NULL, ytransinv = NULL) {
+	# Prepare data
+	transdat <- m_transform_y(data., ytrans, ytransinv)
+
+	# Fit model
 	mfit <- {i <- 1
 				repeat {
-					fit <- try(nls(y ~ sigmoidal(x, b, c), data = data., start = list(b = runif(1, -1, 1), c = runif(1, -1, 1))), silent = TRUE)
+					fit <- try(nls(y ~ sigmoidal(x, b, c), data = transdat[["d"]], start = list(b = runif(1, -1, 1), c = runif(1, -1, 1))), silent = TRUE)
 					if (i > 50 || !inherits(fit, "try-error")) break
 					i <- i + 1
 				}
 			fit}
 	
 	if (!inherits(mfit, "try-error")) {
-		mpred <- list(fit = predict(mfit, newdata = data.[["newdata"]], type = "response"))
+		mpred <- list(fit = predict(mfit, newdata = transdat[["d"]][["newdata"]], type = "response"))
+		if (transdat[["y_transformed"]]) mpred <- ytransinv(mpred)
 		
 		temp <- logLik(mfit)
 		quals <- c(isConv = mfit[["convInfo"]][["isConv"]], edf = attr(temp, "df"), AIC = AIC(mfit),
@@ -435,8 +470,9 @@ m_sig <- function(data.) {
 		
 		temp <- coef(summary(mfit))
 		coef1 <- c(beta = temp["b", "Estimate"], se = temp["b", "Std. Error"])
+		if (transdat[["y_transformed"]]) coef1["beta"] <- coef1["beta"] * transdat[["coef1_mult"]]
 
-		perf <- if (data.[["is_binary"]]) performance_bernoulli(pred = as.numeric(fitted(mfit)), obs = data.[["y"]]) else performance_bernoulli()
+		perf <- if (transdat[["d"]][["is_binary"]]) performance_bernoulli(pred = as.numeric(fitted(mfit)), obs = transdat[["d"]][["y"]]) else performance_bernoulli()
 
 	} else {
 		mpred <- list()
@@ -487,7 +523,7 @@ backtransformation17 <- function(y) (2 * Heaviside(y) - 1) * (exp(abs(y)) - 1)
 erf <- function(x) 2 * pnorm(x * sqrt(2)) - 1
 
 
-boot_mean_of_diffs <- function(d, i) mean(d[i, 1] - d[i, 2], na.rm = TRUE)
+indexed_mean_of_diffs <- function(d, i) mean(d[i, 1] - d[i, 2], na.rm = TRUE)
 
 
 #---
