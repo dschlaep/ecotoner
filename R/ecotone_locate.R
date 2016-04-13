@@ -1,3 +1,75 @@
+estimate_transect_homogeneity <- function(ecotoner_settings, ecotoner_grids, etband, temp_band4, aspC, aspL) {
+	#2e2i. Quality/Homogeneity of environmental gradient along transect that is assumed in below methods
+	#--Human footprint
+	etband$Env$human$grid <- temp_band4$human
+	etband$Env$human$density <- count_y_at_each_x(etband$Env$human$grid)
+	if (sum(etband$Env$human$density) > 0) {
+		humanClump8 <- raster::clump(etband$Env$human$grid, directions=8)
+		i.largest_hC8 <- (temp <- (temp <- raster::freq(humanClump8))[complete.cases(temp), , drop=FALSE])[which.max(temp[, 2]), 1]
+		largest_hC8 <- raster::trim(raster::calc(humanClump8, fun=function(x) ifelse(x == i.largest_hC8, 1, NA)))
+		etband$Env$human$LargestClump_XExtent <- raster::xmax(largest_hC8) - raster::xmin(largest_hC8)
+		etband$Env$human$LargestClump_YExtent <- raster::ymax(largest_hC8) - raster::ymin(largest_hC8)
+		# rm(humanClump8, i.largest_hC8, largest_hC8)
+	} else {
+		etband$Env$human$LargestClump_XExtent <- etband$Env$human$LargestClump_YExtent <- 0
+	}
+	#--Quality of aspect: local (RMSE), patches (clumps), and global (mean) aspect (at slopes more than a minimum) should be about equal to transect gradient = get("transect_azimuth", envir = etr_vars) (from left to right)
+	#'local' error of aspect
+	resids <- circ_sum(aspC-transect_azimuth(ecotoner_settings), pi, int=2*pi) - pi
+	etband$Env$aspect$Aspect_Cellwise_RMSE <- sqrt(circ_mean(resids^2, int=2*pi, na.rm = TRUE))
+	etband$Env$aspect$Aspect_Cellwise_95PercQuantileAbsError <- quantile_95th_of_abs(resids, na.rm = TRUE)
+	#'y-means' error of aspect
+	resids <- circ_sum(etband$Env$aspect$YMeans_ForEachX-transect_azimuth(ecotoner_settings), pi, int=2*pi) - pi
+	etband$Env$aspect$Aspect_YMeans_RMSE <- sqrt(circ_mean(resids^2, int=2*pi, na.rm = TRUE))
+	etband$Env$aspect$Aspect_YMeans_95PercQuantileAbsError <- quantile_95th_of_abs(resids, na.rm = TRUE)
+	#'patches' of aspects grouped into the four cardinal directions
+	aspD <- raster::calc(aspL, fun=function(x) 1 + ((x + pi/4) %% (2*pi)) %/% (pi/2)) #North (325-45 deg, 1; 45-135 deg, 2; 135-225 deg, 3; 225-315 deg, 4); transect aspect is 270 deg
+	aspC1 <- raster::clump(raster::calc(aspD, fun=function(x) ifelse(x==1, 1, 0)), directions=4)
+	aspC2 <- raster::clump(raster::calc(aspD, fun=function(x) ifelse(x==2, 1, 0)), directions=4)
+	aspC3 <- raster::clump(raster::calc(aspD, fun=function(x) ifelse(x==3, 1, 0)), directions=4)
+	ncells <- raster::ncell(aspD)
+	etband$Env$aspect$Aspect_Patch_FractionLargestDeviatingPatch <- max((temp1 <- raster::freq(aspC1))[!is.na(temp1[, 1]), 2], (temp2 <- raster::freq(aspC3))[!is.na(temp2[, 1]), 2], (temp3 <- raster::freq(aspC3))[!is.na(temp3[, 1]), 2]) / ncells #fraction of band transect that is largest patch of aspects with deviating cardinal directions
+	etband$Env$aspect$Aspect_Patch_FractionAllDeviatingPatches <- (sum(temp1[!is.na(temp1[, 1]), 2]) + sum(temp2[!is.na(temp2[, 1]), 2]) + sum(temp3[!is.na(temp3[, 1]), 2])) / ncells #fraction of band transect that is made up by aspects of deviating cardinal directions
+	#'overall' error of aspect
+	etband$Env$aspect$Aspect_Overall_ME <- circ_mean(aspC, int=2*pi, na.rm = TRUE) - transect_azimuth(ecotoner_settings)
+	# rm(aspL, aspC, aspD, aspC1, aspC2, aspC3)
+
+	#--Quality of elevation:
+	telev <- raster::as.matrix(etband$Env$elev$grid, maxpixels = raster::ncell(etband$Env$elev$grid))
+	#'y/x ratios' of elevation
+	yratio <- apply(telev, 2, FUN = function(x) max(x) - min(x))[-c(1, ncols <- ncol(telev))] / (tan(etband$Env$slope$YMeans_ForEachX[-c(1, ncols)])*bandTransect_width_cellN(ecotoner_settings)*res_m(specs_grid(ecotoner_grids))) #no slope in first and last column, because slope unidentifiable
+	etband$Env$elev$Elevation_RatioYrangeToExpectXrange_RMSE <- root_mean_square(yratio, na.rm = TRUE)
+	etband$Env$elev$Elevation_RatioYrangeToExpectXrange_95PercQuantileRatioAbsError <- quantile_95th_of_abs(yratio, na.rm = TRUE)
+	etband$Env$elev$Elevation_RatioYrangeToExpectXrange_MaxAbsError <- max_of_abs(yratio, na.rm = TRUE)
+
+	#'local' elevational error from simple linear model transect elevation gradient
+	resids1 <- rep(etband$Env$elev$Ymeans_lm, each=nrow(telev)) - telev
+	etband$Env$elev$Elevation_Cellwise_lmResiduals_RMSE <- root_mean_square(resids1, na.rm = TRUE)
+	etband$Env$elev$Elevation_Cellwise_lmResiduals_95PercQuantileAbsError <- quantile_95th_of_abs(resids1, na.rm = TRUE)
+	etband$Env$elev$Elevation_Cellwise_lmResiduals_MaxAbsError <- max_of_abs(resids1, na.rm = TRUE)
+	#'local' elevational error from y-means transect elevation gradient
+	resids2 <- rep(etband$Env$elev$YMeans_ForEachX, each=nrow(telev)) - telev
+	etband$Env$elev$Elevation_Cellwise_YMeans_RMSE <- root_mean_square(resids2, na.rm = TRUE)
+	etband$Env$elev$Elevation_Cellwise_YMeans_95PercQuantileAbsError <- quantile_95th_of_abs(resids2, na.rm = TRUE)
+	etband$Env$elev$Elevation_Cellwise_YMeans_MaxAbsError <- max_of_abs(resids2, na.rm = TRUE)
+	
+	#global spatial autocorrelation in elevation residuals from y-means transect elevation gradient
+	mresids <- sp::SpatialPointsDataFrame(coords = sp::coordinates(etband$Env$elev$grid),
+											data = data.frame(layer = as.vector(t(resids2))), proj4string = raster::crs(etband$Env$elev$grid))
+	sp::gridded(mresids) <- TRUE #upgrade to SpatialPixelDataFrame
+	if (anyNA(resids2)) mresids <- mresids[!is.na(mresids$layer), ] # Remove NAs for 'moran.mc' and 'calc_variogram_range'
+	
+	nbw <- spdep::listw2U(spdep::nb2listw(spdep::knn2nb(spdep::knearneigh(sp::coordinates(mresids), k=8, longlat=FALSE)), style="W")) #neighbors: Queen's case; weights: row standardized ("Row standardization is recommended whenever the distribution of your features is potentially biased due to sampling design or an imposed aggregation scheme"); listw2U(): makes weight matrix symmetric
+	mimc <- spdep::moran.mc(x = mresids$layer, listw = nbw, alternative = "greater", nsim = 199) #Null hypothesis: Moran's I = 0 = = no spatial autocorrelation (alternative default >0); spdep::moran.mc must be instructed how to deal with NAs
+	etband$Env$elev$Elevation_Cellwise_YMeans_MoransI <- mimc$statistic
+	etband$Env$elev$Elevation_Cellwise_YMeans_MoransIp <- mimc$p.value			
+	
+	#Gastner et al. 2009: we hypothesize that heterogeneity in the environmental background would not influence the model’s predictions unless the sizes of vegetation patches are smaller than the correlation length of the heterogeneity			
+	etband$Env$elev$Elevation_YMeansResiduals_VariogramRange <- calc_variogram_range(mresids, max(etband$Env$DistAlongXaxis_m), res_m = res_m(specs_grid(ecotoner_grids))) #Spatial autocorrelation distance: range
+	
+	etband
+}
+
 
 #' Locate ecotone, prepare ecotone line and band transect, extract relevant information
 #'
@@ -252,80 +324,15 @@ gap.rat <- df_veg(ecotoner_grids)
 			etband$Env$elev$YSDs_ForEachX <- sd_y_at_each_x(grid = etband$Env$elev$grid)
 			etband$Env$elev$Ymeans_lm <- predict(lm(etband$Env$elev$YMeans_ForEachX ~ etband$Env$DistAlongXaxis_m))
 			etband$Env$aspect$grid <- raster::terrain(etband$Env$elev$grid, opt = "aspect", neighbors = 8) #it is faster to re-calculate slope and aspect than to load it from the master file and re-sample it to our band transect
-			aspC <- raster::as.matrix(aspL <- raster::overlay(etband$Env$aspect$grid, etband$Env$slope$grid, fun = function(a, sl) ifelse(abs(sl) > min_slope_with_aspect(ecotoner_settings), a, ifelse(sl > 0, transect_azimuth(ecotoner_settings), 2*pi - transect_azimuth(ecotoner_settings)))), maxpixels = raster::ncell(aspL))
+			aspL <- raster::overlay(etband$Env$aspect$grid, etband$Env$slope$grid, fun = function(a, sl) ifelse(abs(sl) > min_slope_with_aspect(ecotoner_settings), a, ifelse(sl > 0, transect_azimuth(ecotoner_settings), 2*pi - transect_azimuth(ecotoner_settings))))
+			aspC <- raster::as.matrix(aspL, maxpixels = raster::ncell(aspL))
 			etband$Env$aspect$YMeans_ForEachX <- apply(aspC, 2, FUN = circ_mean, int = 2*pi, na.rm = TRUE)
 			etband$Env$aspect$YSDs_ForEachX <- apply(aspC, 2, FUN = circ_sd, int = 2*pi, na.rm = TRUE)
 	
 			if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
-
-			#2e2i. Quality/Homogeneity of environmental gradient along transect that is assumed in below methods
-			#--Human footprint
-			etband$Env$human$grid <- temp_band4$human
-			etband$Env$human$density <- count_y_at_each_x(etband$Env$human$grid)
-			if (sum(etband$Env$human$density) > 0) {
-				humanClump8 <- raster::clump(etband$Env$human$grid, directions=8)
-				i.largest_hC8 <- (temp <- (temp <- raster::freq(humanClump8))[complete.cases(temp), , drop=FALSE])[which.max(temp[, 2]), 1]
-				largest_hC8 <- raster::trim(raster::calc(humanClump8, fun=function(x) ifelse(x == i.largest_hC8, 1, NA)))
-				etband$Env$human$LargestClump_XExtent <- raster::xmax(largest_hC8) - raster::xmin(largest_hC8)
-				etband$Env$human$LargestClump_YExtent <- raster::ymax(largest_hC8) - raster::ymin(largest_hC8)
-				# rm(humanClump8, i.largest_hC8, largest_hC8)
-			} else {
-				etband$Env$human$LargestClump_XExtent <- etband$Env$human$LargestClump_YExtent <- 0
-			}
-			#--Quality of aspect: local (RMSE), patches (clumps), and global (mean) aspect (at slopes more than a minimum) should be about equal to transect gradient = get("transect_azimuth", envir = etr_vars) (from left to right)
-			#'local' error of aspect
-			resids <- circ_sum(aspC-transect_azimuth(ecotoner_settings), pi, int=2*pi) - pi
-			etband$Env$aspect$Aspect_Cellwise_RMSE <- sqrt(circ_mean(resids^2, int=2*pi, na.rm = TRUE))
-			etband$Env$aspect$Aspect_Cellwise_95PercQuantileAbsError <- quantile_95th_of_abs(resids, na.rm = TRUE)
-			#'y-means' error of aspect
-			resids <- circ_sum(etband$Env$aspect$YMeans_ForEachX-transect_azimuth(ecotoner_settings), pi, int=2*pi) - pi
-			etband$Env$aspect$Aspect_YMeans_RMSE <- sqrt(circ_mean(resids^2, int=2*pi, na.rm = TRUE))
-			etband$Env$aspect$Aspect_YMeans_95PercQuantileAbsError <- quantile_95th_of_abs(resids, na.rm = TRUE)
-			#'patches' of aspects grouped into the four cardinal directions
-			aspD <- raster::calc(aspL, fun=function(x) 1 + ((x + pi/4) %% (2*pi)) %/% (pi/2)) #North (325-45 deg, 1; 45-135 deg, 2; 135-225 deg, 3; 225-315 deg, 4); transect aspect is 270 deg
-			aspC1 <- raster::clump(raster::calc(aspD, fun=function(x) ifelse(x==1, 1, 0)), directions=4)
-			aspC2 <- raster::clump(raster::calc(aspD, fun=function(x) ifelse(x==2, 1, 0)), directions=4)
-			aspC3 <- raster::clump(raster::calc(aspD, fun=function(x) ifelse(x==3, 1, 0)), directions=4)
-			ncells <- raster::ncell(aspD)
-			etband$Env$aspect$Aspect_Patch_FractionLargestDeviatingPatch <- max((temp1 <- raster::freq(aspC1))[!is.na(temp1[, 1]), 2], (temp2 <- raster::freq(aspC3))[!is.na(temp2[, 1]), 2], (temp3 <- raster::freq(aspC3))[!is.na(temp3[, 1]), 2]) / ncells #fraction of band transect that is largest patch of aspects with deviating cardinal directions
-			etband$Env$aspect$Aspect_Patch_FractionAllDeviatingPatches <- (sum(temp1[!is.na(temp1[, 1]), 2]) + sum(temp2[!is.na(temp2[, 1]), 2]) + sum(temp3[!is.na(temp3[, 1]), 2])) / ncells #fraction of band transect that is made up by aspects of deviating cardinal directions
-			#'overall' error of aspect
-			etband$Env$aspect$Aspect_Overall_ME <- circ_mean(aspC, int=2*pi, na.rm = TRUE) - transect_azimuth(ecotoner_settings)
-			# rm(aspL, aspC, aspD, aspC1, aspC2, aspC3)
-
-			#--Quality of elevation:
-			telev <- raster::as.matrix(etband$Env$elev$grid, maxpixels = raster::ncell(etband$Env$elev$grid))
-			#'y/x ratios' of elevation
-			yratio <- apply(telev, 2, FUN = function(x) max(x) - min(x))[-c(1, ncols <- ncol(telev))] / (tan(etband$Env$slope$YMeans_ForEachX[-c(1, ncols)])*bandTransect_width_cellN(ecotoner_settings)*res_m(specs_grid(ecotoner_grids))) #no slope in first and last column, because slope unidentifiable
-			etband$Env$elev$Elevation_RatioYrangeToExpectXrange_RMSE <- root_mean_square(yratio, na.rm = TRUE)
-			etband$Env$elev$Elevation_RatioYrangeToExpectXrange_95PercQuantileRatioAbsError <- quantile_95th_of_abs(yratio, na.rm = TRUE)
-			etband$Env$elev$Elevation_RatioYrangeToExpectXrange_MaxAbsError <- max_of_abs(yratio, na.rm = TRUE)
-
-			#'local' elevational error from simple linear model transect elevation gradient
-			resids1 <- rep(etband$Env$elev$Ymeans_lm, each=nrow(telev)) - telev
-			etband$Env$elev$Elevation_Cellwise_lmResiduals_RMSE <- root_mean_square(resids1, na.rm = TRUE)
-			etband$Env$elev$Elevation_Cellwise_lmResiduals_95PercQuantileAbsError <- quantile_95th_of_abs(resids1, na.rm = TRUE)
-			etband$Env$elev$Elevation_Cellwise_lmResiduals_MaxAbsError <- max_of_abs(resids1, na.rm = TRUE)
-			#'local' elevational error from y-means transect elevation gradient
-			resids2 <- rep(etband$Env$elev$YMeans_ForEachX, each=nrow(telev)) - telev
-			etband$Env$elev$Elevation_Cellwise_YMeans_RMSE <- root_mean_square(resids2, na.rm = TRUE)
-			etband$Env$elev$Elevation_Cellwise_YMeans_95PercQuantileAbsError <- quantile_95th_of_abs(resids2, na.rm = TRUE)
-			etband$Env$elev$Elevation_Cellwise_YMeans_MaxAbsError <- max_of_abs(resids2, na.rm = TRUE)
 			
-			#global spatial autocorrelation in elevation residuals from y-means transect elevation gradient
-			mresids <- sp::SpatialPointsDataFrame(coords = sp::coordinates(etband$Env$elev$grid),
-													data = data.frame(layer = as.vector(t(resids2))), proj4string = raster::crs(etband$Env$elev$grid))
-			sp::gridded(mresids) <- TRUE #upgrade to SpatialPixelDataFrame
-			if (anyNA(resids2)) mresids <- mresids[!is.na(mresids$layer), ] # Remove NAs for 'moran.mc' and 'calc_variogram_range'
-			
-			nbw <- spdep::listw2U(spdep::nb2listw(spdep::knn2nb(spdep::knearneigh(sp::coordinates(mresids), k=8, longlat=FALSE)), style="W")) #neighbors: Queen's case; weights: row standardized ("Row standardization is recommended whenever the distribution of your features is potentially biased due to sampling design or an imposed aggregation scheme"); listw2U(): makes weight matrix symmetric
-			mimc <- spdep::moran.mc(x = mresids$layer, listw = nbw, alternative = "greater", nsim = 199) #Null hypothesis: Moran's I = 0 = = no spatial autocorrelation (alternative default >0); spdep::moran.mc must be instructed how to deal with NAs
-			etband$Env$elev$Elevation_Cellwise_YMeans_MoransI <- mimc$statistic
-			etband$Env$elev$Elevation_Cellwise_YMeans_MoransIp <- mimc$p.value			
-			
-			#Gastner et al. 2009: we hypothesize that heterogeneity in the environmental background would not influence the model’s predictions unless the sizes of vegetation patches are smaller than the correlation length of the heterogeneity			
-			etband$Env$elev$Elevation_YMeansResiduals_VariogramRange <- calc_variogram_range(mresids, max(etband$Env$DistAlongXaxis_m), res_m = res_m(specs_grid(ecotoner_grids))) #Spatial autocorrelation distance: range
-			#rm(nbw, mimc, resids, telev)
+			# Quality/Homogeneity of environmental gradient along transect
+			etband <- estimate_transect_homogeneity(ecotoner_settings, ecotoner_grids, etband, temp_band4, aspC, aspL)
 
 			#Plot map of linear and band transect
 			if(do_figures) map_transect(filename = file.path(dir_fig, paste0(figBasename, "TransectMap_v1.pdf")),
@@ -416,13 +423,19 @@ identify_migration_patches <- function(i, b, ecotoner_settings, etband, etable, 
 		if(verbose) cat("'ecotoner' migrating: tr = ", i, "; neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
 		
 		type_veg <- if (iveg == "Veg1") type_veg1(ecotoner_settings) else type_veg2(ecotoner_settings)
-		migration <- calc.MigrationRoutes_EstimateFlowpaths(elev=etband$Env$elev$grid, flowdir=flowdir, patches=etband$Veg$AllMigration[[iveg]]$patches4, end_toLeft=end_to_left(type_veg), seed = seed)
+		migration <- calc.MigrationRoutes_EstimateFlowpaths(elev = etband$Env$elev$grid, flowdir = flowdir,
+														patches = etband$Veg$AllMigration[[iveg]]$patches4,
+														end_toLeft = end_to_left(type_veg), seed = seed)
 
 		#Identify x vs y migration
-		migration$direction <- calc.Identify_GoodvsBadMigration(patches4=etband$Veg$AllMigration[[iveg]]$patches4, tally=migration$tally, paths=migration$paths, paths_success_TF=migration$paths_success_TF, end_toLeft=end_to_left(type_veg))
+		migration$direction <- calc.Identify_GoodvsBadMigration(patches4 = etband$Veg$AllMigration[[iveg]]$patches4,
+												tally = migration$tally, paths = migration$paths,
+												paths_success_TF = migration$paths_success_TF, end_toLeft = end_to_left(type_veg))
 
 		#Get grid, patches4, patches8, and patchID_removed (patchID_removed == NULL if no patch removed)
-		etband$Veg$OnlyGoodMigration[[iveg]] <- calc.RemoveBadMigration_fromVeg(patches4=etband$Veg$AllMigration[[iveg]]$patches4, patches8=etband$Veg$AllMigration[[iveg]]$patches8, patch4IDs_remove=migration$direction$patchIDs_GoodMigration)
+		etband$Veg$OnlyGoodMigration[[iveg]] <- calc.RemoveBadMigration_fromVeg(patches4 = etband$Veg$AllMigration[[iveg]]$patches4,
+																				patches8 = etband$Veg$AllMigration[[iveg]]$patches8,
+																				patch4IDs_remove = migration$direction$patchIDs_GoodMigration)
 		etband$Veg$OnlyGoodMigration[[iveg]]$Migration_Tally <- migration
 		#rm(flowdir, migration)
 

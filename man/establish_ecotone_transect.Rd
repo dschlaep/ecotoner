@@ -18,12 +18,5 @@ establish_ecotone_transect(i, b, etband, etable, ipoint, ecotoner_settings,
 Locate ecotone, prepare ecotone line and band transect, extract relevant information
 
 Global' patch size distribution: calculate patches on gapCropped extent: hoping that this is as close as possible to global patches for the band transect extent
-local' error of aspect
-y-means' error of aspect
-patches' of aspects grouped into the four cardinal directions
-overall' error of aspect
-y/x ratios' of elevation
-local' elevational error from simple linear model transect elevation gradient
-local' elevational error from y-means transect elevation gradient
 }
 

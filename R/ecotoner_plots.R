@@ -77,32 +77,32 @@ map_transect <- function(filename, stline_pts, etline_pts, gB_Env, elevCropped, 
 
 #' @export
 map_flowpaths <- function(filename, elev, bse, bse_remain, paths_bse, tf, tf_remain, paths_tf) {
-	removed <- function(full, part) raster::overlay(full, part, fun=function(full, part) ifelse(!is.na(full) & is.na(part), 1, NA))
+	removed <- function(full, part) raster::overlay(full, part, fun = function(full, part) ifelse(!is.na(full) & is.na(part), 1, NA))
 
-	pdf(width=7, height=7, file=filename)
-	par_old <- par(mfrow=c(1, 1), mar=c(0, 0.1, 1, 1), mgp=c(2, 0.5, 0), cex=cex <- 1.5)
+	pdf(width = 7, height = 7, file = filename)
+	par_old <- par(mfrow = c(1, 1), mar = c(0, 0.1, 1, 1), mgp = c(2, 0.5, 0), cex = cex <- 1.5)
 	on.exit({par(par_old); dev.off()}, add = TRUE)
 
 	ext1 <- raster::extent(elev)
 	xlim <- c(-1000, ext1@xmax)
 	ylim <- c(-1000, ext1@ymax)
 
-	raster::image(elev, col=gray(100:255/255), xlim=xlim, ylim=ylim, main="", xlab="", ylab="", asp=1, axes=FALSE)
-	atx <- c((atx <- axTicks(1))[atx >= 0 & atx < ext1@xmax], ext1@xmax)
-	axis(1, pos=0, at=atx)
-	axis(2, pos=0, at=c(0, 2000, 4000, 6000))
-	text(x=ext1@xmax/2, y=-strheight("0", units="user", cex=cex)*(0.5+2), labels="Transect length (m)")
-	text(x=-strwidth("0", units="user", cex=cex)*(0.5+2.5), y=ext1@ymax/2, labels="Transect width (m)", srt=90)
+	raster::image(elev, col = gray(100:255/255), xlim = xlim, ylim = ylim, main = "", xlab = "", ylab = "", asp = 1, axes = FALSE)
+	atx <- c((atx <- axTicks(1))[atx > =  0 & atx < ext1@xmax], ext1@xmax)
+	axis(1, pos = 0, at = atx)
+	axis(2, pos = 0, at = c(0, 2000, 4000, 6000))
+	text(x = ext1@xmax/2, y = -strheight("0", units = "user", cex = cex)*(0.5+2), labels = "Transect length (m)")
+	text(x = -strwidth("0", units = "user", cex = cex)*(0.5+2.5), y = ext1@ymax/2, labels = "Transect width (m)", srt = 90)
 
 	temp <- removed(bse, bse_remain)
-	if (raster::cellStats(temp, 'sum') > 0) raster::image(temp, col=adjustcolor("yellow", alpha.f = 0.3), maxpixel=raster::ncell(temp), add=TRUE)
-	raster::image(bse_remain, col=adjustcolor("red", alpha.f = 0.3), maxpixel=raster::ncell(bse_remain), add=TRUE)
+	if (raster::cellStats(temp, 'sum') > 0) raster::image(temp, col = adjustcolor("yellow", alpha.f = 0.3), maxpixel = raster::ncell(temp), add = TRUE)
+	raster::image(bse_remain, col = adjustcolor("red", alpha.f = 0.3), maxpixel = raster::ncell(bse_remain), add = TRUE)
 	temp <- removed(tf, tf_remain)
-	if (raster::cellStats(temp, 'sum') > 0) raster::image(temp, col=adjustcolor("blue", alpha.f = 0.3), maxpixel=raster::ncell(temp), add=TRUE)
-	raster::image(tf_remain, col=adjustcolor("darkgreen", alpha.f = 0.3), maxpixel=raster::ncell(tf_remain), add=TRUE)
+	if (raster::cellStats(temp, 'sum') > 0) raster::image(temp, col = adjustcolor("blue", alpha.f = 0.3), maxpixel = raster::ncell(temp), add = TRUE)
+	raster::image(tf_remain, col = adjustcolor("darkgreen", alpha.f = 0.3), maxpixel = raster::ncell(tf_remain), add = TRUE)
 	
-	temp <- lapply(paths_bse, FUN=function(p) points(p, pch=".", type="l", col="darkred"))
-	temp <- lapply(paths_tf, FUN=function(p) points(p, pch=".", col="darkgreen"))
+	temp <- lapply(paths_bse, FUN = function(p) points(p, pch = ".", type = "l", col = "darkred"))
+	temp <- lapply(paths_tf, FUN = function(p) points(p, pch = ".", col = "darkgreen"))
 	
 	invisible()
 }
