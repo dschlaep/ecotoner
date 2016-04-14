@@ -1,5 +1,5 @@
 
-#------Danz, N.P., Frelich, L.E., Reich, P.B. & Niemi, G.J. (2012) Do vegetation boundaries display smooth or abrupt spatial transitions along environmental gradients? Evidence from the prairie–forest biome boundary of historic Minnesota, USA. Journal of Vegetation Science, n/a-n/a.
+#------Danz, N.P., Frelich, L.E., Reich, P.B. & Niemi, G.J. (2012) Do vegetation boundaries display smooth or abrupt spatial transitions along environmental gradients? Evidence from the prairie-forest biome boundary of historic Minnesota, USA. Journal of Vegetation Science, n/a-n/a.
 
 version_Danz2012JVegSci_2D <- function() numeric_version("0.2.0")
 
@@ -17,7 +17,7 @@ calc_Danz2012_abruptness_2D <- function(doms, use_dims, x1d, z1d, x2d, z2d, seed
 	#	Zuur, A. F., E. N. Ieno, N. J. Walker, A. A. Savellev, and G. M. Smith. 2009. Mixed effects models and extensions in ecology with R. Springer.
 	#		- binomial GLM: "We assume that Yi is binomial distributed with probability pi and ni = 1 independent trials"
 	#		- "The logit and probit link functions assume that you have approximately an equal number of zeros and ones"
-	#		- "The clog–log may be an option if you have considerably more zeros than ones, or vice versa; the sigmoidal curve is asymmetrical."
+	#		- "The clog-log may be an option if you have considerably more zeros than ones, or vice versa; the sigmoidal curve is asymmetrical."
 
 	#---Test input
 	if (!is.na(seed)) set.seed(seed)
@@ -215,10 +215,10 @@ tabulate_Danz2012_abruptness_2D <- function(etable, index, data) {
 Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, copy_FromMig1_TF, do_figures, ...) {
 	#---3. Ecological boundaries
 	#3a. Danz et al. 2012 J.Veg.Sci.: Shape of vegetation boundary in relation to environmental conditions
-	#Objective: of our boundary analysis was to evaluate whether the transition from prairie to forest across the boundary resulted from a smooth or abrupt climatic gradient, i.e. whether the transition followed pattern ‘(a)’ or pattern ‘(b)’ in Fig. 3. We used three analytical tactics to address this objective:
+	#Objective: of our boundary analysis was to evaluate whether the transition from prairie to forest across the boundary resulted from a smooth or abrupt climatic gradient, i.e. whether the transition followed pattern '(a)' or pattern '(b)' in Fig. 3. We used three analytical tactics to address this objective:
 	#	(1) description of the spatial pattern of vegetation transition across the boundary,
-	#	(2) evaluation of whether the climate gradient P – PET followed a steeper or shallower pattern of change across the boundary, and
-	#	(3) direct modelling of the vegetation–climate relationship across the boundary.
+	#	(2) evaluation of whether the climate gradient P - PET followed a steeper or shallower pattern of change across the boundary, and
+	#	(3) direct modelling of the vegetation-climate relationship across the boundary.
 	#Here, use elevation as surrogate driving environmental variable
 
 	dots <- list(...)

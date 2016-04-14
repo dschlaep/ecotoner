@@ -64,7 +64,7 @@ estimate_transect_homogeneity <- function(ecotoner_settings, ecotoner_grids, etb
 	etband$Env$elev$Elevation_Cellwise_YMeans_MoransI <- mimc$statistic
 	etband$Env$elev$Elevation_Cellwise_YMeans_MoransIp <- mimc$p.value			
 	
-	#Gastner et al. 2009: we hypothesize that heterogeneity in the environmental background would not influence the model’s predictions unless the sizes of vegetation patches are smaller than the correlation length of the heterogeneity			
+	#Gastner et al. 2009: we hypothesize that heterogeneity in the environmental background would not influence the model's predictions unless the sizes of vegetation patches are smaller than the correlation length of the heterogeneity			
 	etband$Env$elev$Elevation_YMeansResiduals_VariogramRange <- calc_variogram_range(mresids, max(etband$Env$DistAlongXaxis_m), res_m = res_m(specs_grid(ecotoner_grids))) #Spatial autocorrelation distance: range
 	
 	etband
@@ -390,7 +390,7 @@ gap.rat <- df_veg(ecotoner_grids)
 			etband$Veg$AllMigration$TF$level3_density <- tfFreq[match(etband$Veg$AllMigration$TF$ratValues, tfFreq[, 1], nomatch=0), 2] / raster::ncell(temp_band4$tf)
 			#rm(temp_stband, temp_etband, temp_band4, temp.patches1, temp.patches2, temp.human)
 
-			#Quality: vegetation patch sizes: Gastner et al. 2009: we hypothesize that heterogeneity in the environmental background would not influence the model’s predictions unless the sizes of vegetation patches are smaller than the correlation length of the heterogeneity			
+			#Quality: vegetation patch sizes: Gastner et al. 2009: we hypothesize that heterogeneity in the environmental background would not influence the model's predictions unless the sizes of vegetation patches are smaller than the correlation length of the heterogeneity			
 			#Sizes of vegetation patches
 			etband$Veg$AllMigration$Veg1$MedianPatch_radius_m <- sqrt(median((temp <- raster::freq(etband$Veg$AllMigration$Veg1$patches8))[!is.na(temp[, 1]), 2]) * res_m(specs_grid(ecotoner_grids))^2 / pi)
 			etband$Veg$AllMigration$Veg2$MedianPatch_radius_m <- sqrt(median((temp <- raster::freq(etband$Veg$AllMigration$Veg2$patches8))[!is.na(temp[, 1]), 2]) * res_m(specs_grid(ecotoner_grids))^2 / pi)

@@ -155,14 +155,14 @@ circ_sd <- function(x, int, na.rm = FALSE) {
 #'
 #' @param x A numeric vector of length 9, i.e., the 8 cells plus the center of a 3 x 3 square grid.
 #' @param ... Not used, but required so that \code{tang_curvature} can be used as function argument to \code{\link{raster::focal}}
-#' @return A numeric value in the range [‑1,1] with a sign that ensures that positive curvature equates to convex forms and negative curvature equates to concave forms
+#' @return A numeric value in the range [-1, 1] with a sign that ensures that positive curvature equates to convex forms and negative curvature equates to concave forms
 #' @examples
 #' if (require(raster, quietly = TRUE)) {
 #'     x <- raster::raster(matrix(1:36, ncol = 6), xmn=0, xmx=1, ymn=0, ymx=1)
-#'     tcurv <- raster::focal(x, w = 3, fun = tang_curvature, pad = TRUE, padValue = NA)
+#'     tcurv <- raster::focal(x, w = matrix(1, 3, 3), fun = tang_curvature, pad = TRUE, padValue = NA, res_m = raster::xres(x))
 #' }
 tang_curvature <- function(x, ..., res_m) {
-	#Zeverbergen, L. W., and C. R. Thorne. 1987. Quantitative Analysis of Land Surface Topography. Earth Surface Processes and Landforms 12: 47–56.
+	#Zeverbergen, L. W., and C. R. Thorne. 1987. Quantitative Analysis of Land Surface Topography. Earth Surface Processes and Landforms 12: 47-56.
 	#Schmidt, J., Evans, I.S. & Brinkmann, J. (2003) Comparison of polynomial models for land surface curvature calculation. International Journal of Geographical Information Science, 17, 797-814.
 	#http://www.spatialanalysisonline.com/HTML/index.html?profiles_and_curvature.htm
 	#http://help.arcgis.com/en/arcgisdesktop/10.0/help/index.html#//00q90000000t000000
@@ -175,8 +175,8 @@ tang_curvature <- function(x, ..., res_m) {
 	PLANC <- -2 * (D * H^2 + E * G^2 - F * G * H) / (G^2 + H^2) #eq. 18 for planform curvature (but see below that this is really tangential curvature): Zeverbergen et al.
 	#TANGC <- - (D * H^2 - 2 * F * G * H + E * G^2) / ((G^2 + H^2) * sqrt(G^2 + H^2 + 1)) #own calculations based on Table 1 for tangential curvature: Schmidt et al.
 	#I don't understand where the difference in the '2 *' between PLANC and TANGC comes from ...
-	#However, "For example, Zevenbergen and Thorne (1987) used the term ‘planform curvature’ for tangential curvature, which is clearly not in plan view." (Schmidt et al.)
-	PLANC	#multiply curvature values by ‑100 for convenience, as recommended by Zeverbergen and Thorne (1987), to give values in the approximate range [‑1,1] with a sign that ensures that positive curvature equates to convex forms and negative curvature equates to concave forms
+	#However, "For example, Zevenbergen and Thorne (1987) used the term 'planform curvature' for tangential curvature, which is clearly not in plan view." (Schmidt et al.)
+	PLANC	#multiply curvature values by -100 for convenience, as recommended by Zeverbergen and Thorne (1987), to give values in the approximate range [-1,1] with a sign that ensures that positive curvature equates to convex forms and negative curvature equates to concave forms
 }
 
 

@@ -88,7 +88,7 @@ map_flowpaths <- function(filename, elev, bse, bse_remain, paths_bse, tf, tf_rem
 	ylim <- c(-1000, ext1@ymax)
 
 	raster::image(elev, col = gray(100:255/255), xlim = xlim, ylim = ylim, main = "", xlab = "", ylab = "", asp = 1, axes = FALSE)
-	atx <- c((atx <- axTicks(1))[atx > =  0 & atx < ext1@xmax], ext1@xmax)
+	atx <- c((atx <- axTicks(1))[atx >= 0 & atx < ext1@xmax], ext1@xmax)
 	axis(1, pos = 0, at = atx)
 	axis(2, pos = 0, at = c(0, 2000, 4000, 6000))
 	text(x = ext1@xmax/2, y = -strheight("0", units = "user", cex = cex)*(0.5+2), labels = "Transect length (m)")

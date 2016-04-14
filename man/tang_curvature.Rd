@@ -12,7 +12,7 @@ tang_curvature(x, ..., res_m)
 \item{...}{Not used, but required so that \code{tang_curvature} can be used as function argument to \code{\link{raster::focal}}}
 }
 \value{
-A numeric value in the range [‑1,1] with a sign that ensures that positive curvature equates to convex forms and negative curvature equates to concave forms
+A numeric value in the range [-1, 1] with a sign that ensures that positive curvature equates to convex forms and negative curvature equates to concave forms
 }
 \description{
 Calculate tangential curvature.
@@ -20,7 +20,7 @@ Calculate tangential curvature.
 \examples{
 if (require(raster, quietly = TRUE)) {
     x <- raster::raster(matrix(1:36, ncol = 6), xmn=0, xmx=1, ymn=0, ymx=1)
-    tcurv <- raster::focal(x, w = 3, fun = tang_curvature, pad = TRUE, padValue = NA)
+    tcurv <- raster::focal(x, w = matrix(1, 3, 3), fun = tang_curvature, pad = TRUE, padValue = NA, res_m = raster::xres(x))
 }
 }
 

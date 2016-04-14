@@ -1,4 +1,4 @@
-#------Eppinga, M.B., Pucko, C.A., Baudena, M., Beckage, B. & Molofsky, J. (2013) A new method to infer vegetation boundary movement from ‘snapshot’ data. Ecography, 36, 622-635.
+#------Eppinga, M.B., Pucko, C.A., Baudena, M., Beckage, B. & Molofsky, J. (2013) A new method to infer vegetation boundary movement from 'snapshot' data. Ecography, 36, 622-635.
 
 version_Eppinga2013Ecography <- function() numeric_version("0.2.0")
 
@@ -50,7 +50,9 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 	#assumption that all frontrunners are y-row wise dispersed and do not originate from other sources
 
 	res_names <- c("FrontsAdvBeyondOptBoundary", "FD_mean_T17", "FD_sd_T17", "FD_mean_m",
-					"FD_iidboots_R", "FD_iidboots_mean", "FD_iidboots_bias", "FD_iidboots_se", "FD_iidboots_bca_ci0_p", "FD_iidboots_freq_p",
+					"FD_boots_R",
+					"FD_iidboot_mean", "FD_iidboot_bias", "FD_iidboot_se", "FD_iidboot_ci_type", "FD_iidboot_ci0_p", "FD_iidboot_freq_p",
+					"FD_depboot_mean", "FD_depboot_bias", "FD_depboot_se", "FD_depboot_ci_type", "FD_depboot_ci0_p", "FD_depboot_freq_p", "FD_depboot_bstar", 
 					"FD_WSRT_Z", "FD_WSRT_p", "FD_WSRT_midp",
 					"FD_retro_power")
 	res <- as.list(rep(NA, length(res_names)))
@@ -63,34 +65,65 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 		
 		#---Test if vegetation types have advanced comparably
 		#	i.e., test if difference between front runner distances (FD) of veg1 vs veg2 is 0: eq. 18
-		res[["FD_mean_T17"]] = mean(FR_dist_T17_veg1 + FR_dist_T17_veg2, na.rm = TRUE)
-		res[["FD_sd_T17"]] = sd(FR_dist_T17_veg1 + FR_dist_T17_veg2, na.rm = TRUE)
+		data_T17 <- cbind(FR_dist_T17_veg1, -FR_dist_T17_veg2)
+		delta_T17 <- apply(data_T17, 1,  function(x) x[1]-x[2])
+		res[["FD_mean_T17"]] = mean(delta_T17, na.rm = TRUE)
+		res[["FD_sd_T17"]] = sd(delta_T17, na.rm = TRUE)
 		res[["FD_mean_m"]] = backtransformation17(res[["FD_mean_T17"]])
+		res[["FD_boots_R"]] <- 1e5L # Eppinga et al. 2013: R = 1e5
 
+		bmds <- list(iid = list("boot" = NULL, "ci" = NULL),
+					 dep = list("boot" = NULL, "ci" = NULL))
+		
 		if (requireNamespace("boot", quietly = TRUE)) {
 			#- Bootstrap approach assuming independent data (as used by Eppinga et al. 2013)
-			res[["FD_iidboots_R"]] <- 1e5L # Eppinga et al. 2013: R = 1e5
-			bmd <- boot::boot(data = cbind(FR_dist_T17_veg1, -FR_dist_T17_veg2),
-							  statistic = indexed_mean_of_diffs,
-							  R = res[["FD_iidboots_R"]], stype = "i", sim = "ordinary", parallel = "no")
+			bmds[["iid"]][["boot"]] <- boot::boot(data = data_T17,
+										  statistic = indexed_mean_of_diffs,
+										  R = res[["FD_boots_R"]],
+										  sim = "ordinary", stype = "i",
+										  parallel = "no")
 			
-			res[["FD_iidboots_mean"]] = mean(bmd$t, na.rm = TRUE)
-			res[["FD_iidboots_bias"]] <- res[["FD_iidboots_mean"]] - res[["FD_mean_T17"]]
-			res[["FD_iidboots_se"]] <- as.numeric(sqrt(var(bmd$t, na.rm = TRUE)))
-			
+			# adjusted bootstrap percentile (BCa) interval
+			bmds[["iid"]][["ci"]] <- boot::boot.ci(bmds[["iid"]][["boot"]],
+										conf = c(0.95, 0.99, 0.999), type = "bca")
+		} else {
+			warning("Package 'boot' not installed: 'calc_Eppinga2013_stats' will estimate iid bootstrap")
+		}
+		
+		if (requireNamespace("boot", quietly = TRUE) && requireNamespace("np", quietly = TRUE)) {
+			# Stationary block bootstrap with optimal mean block length
+			res[["FD_depboot_bstar"]] <- min(nrow(data_T17), np::b.star(delta_T17, round = TRUE)[, "BstarSB"])	# Patton, A., D. N. Politis, and H. White. 2009. Correction to "Automatic Block-Length Selection for the Dependent Bootstrap" by D. Politis and H. White (vol 23, pg 53, 2004). Econometric Reviews 28:372-375.
+			bmds[["dep"]][["boot"]] <- boot::tsboot(tseries = data_T17,
+										 statistic = indexed_mean_of_diffs,
+										 R = res[["FD_boots_R"]],
+										 sim = "geom", l = res[["FD_depboot_bstar"]], endcorr = TRUE, n.sim = nrow(data_T17),
+										 orig.t = TRUE, parallel = "no")	# Politis, D. N., and J. P. Romano. 1994. The Stationary Bootstrap. Journal of the American Statistical Association 89:1303-1313.
+		
+			# BCa and studentized CI don't apply for tsboot objects; use instead percentile method
+			bmds[["dep"]][["ci"]] <- boot::boot.ci(bmds[["dep"]][["boot"]], conf = c(0.95, 0.99, 0.999), type = "perc")
+		} else {
+			warning("Package 'boot' and/or 'np' not installed: 'calc_Eppinga2013_stats' will estimate dependent bootstrap")
+		}
+
+		# Extract bootstrap data
+		ptol <- sqrt(.Machine$double.eps)
+		ntol <- -sqrt(.Machine$double.neg.eps)
+		for (ib in names(bmds)) if (!is.null(bmds[[ib]][["boot"]])) {
+			res[[paste0("FD_", ib, "boot_mean")]] = mean(bmds[[ib]][["boot"]]$t, na.rm = TRUE)
+			res[[paste0("FD_", ib, "boot_bias")]] <- res[[paste0("FD_", ib, "boot_mean")]] - res[["FD_mean_T17"]]
+			res[[paste0("FD_", ib, "boot_se")]] <- as.numeric(sqrt(var(bmds[[ib]][["boot"]]$t, na.rm = TRUE)))
+
 			# Test approach 1a: Is 0 contained in ci?
-			bmd_ci <- boot::boot.ci(bmd, conf = c(0.95, 0.99, 0.999), type = "bca") #adjusted bootstrap percentile (BCa) interval
-			ptol <- sqrt(.Machine$double.eps)
-			ntol <- -sqrt(.Machine$double.neg.eps)
-			pid <- !(as.integer(apply(bmd_ci$bca[, 4:5], 1, function(x) sum(x > ptol))) == 1)
-			res[["FD_iidboots_bca_ci0_p"]] <- 1 - if (sum(pid) > 0) max(bmd_ci$bca[pid, "conf"]) else 0 # 'FD_iidboots_bca_ci0_p' represents steps of 1, 0.05, 0.01, and 0.001 as upper bound of the p-value
+			res[[paste0("FD_", ib, "boot_ci_type")]] <- names(bmds[[ib]][["ci"]])[4]
+			conf <- bmds[[ib]][["ci"]][[res[[paste0("FD_", ib, "boot_ci_type")]]]]
+			pid <- !(as.integer(apply(conf[, 4:5], 1, function(x) sum(x > ptol))) == 1)
+			res[[paste0("FD_", ib, "boot_ci0_p")]] <- 1 - if (sum(pid) > 0) max(conf[pid, "conf"]) else 0 # this represents steps of 1, 0.05, 0.01, and 0.001 as upper bound of the p-value
 			
 			# Test approach 1b: Calculate p-value (for H0: diff = 0); eq. 19
-			# Direct interpretation of eq. 19: sum(Heaviside(abs(bmd$t) + abs(bmd$t0) - abs(bmd$t + bmd$t0))) / bmd$R
-			res[["FD_iidboots_freq_p"]] <- (if (bmd$t0 > ptol) sum(bmd$t <= ptol) else if (bmd$t0 < ntol) sum(bmd$t >= ntol) else bmd$R) / bmd$R
-		} else {
-			warning("Package 'boot' not installed: 'calc_Eppinga2013_stats' will not completely be estimated")
+			# Direct interpretation of eq. 19: sum(Heaviside(abs(bmdiid$t) + abs(bmdiid$t0) - abs(bmdiid$t + bmdiid$t0))) / bmdiid$R
+			res[[paste0("FD_", ib, "boot_freq_p")]] <- (if (bmds[[ib]][["boot"]]$t0 > ptol) sum(bmds[[ib]][["boot"]]$t <= ptol) else if (bmds[[ib]][["boot"]]$t0 < ntol) sum(bmds[[ib]][["boot"]]$t >= ntol) else bmds[[ib]][["boot"]]$R) / bmds[[ib]][["boot"]]$R
 		}
+
 			
 		if (requireNamespace("coin", quietly = TRUE)) {
 			# Test approach 2: exact Wilcoxon signed rank test (with Pratt correction of zeros)
@@ -104,7 +137,7 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 			
 		#---Retrospective power: Eppinga et al. 2013: eq. 20
 		tau <- 0.2 #effect size
-		n <- sum(complete.cases(data))
+		n <- sum(complete.cases(data_T17))
 		tcrit <- qt(0.95, df = n) #95% confidence
 		res[["FD_retro_power"]] <- 1 - (1/2 * (1 + erf((tcrit - tau * sqrt(n) / res[["FD_sd_T17"]]) / (sqrt(2) * res[["FD_sd_T17"]]))))
 	}
@@ -148,8 +181,8 @@ map_front_runners_Eppinga2013 <- function(filename, eB_Env, eB_Veg, datFit) {
 	points(x = (copt + datFit$adv_veg2$FR_dist_m)[isnotna], y = ys[isnotna], pch = 46, cex = 2, col = "green")
 
 	if (datFit$adv_stats$FrontsAdvBeyondOptBoundary) {
-		p_max2 <- max(with(datFit$adv_stats, c(FD_iidboots_freq_p, FD_WSRT_p)), na.rm = TRUE)
-		p_max <- max(c(datFit$adv_stats$FD_iidboots_bca_ci0_p, p_max2), na.rm = TRUE) # 'FD_iidboots_bca_ci0_p' only comes in steps of 1, 0.05, 0.01, and 0.001 as upper bound of the p-value
+		p_max2 <- max(datFit$adv_stats$FD_depboot_freq_p, na.rm = TRUE)
+		p_max <- max(c(datFit$adv_stats$FD_depboot_ci0_p, p_max2), na.rm = TRUE) # 'FD_XXXboot_ci0_p' only comes in steps of 1, 0.05, 0.01, and 0.001 as upper bound of the p-value
 		p_value <- if (abs(p_max - 1) < sqrt(.Machine$double.eps)) p_max2 else p_max
 		padv <- p_max < 0.05
 		p12 <- padv && datFit$adv_stats$FD_mean_T17 > 0
@@ -170,7 +203,7 @@ map_front_runners_Eppinga2013 <- function(filename, eB_Env, eB_Veg, datFit) {
 		ptext <- paste0("adv(Veg1 = ", signif(datFit$adv_veg1$FR_dist_mean_m, 2), " m) ",
 						if (p12) ">" else if (p21) "<" else "=",
 						" adv(Veg2 = ", signif(-datFit$adv_veg2$FR_dist_mean_m, 2), " m):",
-						"\np ", if (p_max < 0.05) "<" else ">=", " ", p_str,
+						"\nStationary bootstrap p ", if (p_max < 0.05) "<" else ">=", " ", p_str,
 						" with a retrospective power of ", signif(datFit$adv_stats$FD_retro_power, 3))
 
 
@@ -198,7 +231,7 @@ tabulate_Eppinga2013_advance <- function(etable, index, data) {
 #' @export
 Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, copy_FromMig1_TF, do_figures, ...) {
 	#3b. Eppinga et al. 2013 Ecography: Location of boundary and front-runner distance
-	#Objective: inference of vegetation boundary movement from one ‘snapshot’ (e.g. an aerial photograph or satellite image) in time
+	#Objective: inference of vegetation boundary movement from one 'snapshot' (e.g. an aerial photograph or satellite image) in time
 	#It is assumed that the current vegetation distribution is reflecting competitive interactions between communities over a longer time period (i.e. decades). Also, it is assumed that vegetation boundary movement is relatively slow as compared to fluctuations in environmental and meteorological conditions.
 	#To meet these assumptions when applying the method to real ecosystems, we select snapshots of vegetation bound- aries that: 1) consist of two discrete communities that are characterized by plants with a relatively long lifespan (mostly trees and shrubs); 2) have been described in the literature, meaning that the direction of vegetation boundary move- ment is known; 3) are considered to be primarily driven by competitive interactions. 
 	
