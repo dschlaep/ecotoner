@@ -461,42 +461,49 @@ if (actions["make_map"]){
 	if (!inherits(resultTransects, "try-error") && nrow(resultTransects) > 0){
 		cat(format(Sys.time(), format = ""), ": drawing a map with ", nrow(resultTransects), " transects\n", sep = "")
 
-		gadm_usa_aeanad83 <- readRDS(file.path("~/Dropbox/Work_Stuff/2_Research/200907_UofWyoming_PostDoc/Product17_EcotoneGradients/2_Data", "20160126_GADMv28_USA_adm1_AEANAD83.rds"))
-
-		sp_start <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_StartPoint_WGS84_Long", "TransectLinear_StartPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
-		sp_start <- sp::coordinates(sp::spTransform(sp_start, crs(specs_grid(egrids))))
-		sp_end <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_EndPoint_WGS84_Long", "TransectLinear_EndPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
-		sp_end <- sp::coordinates(sp::spTransform(sp_end, crs(specs_grid(egrids))))
-		
-		ext <- raster::union(raster::extent(grid_env(egrids)), raster::extent(grid_veg(egrids)))
-		# ext <- raster::extent(-2500000, 0, 80000, 3213514)
-
-		# map
-		pdf(width = 8, height = 8, file = file.path(dir_out(esets), paste0("Map_InputData_TransectLocations.pdf")))
-			op_old <- par(mar = c(2.5, 2.5, 0.5, 0.5))
-			on.exit(par(op_old), add = TRUE)
-		
-			raster::plot(grid_env(egrids), ext = ext, col = gray(25:255/255))
-			raster::image(grid_veg(egrids), col = "gray", add = TRUE)
-
-			raster::image(grid_env(egrids), col = gray(25:255/255), add = TRUE)
-			if (!missing(map)) sp::plot(map, border = "white", add = TRUE)
+	mtemp <- try(readRDS(file.path(dir_out(esets), "..", "..", "..", "2_Data", "20160126_GADMv28_USA_adm1_AEANAD83.rds")), silent = TRUE)
+	map <- if (inherits(mtemp, "try-error")) NULL else mtemp
 	
+	sp_start <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_StartPoint_WGS84_Long", "TransectLinear_StartPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
+	sp_start <- sp::coordinates(sp::spTransform(sp_start, crs(specs_grid(egrids))))
+	sp_end <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_EndPoint_WGS84_Long", "TransectLinear_EndPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
+	sp_end <- sp::coordinates(sp::spTransform(sp_end, crs(specs_grid(egrids))))
+	
+	ext <- raster::union(raster::extent(grid_env(egrids)), raster::extent(grid_veg(egrids)))
+	# ext <- raster::extent(-2500000, 10000, 850000, 3213514)
+
+	# map
+	pdf(width = 7, height = 6, file = file.path(dir_out(esets), paste0("Map_InputData_TransectLocations.pdf")))
+	op_old <- par(mar = c(2.5, 2.5, 0.5, 0.5))
+	
+		raster::plot(grid_env(egrids), asp = 1, ext = ext, col = gray(25:255/255), maxpixels = 50000)
+		raster::image(grid_veg(egrids), col = "gray", add = TRUE)
+
+		raster::image(grid_env(egrids), col = gray(25:255/255), add = TRUE)
+		
+		if (!is.null(map))
+			sp::plot(map, border = "white", add = TRUE)
+
+		if (raster::ncell(grid_veg1(egrids)) > 1)
 			raster::image(grid_veg1(egrids), col = adjustcolor("red", alpha.f = 0.3), add = TRUE)
+		if (raster::ncell(grid_veg2(egrids)) > 1)
 			raster::image(grid_veg2(egrids), col = adjustcolor("darkgreen", alpha.f = 0.3), add = TRUE)
 
-			sp::plot(meta_veg[["initpoints_buffering"]], col = adjustcolor("skyblue", alpha.f = 0.3), border = NA, add = TRUE)
+		if (!is.null(meta_veg[["initpoints_buffering"]]))
+			sp::plot(meta_veg[["initpoints_buffering"]], col = adjustcolor("royalblue1", alpha.f = 0.3), border = NA, add = TRUE)
+		if (raster::ncell(grid_abut(egrids)) > 1) {
 			raster::image(grid_abut(egrids), col = "yellow", add = TRUE)
+			raster::image(grid_abut(egrids), col = "yellow", add = TRUE)
+		}
 
+		if (!inherits(resultTransects, "try-error") && nrow(resultTransects) > 0)
 			segments(x0 = sp_start[, 1], y0 = sp_start[, 2],
-					 x1 = sp_end[, 1], y1 = sp_end[, 2],
-					 col = "orange", lwd = 1.5)
+					x1 = sp_end[, 1], y1 = sp_end[, 2],
+					col = "orange", lwd = 1.5)
 
-		dev.off()
-		
-	} else {
-		cat(format(Sys.time(), format = ""), ": cannot draw a map because there are no transects; before drawing transects attempt to locate them by running the code with actions['locate_transects'] set to 'TRUE'\n", sep = "")
-	}
+	par(op_old)
+	dev.off()
+
 }
 
 

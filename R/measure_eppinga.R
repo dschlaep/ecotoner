@@ -1,6 +1,6 @@
 #------Eppinga, M.B., Pucko, C.A., Baudena, M., Beckage, B. & Molofsky, J. (2013) A new method to infer vegetation boundary movement from 'snapshot' data. Ecography, 36, 622-635.
 
-version_Eppinga2013Ecography <- function() numeric_version("0.2.0")
+version_Eppinga2013Ecography <- function() numeric_version("0.2.1")
 
 
 #---Eppinga et al. 2013: 'Analytical analysis of vegetation boundary movement' (Fig. 1)
@@ -57,6 +57,8 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 					"FD_retro_power")
 	res <- as.list(rep(NA, length(res_names)))
 	names(res) <- res_names
+	boot_ci_types <- c("normal", "basic", "student", "percent", "bca")	#see body(boot::boot.ci)
+	
 	res[["FrontsAdvBeyondOptBoundary"]] <- all(FR_dist_mean_T17_veg1 > 0, FR_dist_mean_T17_veg2 < 0)
 
 	
@@ -87,7 +89,7 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 			bmds[["iid"]][["ci"]] <- boot::boot.ci(bmds[["iid"]][["boot"]],
 										conf = c(0.95, 0.99, 0.999), type = "bca")
 		} else {
-			warning("Package 'boot' not installed: 'calc_Eppinga2013_stats' will estimate iid bootstrap")
+			warning("Package 'boot' not installed: 'calc_Eppinga2013_stats' will not estimate iid bootstrap")
 		}
 		
 		if (requireNamespace("boot", quietly = TRUE) && requireNamespace("np", quietly = TRUE)) {
@@ -100,9 +102,10 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 										 orig.t = TRUE, parallel = "no")	# Politis, D. N., and J. P. Romano. 1994. The Stationary Bootstrap. Journal of the American Statistical Association 89:1303-1313.
 		
 			# BCa and studentized CI don't apply for tsboot objects; use instead percentile method
-			bmds[["dep"]][["ci"]] <- boot::boot.ci(bmds[["dep"]][["boot"]], conf = c(0.95, 0.99, 0.999), type = "perc")
+			bmds[["dep"]][["ci"]] <- boot::boot.ci(bmds[["dep"]][["boot"]],
+										conf = c(0.95, 0.99, 0.999), type = "perc")
 		} else {
-			warning("Package 'boot' and/or 'np' not installed: 'calc_Eppinga2013_stats' will estimate dependent bootstrap")
+			warning("Package 'boot' and/or 'np' not installed: 'calc_Eppinga2013_stats' will not estimate dependent bootstrap")
 		}
 
 		# Extract bootstrap data
@@ -114,7 +117,7 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 			res[[paste0("FD_", ib, "boot_se")]] <- as.numeric(sqrt(var(bmds[[ib]][["boot"]]$t, na.rm = TRUE)))
 
 			# Test approach 1a: Is 0 contained in ci?
-			res[[paste0("FD_", ib, "boot_ci_type")]] <- names(bmds[[ib]][["ci"]])[4]
+			res[[paste0("FD_", ib, "boot_ci_type")]] <- which(names(bmds[[ib]][["ci"]])[4] == boot_ci_types)
 			conf <- bmds[[ib]][["ci"]][[res[[paste0("FD_", ib, "boot_ci_type")]]]]
 			pid <- !(as.integer(apply(conf[, 4:5], 1, function(x) sum(x > ptol))) == 1)
 			res[[paste0("FD_", ib, "boot_ci0_p")]] <- 1 - if (sum(pid) > 0) max(conf[pid, "conf"]) else 0 # this represents steps of 1, 0.05, 0.01, and 0.001 as upper bound of the p-value
@@ -132,7 +135,7 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 			res[["FD_WSRT_p"]] <- coin::pvalue(wsrt)
 			res[["FD_WSRT_midp"]] <- coin::midpvalue(wsrt)
 		} else {
-			warning("Package 'coin' not installed: 'calc_Eppinga2013_stats' will not completely be estimated")
+			warning("Package 'coin' not installed: 'calc_Eppinga2013_stats' will not calculate Wilcoxon signed rank test")
 		}
 			
 		#---Retrospective power: Eppinga et al. 2013: eq. 20
@@ -181,8 +184,21 @@ map_front_runners_Eppinga2013 <- function(filename, eB_Env, eB_Veg, datFit) {
 	points(x = (copt + datFit$adv_veg2$FR_dist_m)[isnotna], y = ys[isnotna], pch = 46, cex = 2, col = "green")
 
 	if (datFit$adv_stats$FrontsAdvBeyondOptBoundary) {
-		p_max2 <- max(datFit$adv_stats$FD_depboot_freq_p, na.rm = TRUE)
-		p_max <- max(c(datFit$adv_stats$FD_depboot_ci0_p, p_max2), na.rm = TRUE) # 'FD_XXXboot_ci0_p' only comes in steps of 1, 0.05, 0.01, and 0.001 as upper bound of the p-value
+		if (!is.na(datFit$adv_stats$FD_depboot_freq_p) && !is.null(datFit$adv_stats$FD_depboot_freq_p)) {
+			p_max2 <- max(datFit$adv_stats$FD_depboot_freq_p, na.rm = TRUE)
+			p_max <- max(c(datFit$adv_stats$FD_depboot_ci0_p, p_max2), na.rm = TRUE) # 'FD_XXXboot_ci0_p' only comes in steps of 1, 0.05, 0.01, and 0.001 as upper bound of the p-value
+			ttype <- "Stationary bootstrap p"
+		} else if (!is.na(datFit$adv_stats$FD_iidboot_freq_p) && !is.null(datFit$adv_stats$FD_iidboot_freq_p)) {
+			p_max2 <- max(datFit$adv_stats$FD_iidboot_freq_p, na.rm = TRUE)
+			p_max <- max(c(datFit$adv_stats$FD_iidboot_ci0_p, p_max2), na.rm = TRUE) # 'FD_XXXboot_ci0_p' only comes in steps of 1, 0.05, 0.01, and 0.001 as upper bound of the p-value
+			ttype <- "Ordinary iid bootstrap p"
+		} else if (!is.na(datFit$adv_stats$FD_WSRT_p) && !is.null(datFit$adv_stats$FD_WSRT_p)) {
+			p_max <- p_max2 <- max(datFit$adv_stats$FD_WSRT_p, na.rm = TRUE)
+			ttype <- "Wilcoxon signed rank p"
+		} else {
+			p_max <- 1
+			ttype <- "No test p"
+		}
 		p_value <- if (abs(p_max - 1) < sqrt(.Machine$double.eps)) p_max2 else p_max
 		padv <- p_max < 0.05
 		p12 <- padv && datFit$adv_stats$FD_mean_T17 > 0
@@ -203,7 +219,7 @@ map_front_runners_Eppinga2013 <- function(filename, eB_Env, eB_Veg, datFit) {
 		ptext <- paste0("adv(Veg1 = ", signif(datFit$adv_veg1$FR_dist_mean_m, 2), " m) ",
 						if (p12) ">" else if (p21) "<" else "=",
 						" adv(Veg2 = ", signif(-datFit$adv_veg2$FR_dist_mean_m, 2), " m):",
-						"\nStationary bootstrap p ", if (p_max < 0.05) "<" else ">=", " ", p_str,
+						"\n", ttype, if (p_max < 0.05) " < " else " >= ", p_str,
 						" with a retrospective power of ", signif(datFit$adv_stats$FD_retro_power, 3))
 
 

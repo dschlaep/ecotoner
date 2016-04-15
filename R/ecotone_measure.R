@@ -33,10 +33,14 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 											isTRUE(m$meta$version < cur_versions[[m$meta$method]]))))
 			what_measure[names(etmeas)[!redo_meas], , ] <- t(todo_neighsXmigs)
 		}
+		
+		do_new_etmeas <- FALSE
+	} else {
+		do_new_etmeas <- TRUE
 	}
 
 	do_measure <- any(what_measure)
-	do_new <- all(what_measure)
+	do_use_template <- apply(what_measure, 1, all)
 	do_only_write <- all(!what_measure)
 
 	if (verbose) {
@@ -56,7 +60,7 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 		names(temp) <- migtypes
 		template_etobs$gETmeas <- lapply(template_etobs$gETmeas, function(x) temp)
 
-		if (do_new) {
+		if (do_new_etmeas) {
 			etmeas <- vector(mode = "list", length = length(et_methods))
 			names(etmeas) <- et_methods
 		}
@@ -80,7 +84,9 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 					if (what_measure[etm, b, im]) {
 						if (verbose) cat("'ecotoner' measuring: tr = ", i, "; neigh = ", b, ": prog: ", idh <- idh + 1, "; mig-type: ", migtypes[im], "; method: ", etm, "\n", sep = "")
 					
-						if (is.null(etmeas[[etm]])) etmeas[[etm]] <- template_etobs
+						if (is.null(etmeas[[etm]]) || (b == 1L && im == 1L && do_use_template[etm])) {
+							etmeas[[etm]] <- template_etobs
+						}
 					
 						iseed <- (b - 1) * length(migtypes) + im
 						etmeas[[etm]][["seeds"]][[iseed]] <- if (is.null(seed_streams)) NULL else if (inherits(seed_streams, "list")) seed_streams[[((i - 1) * neighbors_N(ecotoner_settings) + (b - 1)) * length(migtypes) + im]] else NA
