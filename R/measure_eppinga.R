@@ -1,6 +1,6 @@
 #------Eppinga, M.B., Pucko, C.A., Baudena, M., Beckage, B. & Molofsky, J. (2013) A new method to infer vegetation boundary movement from 'snapshot' data. Ecography, 36, 622-635.
 
-version_Eppinga2013Ecography <- function() numeric_version("0.2.1")
+version_Eppinga2013Ecography <- function() numeric_version("0.2.2")
 
 
 #---Eppinga et al. 2013: 'Analytical analysis of vegetation boundary movement' (Fig. 1)
@@ -68,7 +68,7 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 		#---Test if vegetation types have advanced comparably
 		#	i.e., test if difference between front runner distances (FD) of veg1 vs veg2 is 0: eq. 18
 		data_T17 <- cbind(FR_dist_T17_veg1, -FR_dist_T17_veg2)
-		delta_T17 <- apply(data_T17, 1,  function(x) x[1]-x[2])
+		delta_T17 <- apply(data_T17, 1,  function(x) x[1] - x[2])
 		res[["FD_mean_T17"]] = mean(delta_T17, na.rm = TRUE)
 		res[["FD_sd_T17"]] = sd(delta_T17, na.rm = TRUE)
 		res[["FD_mean_m"]] = backtransformation17(res[["FD_mean_T17"]])
@@ -93,13 +93,34 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 		}
 		
 		if (requireNamespace("boot", quietly = TRUE) && requireNamespace("np", quietly = TRUE)) {
-			# Stationary block bootstrap with optimal mean block length
-			res[["FD_depboot_bstar"]] <- min(nrow(data_T17), np::b.star(delta_T17, round = TRUE)[, "BstarSB"])	# Patton, A., D. N. Politis, and H. White. 2009. Correction to "Automatic Block-Length Selection for the Dependent Bootstrap" by D. Politis and H. White (vol 23, pg 53, 2004). Econometric Reviews 28:372-375.
+			# Stationary block bootstrap (Politis, D. N., and J. P. Romano. 1994. The Stationary Bootstrap. Journal of the American Statistical Association 89:1303-1313.)
+			#	with optimal mean block length (Patton, A., D. N. Politis, and H. White. 2009. Correction to "Automatic Block-Length Selection for the Dependent Bootstrap" by D. Politis and H. White (vol 23, pg 53, 2004). Econometric Reviews 28:372-375.)
+
+			if (anyNA(delta_T17)) {
+				# Multiple imputations of time-series data
+				# 'np::b.star' calls acf() and ccf() with default value for 'na.action', i.e., 'na.fail'
+				# 'np::b.star' fails if anyNA(data); data contain NAs if a transect row has no cells of a vegetation type
+				if (requireNamespace("Amelia", quietly = TRUE)) {
+					im_T17 <- cbind(seq_len(nrow(data_T17)), data_T17)
+					am_T17 <- Amelia::amelia(im_T17, m = 10, ts = 1, splinetime = 6,
+											p2s = 0, parallel = "no")
+				
+					est_BstarSB <- mean(sapply(am_T17$imputations, function(x)
+											np::b.star(apply(x, 1,  function(x) x[2] - x[3]), round = TRUE)[, "BstarSB"]))
+				} else {
+					warning("Package 'Amelia' not installed: 'calc_Eppinga2013_stats' cannot estimate optimal block-length for dependent bootstrap with missing data; poor approximation based on complete-cases used instead")
+					est_BstarSB <- np::b.star(delta_T17[complete.cases(delta_T17)], round = TRUE)[, "BstarSB"]
+				}
+			} else {
+				est_BstarSB <- np::b.star(delta_T17, round = TRUE)[, "BstarSB"]
+			}
+			
+			res[["FD_depboot_bstar"]] <- min(nrow(data_T17), est_BstarSB)
 			bmds[["dep"]][["boot"]] <- boot::tsboot(tseries = data_T17,
 										 statistic = indexed_mean_of_diffs,
 										 R = res[["FD_boots_R"]],
 										 sim = "geom", l = res[["FD_depboot_bstar"]], endcorr = TRUE, n.sim = nrow(data_T17),
-										 orig.t = TRUE, parallel = "no")	# Politis, D. N., and J. P. Romano. 1994. The Stationary Bootstrap. Journal of the American Statistical Association 89:1303-1313.
+										 orig.t = TRUE, parallel = "no")
 		
 			# BCa and studentized CI don't apply for tsboot objects; use instead percentile method
 			bmds[["dep"]][["ci"]] <- boot::boot.ci(bmds[["dep"]][["boot"]],
@@ -117,8 +138,9 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 			res[[paste0("FD_", ib, "boot_se")]] <- as.numeric(sqrt(var(bmds[[ib]][["boot"]]$t, na.rm = TRUE)))
 
 			# Test approach 1a: Is 0 contained in ci?
-			res[[paste0("FD_", ib, "boot_ci_type")]] <- which(names(bmds[[ib]][["ci"]])[4] == boot_ci_types)
-			conf <- bmds[[ib]][["ci"]][[res[[paste0("FD_", ib, "boot_ci_type")]]]]
+			i_item <- 4 # the i-th item in the list that is returned by boot::boot.ci
+			res[[paste0("FD_", ib, "boot_ci_type")]] <- which(names(bmds[[ib]][["ci"]])[i_item] == boot_ci_types)
+			conf <- bmds[[ib]][["ci"]][[i_item]]
 			pid <- !(as.integer(apply(conf[, 4:5], 1, function(x) sum(x > ptol))) == 1)
 			res[[paste0("FD_", ib, "boot_ci0_p")]] <- 1 - if (sum(pid) > 0) max(conf[pid, "conf"]) else 0 # this represents steps of 1, 0.05, 0.01, and 0.001 as upper bound of the p-value
 			
@@ -233,12 +255,13 @@ map_front_runners_Eppinga2013 <- function(filename, eB_Env, eB_Veg, datFit) {
 
 
 tabulate_Eppinga2013_advance <- function(etable, index, data) {
-	res <- c(unlist(data$optim),
-			 unlist(data$adv_veg1[c("FR_dist_mean_m", "FR_dist_mean_T17", "FR_dist_sd_T17")]),
-			 unlist(data$adv_veg2[c("FR_dist_mean_m", "FR_dist_mean_T17", "FR_dist_sd_T17")]),
-			 unlist(data$adv_stats))
+	temp1 <- unlist(data$adv_veg1[c("FR_dist_mean_m", "FR_dist_mean_T17", "FR_dist_sd_T17")])
+	names(temp1) <- paste0("Veg1_", names(temp1))
+	temp2 <- unlist(data$adv_veg2[c("FR_dist_mean_m", "FR_dist_mean_T17", "FR_dist_sd_T17")])
+	names(temp2) <- paste0("Veg2_", names(temp2))
 	
-	tabulate_merge_into_etable(etable, index, res)
+	tabulate_merge_into_etable(etable, index,
+		data = c(unlist(data$optim), temp1, temp2, unlist(data$adv_stats)))
 }
 
 
@@ -265,6 +288,7 @@ Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmea
 	etmeasure$gETmeas[[b]][[migtype]]$meta$method <- "Eppinga2013Ecography"
 	etmeasure$gETmeas[[b]][[migtype]]$meta$version <- version_Eppinga2013Ecography()
 	etmeasure$gETmeas[[b]][[migtype]]$meta$copy_FromMig1_TF <- copy_FromMig1_TF
+
 	
 	if (!copy_FromMig1_TF) {
 		etmeasure$gETmeas[[b]][[migtype]]$optim <- calc_Eppinga2013_optpos(Veg1 = etband$Veg[[migtype]]$Veg1$grid,

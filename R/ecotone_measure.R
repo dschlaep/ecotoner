@@ -92,6 +92,19 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 						etmeas[[etm]][["seeds"]][[iseed]] <- if (is.null(seed_streams)) NULL else if (inherits(seed_streams, "list")) seed_streams[[((i - 1) * neighbors_N(ecotoner_settings) + (b - 1)) * length(migtypes) + im]] else NA
 						set_RNG_stream(etmeas[[etm]][["seeds"]][[iseed]])
 
+#trace(what = ecotoner:::calc_Eppinga2013_stats,
+#	tracer = quote({print("calc_Eppinga2013_stats")
+#					str(data_T17)
+#					print(sum(is.na(data_T17)))}),
+#	at = list(c(7, 3, 11, 3, 2)))
+#
+#trace(what = stats:::na.fail.default,
+#	tracer = quote({print("na.fail.default")
+#					print(sys.calls()[13:16])
+#					str(object)
+#					print(which(is.na(object)))}),
+#	at = 3)
+#
 						temp <- try(do.call(what = etm, args = list(i = i, b = b, migtype = migtypes[im], 
 																	ecotoner_settings = ecotoner_settings,
 																	etband = etransect[["etbands"]][[b]],
