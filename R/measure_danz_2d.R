@@ -100,6 +100,8 @@ calc_Danz2012_abruptness_2D <- function(doms, use_dims, x1d, z1d, x2d, z2d, seed
 		doms <- list(lGLM = list(tag = "logistic GLM", cond = "TRUE", fun = "m_glm", family = "binomial", link = "logit"))
 	if (include_lm) doms <- modifyList(list(lm = list(tag = "LM", cond = "TRUE", fun = "m_glm", family = "gaussian", link = "identity")), doms)
 	
+	grid <- if (any(sapply(doms, function(m) identical(m$fun, "m_glmm_RAC"))) && inherits(z2d, "RasterLayer")) z2d else NULL
+	
 	preds <- fits <- vector("list", length = length(dats))
 	names(preds) <- names(fits) <- names(dats)
 	
@@ -113,7 +115,8 @@ calc_Danz2012_abruptness_2D <- function(doms, use_dims, x1d, z1d, x2d, z2d, seed
 				fargs <- c(fargs, list(family = match.fun(doms[[j]][["family"]])(link = doms[[j]][["link"]])))
 			fargs <- c(fargs, list(random = doms[[j]][["random"]],
 									correlation = doms[[j]][["correlation"]],
-									ytrans = doms[[j]][["ytrans"]], ytransinv = doms[[j]][["ytransinv"]]))
+									ytrans = doms[[j]][["ytrans"]], ytransinv = doms[[j]][["ytransinv"]],
+									grid = grid))
 			res <- do.call(doms[[j]][["fun"]], args = fargs)
 			
 			# copy result
@@ -273,6 +276,7 @@ Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 #						, lGLMMrc = list(tag = "logistic lme4-GLMM with random rows and columns", cond = "!anyNA(dats[[k]][['r']]) && !anyNA(dats[[k]][['c']])", fun = "m_glmm_lme4", family = "binomial", link = "logit", random = "(x|r) + (x|c)")
 						, lGLMMPQLr = list(tag = "logistic PQL-GLMM with random rows", cond = "!anyNA(dats[[k]][['r']])", fun = "m_glmm_PQL", family = "binomial", link = "logit", random = "~ x|r")
 #						, lGLMMPQLrSpher = list(tag = "logistic PQL-GLMM with random rows and spherical correlation in residuals", cond = "!anyNA(dats[[k]][['r']]) && !anyNA(dats[[k]][['c']])", fun = "m_glmm_PQL", family = "binomial", link = "logit", random = "~ x|r", correlation = "nlme::corSpher(form = ~ r + c, nugget = TRUE)")
+						, lGLMMrRAC = list(tag = "logistic GLMM with random rows and RAC", cond = "!anyNA(dats[[k]][['r']])", fun = "m_glmm_RAC", family = "binomial", link = "logit", random = "(x|r)", grid = )
 					)
 		use_dims <- c('1D' = FALSE, '2D' = TRUE)
 

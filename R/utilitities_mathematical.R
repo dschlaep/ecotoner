@@ -521,6 +521,73 @@ m_glmm_PQL <- function(family, data., random = "~ x|r", correlation = "NULL", yt
 }
 
 
+m_glmm_RAC <- function(family, data., random = "(x|r)", ytrans = NULL, ytransinv = NULL, grid, ...) {
+	# Crase, B., A. C. Liedloff, and B. A. Wintle. 2012. A new method for dealing with residual spatial autocorrelation in species distribution models. Ecography 35:879-888.
+
+	#---Test input
+	ok_random <- TRUE
+	testr <- sapply(c("[(]", "[|]", "[)]"), function(chr) gregexpr(chr, random)[[1]])
+	if (inherits(testr, "list")) {
+		ok_random <- FALSE
+	} else {
+		if (is.vector(testr)) testr <- matrix(testr, ncol = 3, byrow = TRUE)
+		if (!all(testr[, 1] < testr[, 2]) || !all(testr[, 2] < testr[, 3]))
+			ok_random <- FALSE
+	}
+	
+	#---Begin function calculations
+	mpred <- list()
+	coef1 <- c(beta = NA_integer_, se = NA_integer_)
+	quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
+	perf <- performance_bernoulli()
+	
+	if (ok_random) {
+		if (requireNamespace("lme4", quietly = TRUE) && requireNamespace("Matrix", quietly = TRUE) && requireNamespace("spdep", quietly = TRUE)) {
+			# Prepare data
+			transdat <- m_transform_y(data., ytrans, ytransinv)
+			m_data <- as.data.frame(sapply(transdat[["d"]][c("x", "y", "r", "c")],
+											function(it) if (is.factor(it)) as.numeric(levels(it))[it] else it))
+
+			# Fit non-spatial model
+			mfit1 <- try(lme4::glmer(as.formula(paste0("y ~ x + ", random)), data = m_data, family = family), silent = TRUE)
+			
+			if (!inherits(mfit1, "try-error")) {
+				# Calculate RAC = residual autocovariate
+				grid[] <- residuals(mfit1, type = "response", scale = FALSE)
+				w <- focalWeight_inverse(raster::res(grid), nbs = 5 * raster::xres(grid))
+				rac_focal <- raster::focal(grid, w = w, fun = "sum", na.rm = TRUE, pad = TRUE, padValue = NA)			
+				m_data <- cbind(m_data, rac = raster::rasterToPoints(rac_focal)[, "layer"])
+				
+				# Fit spatial model with RAC
+				mfit <- try(lme4::glmer(as.formula(paste0("y ~ x + rac + ", random)), data = m_data, family = family), silent = TRUE)
+			
+				if (!inherits(mfit, "try-error")) {
+					# unconditional (level-0 random effect) prediction
+					m_newdata <- cbind(transdat[["d"]][["newdata"]], rac = rep(0, nrow(transdat[["d"]][["newdata"]]))) # predict at 0 residual autocorrelation
+					mpred <- list(fit = predict(mfit, newdata = m_newdata, re.form = ~ 0, type = "response"))
+					if (transdat[["y_transformed"]]) mpred <- ytransinv(mpred)
+			
+					quals <- c(isConv = TRUE, edf = attr(logLik(mfit), "df"),
+								lme4::llikAIC(mfit)[["AICtab"]][c("AIC", "logLik", "deviance", "df.resid")])
+					coef1 <- c(beta = as.numeric(lme4::fixef(mfit)[2]),
+								se = sqrt(Matrix::diag(vcov(mfit, use.hessian = TRUE))[2]))
+					if (transdat[["y_transformed"]]) coef1["beta"] <- coef1["beta"] * transdat[["coef1_mult"]]
+			
+					perf <- if (transdat[["d"]][["is_binary"]]) performance_bernoulli(pred = fitted(mfit), obs = transdat[["d"]][["y"]])
+				}
+			}
+		} else {
+			mfit <- try(stop("ecotoner::m_glmm_lme4(): package 'lme4', 'Matrix', and/or 'spdep' not installed: 'GLMM' with residual autocovariate not estimated"), silent = FALSE)
+		}
+	} else {
+		mfit <- try(stop("ecotoner::m_glmm_lme4(): argument 'random' is incorrectly formulated: ", random), silent = FALSE)
+	}
+		
+	list(m = mfit, preds = mpred, quals = quals, coef1 = coef1, perf = perf)
+}
+
+
+
 
 m_sig <- function(data., ytrans = NULL, ytransinv = NULL, ...) {
 	# Prepare data

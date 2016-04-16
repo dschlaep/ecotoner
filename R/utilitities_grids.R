@@ -353,3 +353,20 @@ get_transect_grids_as_df <- function(i, et_desc = NULL, ecotoner_settings, migty
 	} else NULL
 }
 	
+
+# modified from raster:::.circular.weight
+#' @param rs A vector of length two. The resolution of a raster object.
+#' @param nbs A numerical value. The distance of the circular weights matrix in raster units.
+focalWeight_inverse <- function (rs, nbs) {
+	nx <- 1 + 2 * floor(nbs / rs[1])
+    ny <- 1 + 2 * floor(nbs / rs[2])
+    m <- matrix(ncol = nx, nrow = ny)
+	m[ceiling(ny/2), ceiling(nx/2)] <- 1
+    if (nx == 1 && ny == 1) return(m)
+
+	d <- raster::raster(m, xmn = 0, xmx = nx * rs[1], ymn = 0, ymx = ny * rs[2], crs = "+proj=utm +zone=1 +datum=WGS84")
+	d <- raster::distance(d)
+	d <- raster::calc(d, fun = function(x) ifelse(is.na(x) | x > nbs | abs(x) < sqrt(.Machine$double.eps), 0, 1 / x))
+	m <- raster::as.matrix(d)
+    m / sum(m)
+}
