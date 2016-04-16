@@ -113,7 +113,7 @@ sample_inhibited_init_cells <- function(N, grid, inhibit_dist, mywin = NULL, gri
 #' @param grid_maskNA A \code{\linkS4class{RasterLayer}} object whose cells with the value of NA will prevent sampling of corresponding cells in \code{grid_mask1}.
 #' @param initfile A filename (and its path) or \code{NA}. If not \code{NA}, then the generated search points are stored to disk in \link[=readRDS]{.rds} format.
 #' @param initwindowfile A filename (and its path) or \code{NA}. If not \code{NA} and if a spatstat::owin object is created for an inhibited random sample, then the generated 'owin' object is stored to disk in \link[=readRDS]{.rds} format.
-#' @param seed An integer value or \code{NULL} to set the random number generator. \code{NULL} follows the behavior of \code{\link{set.seed}}.
+#' @param seed An integer value, \code{NULL}, or \code{NA}. \code{NA} will do nothing; the other two are passed to \code{\link{set.seed}}.
 #' @param verbose A logical value. If \code{TRUE}, then progress statements are printed out.
 #'
 #' @return A \code{\link[sp]{SpatialPoints}} object with \code{N} unique points. If a suitable \code{initfile} is provided, then the returned object is also stored to disk. 

@@ -1,14 +1,36 @@
+#TODO(drs): pass 'doms' etc via an option method to Danz2012; same approach to set options from user for other methods too; account for options in 'what_measure'
+#TODO(drs): create S4 class for measure methods
 
-#------Danz, N.P., Frelich, L.E., Reich, P.B. & Niemi, G.J. (2012) Do vegetation boundaries display smooth or abrupt spatial transitions along environmental gradients? Evidence from the prairie-forest biome boundary of historic Minnesota, USA. Journal of Vegetation Science, n/a-n/a.
+version_Danz2012JVegSci_2D <- function() numeric_version("0.2.1")
 
-version_Danz2012JVegSci_2D <- function() numeric_version("0.2.0")
-
-#---Danz et al. 2012: 'Spatial change in vegetation across the boundary', 'Spatial change in climate across the boundary', and 'Spatial vegetation/climate relationships across the boundary'
-#' Estimates the abruptness of outcome y against x
-#' 
-#' @param x A numeric vector. Predictor along the ecotone transect from left-right. The length of x has to correspond to the ecotone transect. For instance, distance along the transect.
-#' @param z A numeric vector. The outcome along the ecotone transect, e.g., vegetation density.
-#' 
+#' Estimation of the abruptness of the change of outcome z along the \sQuote{rows} of 1- and 2-dimensional x
+#'
+#' Implementation of the methods by Danz et al. (2012). 
+#'
+#' \code{doms} contains the named items 
+#'		\code{tag}: descriptive character string of the model; 
+#'		\code{cond}: character string that evaluates to a logical value expressing under which conditions the model should be calculated; 
+#'		\code{fun}: model function as character string; 
+#'		\code{family}: error distribution function as character string (see \code{\link[stats]{family}}); 
+#'		\code{link}: model link function as character string (see \code{\link[stats]{make.link}}); 
+#'		\code{random}: a character string representing the random effects if any (see \code{\link[lme4]{glmer}} for calls to \code{m_glmm_lme4}, respectively \code{\link[MASS]{glmmPQL}} for calls to \code{m_glmm_PQL}); 
+#'		\code{correlation}: \code{NULL} or a character string representing the residual correlation structure for \code{m_glmm_PQL} (see \code{\link[MASS]{glmmPQL}}); 
+#'		\code{ytrans}: optional - a function applied to outcome z before model fitting; 
+#'		\code{ytransinv}: optional - the backtransformation of \code{ytrans} applied after model fitting.
+#'
+#' @param doms A named list of named options as a list that defines models which are applied to the data. See details.
+#' @param use_dims A logical vector of length 2. Value of first/second element indicates if 1/2-dimensional models are estimated.
+#' @param x1d A numeric vector. The 1-dimensional predictor along the ecotone transect from left-right. The length of x has to correspond to the ecotone transect. For instance, distance along the transect.
+#' @param z1d A numeric vector. The 1-dimensional outcome along the ecotone transect, e.g., vegetation density.
+#' @param x2d A \code{\link{matrix}} or \linkS4class{RasterLayer}. The 2-dimensional predictor representing the ecotone transect band.
+#' @param z2d A \code{\link{matrix}} or \linkS4class{RasterLayer}. The 2-dimensional outcome representing the ecotone transect band.
+#' @param seed An integer value, \code{NULL}, or \code{NA}: \code{NA} will do nothing; the other two are passed to \code{\link{set.seed}}.
+#' @param include_lm A logical value. If \code{TRUE}, then a linear model is added to \code{doms}.
+#'
+#' @references Danz, N. P., L. E. Frelich, P. B. Reich, and G. J. Niemi. 2012. Do vegetation boundaries display smooth or abrupt spatial transitions along environmental gradients? Evidence from the prairie-forest biome boundary of historic Minnesota, USA. Journal of Vegetation Science 24:1129-1140.
+#' @seealso \code{\link{Danz2012JVegSci_2D}}, and the possible model functions \code{\link[ecotoner]{m_glm}}, \code{\link[ecotoner]{m_glmm_lme4}}, and \code{\link[ecotoner]{m_sig}}
+#' @return A named list with three items \sQuote{fits}, \sQuote{plot_preds}, and \sQuote{plot_data}
+#' @export
 calc_Danz2012_abruptness_2D <- function(doms, use_dims, x1d, z1d, x2d, z2d, seed = NULL, include_lm = FALSE) {
 	# logistic regression on z ~ x with repeated 'rows' along the transect
 	# idea by ld; implementation by drs
@@ -75,12 +97,7 @@ calc_Danz2012_abruptness_2D <- function(doms, use_dims, x1d, z1d, x2d, z2d, seed
 	#			P(Y_ij = 1|B_j) = link(b_0 + b_1 * X_ij + b_2 * B_j) with B_j = rows as blocks
 	
 	if (is.null(doms)) 
-		doms <- list(lGLM = list(tag = "logistic GLM", cond = "TRUE", fun = "m_glm", family = "binomial", link = "logit"),
-					bGLMc = list(tag = "binomial GLM with cloglog", cond = "TRUE", fun = "m_glm", family = "binomial", link = "cloglog"),
-					bGLMci = list(tag = "binomial GLM with cloglog and 1 - y", cond = "TRUE", fun = "m_glm", family = "binomial", link = "cloglog", ytrans = function(x) 1 - x, ytransinv = function(x) 1 - x),
-					sNLS = list(tag = "sigmoidal NLS", cond = "TRUE", fun = "m_sig"),
-					lGLMM = list(tag = "logistic GLMM", cond = "!anyNA(dats[[k]][['r']])", fun = "m_glmm", family = "binomial", link = "logit")
-					)
+		doms <- list(lGLM = list(tag = "logistic GLM", cond = "TRUE", fun = "m_glm", family = "binomial", link = "logit"))
 	if (include_lm) doms <- modifyList(list(lm = list(tag = "LM", cond = "TRUE", fun = "m_glm", family = "gaussian", link = "identity")), doms)
 	
 	preds <- fits <- vector("list", length = length(dats))
@@ -94,7 +111,9 @@ calc_Danz2012_abruptness_2D <- function(doms, use_dims, x1d, z1d, x2d, z2d, seed
 			fargs <- list(data. = dats[[k]])
 			if (!is.null(doms[[j]][["family"]]))
 				fargs <- c(fargs, list(family = match.fun(doms[[j]][["family"]])(link = doms[[j]][["link"]])))
-			fargs <- c(fargs, list(ytrans = doms[[j]][["ytrans"]], ytransinv = doms[[j]][["ytransinv"]]))
+			fargs <- c(fargs, list(random = doms[[j]][["random"]],
+									correlation = doms[[j]][["correlation"]],
+									ytrans = doms[[j]][["ytrans"]], ytransinv = doms[[j]][["ytransinv"]]))
 			res <- do.call(doms[[j]][["fun"]], args = fargs)
 			
 			# copy result
@@ -183,7 +202,6 @@ add_Danz2012_abruptness_2D_panel <- function(preds, data, end_toLeft, xlab, ylab
 	invisible()
 }
 	
-#' @export
 plot_Danz2012_abruptness_2D <- function(filename, xlab, preds1, preds2, data1, data2, end_toLeft1, end_toLeft2, responses_equal = TRUE) {
 	pdf(height = 4.5 + 0.5, width = 2 * 5 + 0.5, file = filename)
 	layout(mat = matrix(c(0, 1, 2, 0, 0, 0), nrow = 2, ncol = 3, byrow = TRUE),
@@ -202,7 +220,6 @@ plot_Danz2012_abruptness_2D <- function(filename, xlab, preds1, preds2, data1, d
 
 
 tabulate_Danz2012_abruptness_2D <- function(etable, index, data) {
-#TODO(drs): consider replacing this function with 'put.ListData1Level_TableData'
 	data <- unlist(data)
 	names(data) <- paste("Danz2012", names(data), sep = "_")
 
@@ -211,16 +228,25 @@ tabulate_Danz2012_abruptness_2D <- function(etable, index, data) {
 
 
 
+#' Estimation of abruptness of the vegetation-transition along an environmental gradient of an ecotone transect
+#'
+#' Implementation of the methods by Danz et al. (2012). 
+#'
+#' @param i An integer value. The number of the ecotone transect; a value smaller than or equal to \code{transect_N(ecotoner_settings)}.
+#' @param b An integer value. The index of the neighborhood window size; ; a value smaller than or equal to \code{neighbors_N(ecotoner_settings)}.
+#' @param migtype A character string; one of \code{get("migtypes", envir = etr_vars)}.
+#' @param ecotoner_settings An object of the class \linkS4class{EcotonerSettings}.
+#' @param etband The object of the ecotone transect according to index \code{i} that was returned by the function \code{\link[ecotoner]{detect_ecotone_transects_from_searchpoint}}.
+#' @param etmeasure The object of the ecotone transect according to index \code{i} that is created by the function \code{\link[ecotoner]{detect_ecotone_transects_from_searchpoint}}.
+#' @param copy_FromMig1_TF A logical value. If \code{TRUE} and \code{migtype} is not \dQuote{AllMigration}, then output is copied from \dQuote{AllMigration} instead of re-calculated.
+#' @param do_figures A logical value. If \code{TRUE}, then figures are generated and saved to disk.
+#' @param ... Further arguments. Currently implemented are \code{seed} (to seed the random number generator), \code{flag_bfig} (character string to include in file names of figures), and \code{dir_fig} (character string of the path where figures are to be stored on disk).
+#'
+#' @return The object \code{etmeasure} with output of the call to \code{\link{calc_Danz2012_abruptness_2D}} based on \code{doms}, \code{b}, and \code{migtype} integrated.
+#' @seealso \code{\link{calc_Danz2012_abruptness_2D}}
+#' @references Danz, N. P., L. E. Frelich, P. B. Reich, and G. J. Niemi. 2012. Do vegetation boundaries display smooth or abrupt spatial transitions along environmental gradients? Evidence from the prairie-forest biome boundary of historic Minnesota, USA. Journal of Vegetation Science 24:1129-1140.
 #' @export
 Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasure, copy_FromMig1_TF, do_figures, ...) {
-	#---3. Ecological boundaries
-	#3a. Danz et al. 2012 J.Veg.Sci.: Shape of vegetation boundary in relation to environmental conditions
-	#Objective: of our boundary analysis was to evaluate whether the transition from prairie to forest across the boundary resulted from a smooth or abrupt climatic gradient, i.e. whether the transition followed pattern '(a)' or pattern '(b)' in Fig. 3. We used three analytical tactics to address this objective:
-	#	(1) description of the spatial pattern of vegetation transition across the boundary,
-	#	(2) evaluation of whether the climate gradient P - PET followed a steeper or shallower pattern of change across the boundary, and
-	#	(3) direct modelling of the vegetation-climate relationship across the boundary.
-	#Here, use elevation as surrogate driving environmental variable
-
 	dots <- list(...)
 	seed <- if ("seed" %in% names(dots)) dots["seed"] else NULL
 	if ("flag_bfig" %in% names(dots)) flag_bfig <- dots["flag_bfig"] else do_figures <- FALSE
@@ -238,9 +264,15 @@ Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 	
 	if (!copy_FromMig1_TF) {
 		# Vegetation versus elevation
-		doms <- list(lGLM = list(tag = "logistic GLM", cond = "TRUE", fun = "m_glm", family = "binomial", link = "logit"),
-					sNLS = list(tag = "sigmoidal NLS", cond = "TRUE", fun = "m_sig"),
-					lGLMM = list(tag = "logistic GLMM", cond = "!anyNA(dats[[k]][['r']])", fun = "m_glmm", family = "binomial", link = "logit")
+		doms <- list(	lm = list(tag = "LM", cond = "TRUE", fun = "m_glm", family = "gaussian", link = "identity")
+						, lGLM = list(tag = "logistic GLM", cond = "TRUE", fun = "m_glm", family = "binomial", link = "logit")
+						, bGLMc = list(tag = "binomial GLM with cloglog", cond = "TRUE", fun = "m_glm", family = "binomial", link = "cloglog")
+						, bGLMci = list(tag = "binomial GLM with cloglog and 1 - y", cond = "TRUE", fun = "m_glm", family = "binomial", link = "cloglog", ytrans = function(x) 1 - x, ytransinv = function(x) 1 - x)
+						, sNLS = list(tag = "sigmoidal NLS", cond = "TRUE", fun = "m_sig")
+						, lGLMMr = list(tag = "logistic lme4-GLMM with random rows", cond = "!anyNA(dats[[k]][['r']])", fun = "m_glmm_lme4", family = "binomial", link = "logit", random = "(x|r)")
+#						, lGLMMrc = list(tag = "logistic lme4-GLMM with random rows and columns", cond = "!anyNA(dats[[k]][['r']]) && !anyNA(dats[[k]][['c']])", fun = "m_glmm_lme4", family = "binomial", link = "logit", random = "(x|r) + (x|c)")
+						, lGLMMPQLr = list(tag = "logistic PQL-GLMM with random rows", cond = "!anyNA(dats[[k]][['r']])", fun = "m_glmm_PQL", family = "binomial", link = "logit", random = "~ x|r")
+#						, lGLMMPQLrSpher = list(tag = "logistic PQL-GLMM with random rows and spherical correlation in residuals", cond = "!anyNA(dats[[k]][['r']]) && !anyNA(dats[[k]][['c']])", fun = "m_glmm_PQL", family = "binomial", link = "logit", random = "~ x|r", correlation = "nlme::corSpher(form = ~ r + c, nugget = TRUE)")
 					)
 		use_dims <- c('1D' = FALSE, '2D' = TRUE)
 

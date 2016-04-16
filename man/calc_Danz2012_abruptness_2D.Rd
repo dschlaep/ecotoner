@@ -2,17 +2,50 @@
 % Please edit documentation in R/measure_danz_2d.R
 \name{calc_Danz2012_abruptness_2D}
 \alias{calc_Danz2012_abruptness_2D}
-\title{Estimates the abruptness of outcome y against x}
+\title{Estimation of the abruptness of the change of outcome z along the \sQuote{rows} of 1- and 2-dimensional x}
 \usage{
 calc_Danz2012_abruptness_2D(doms, use_dims, x1d, z1d, x2d, z2d, seed = NULL,
   include_lm = FALSE)
 }
 \arguments{
-\item{x}{A numeric vector. Predictor along the ecotone transect from left-right. The length of x has to correspond to the ecotone transect. For instance, distance along the transect.}
+\item{doms}{A named list of named options as a list that defines models which are applied to the data. See details.}
 
-\item{z}{A numeric vector. The outcome along the ecotone transect, e.g., vegetation density.}
+\item{use_dims}{A logical vector of length 2. Value of first/second element indicates if 1/2-dimensional models are estimated.}
+
+\item{x1d}{A numeric vector. The 1-dimensional predictor along the ecotone transect from left-right. The length of x has to correspond to the ecotone transect. For instance, distance along the transect.}
+
+\item{z1d}{A numeric vector. The 1-dimensional outcome along the ecotone transect, e.g., vegetation density.}
+
+\item{x2d}{A \code{\link{matrix}} or \linkS4class{RasterLayer}. The 2-dimensional predictor representing the ecotone transect band.}
+
+\item{z2d}{A \code{\link{matrix}} or \linkS4class{RasterLayer}. The 2-dimensional outcome representing the ecotone transect band.}
+
+\item{seed}{An integer value, \code{NULL}, or \code{NA}: \code{NA} will do nothing; the other two are passed to \code{\link{set.seed}}.}
+
+\item{include_lm}{A logical value. If \code{TRUE}, then a linear model is added to \code{doms}.}
+}
+\value{
+A named list with three items \sQuote{fits}, \sQuote{plot_preds}, and \sQuote{plot_data}
 }
 \description{
-Estimates the abruptness of outcome y against x
+Implementation of the methods by Danz et al. (2012).
+}
+\details{
+\code{doms} contains the named items 
+	\code{tag}: descriptive character string of the model; 
+	\code{cond}: character string that evaluates to a logical value expressing under which conditions the model should be calculated; 
+	\code{fun}: model function as character string; 
+	\code{family}: error distribution function as character string (see \code{\link[stats]{family}}); 
+	\code{link}: model link function as character string (see \code{\link[stats]{make.link}}); 
+	\code{random}: a character string representing the random effects if any (see \code{\link[lme4]{glmer}} for calls to \code{m_glmm_lme4}, respectively \code{\link[MASS]{glmmPQL}} for calls to \code{m_glmm_PQL}); 
+	\code{correlation}: \code{NULL} or a character string representing the residual correlation structure for \code{m_glmm_PQL} (see \code{\link[MASS]{glmmPQL}}); 
+	\code{ytrans}: optional - a function applied to outcome z before model fitting; 
+	\code{ytransinv}: optional - the backtransformation of \code{ytrans} applied after model fitting.
+}
+\references{
+Danz, N. P., L. E. Frelich, P. B. Reich, and G. J. Niemi. 2012. Do vegetation boundaries display smooth or abrupt spatial transitions along environmental gradients? Evidence from the prairie-forest biome boundary of historic Minnesota, USA. Journal of Vegetation Science 24:1129-1140.
+}
+\seealso{
+\code{\link{Danz2012JVegSci_2D}}, and the possible model functions \code{\link[ecotoner]{m_glm}}, \code{\link[ecotoner]{m_glmm_lme4}}, and \code{\link[ecotoner]{m_sig}}
 }
 

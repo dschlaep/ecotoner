@@ -375,7 +375,7 @@ m_transform_y <- function(data., ytrans = NULL, ytransinv = NULL) {
 	list(d = data., y_transformed = y_transformed, coef1_mult = m)
 }
 
-m_glm <- function(family, data., ytrans = NULL, ytransinv = NULL) {
+m_glm <- function(family, data., ytrans = NULL, ytransinv = NULL, ...) {
 	# Prepare data
 	w <- if (data.[["is_binary"]] || identical(family[["family"]], "gaussian")) NULL else data.[["w"]]
 	transdat <- m_transform_y(data., ytrans, ytransinv)
@@ -413,41 +413,116 @@ m_glm <- function(family, data., ytrans = NULL, ytransinv = NULL) {
 	list(m = mfit, preds = mpred, quals = quals, coef1 = coef1, perf = perf)
 }
 
-m_glmm <- function(family, data., ytrans = NULL, ytransinv = NULL) {
+m_glmm_lme4 <- function(family, data., random = "(x|r)", ytrans = NULL, ytransinv = NULL, ...) {
+	#---Test input
+	ok_random <- TRUE
+	testr <- sapply(c("[(]", "[|]", "[)]"), function(chr) gregexpr(chr, random)[[1]])
+	if (inherits(testr, "list")) {
+		ok_random <- FALSE
+	} else {
+		if (is.vector(testr)) testr <- matrix(testr, ncol = 3, byrow = TRUE)
+		if (!all(testr[, 1] < testr[, 2]) || !all(testr[, 2] < testr[, 3]))
+			ok_random <- FALSE
+	}
+	
+	#---Begin function calculations
 	mpred <- list()
 	coef1 <- c(beta = NA_integer_, se = NA_integer_)
 	quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
 	perf <- performance_bernoulli()
-
-	if (requireNamespace("lme4", quietly = TRUE) && requireNamespace("Matrix", quietly = TRUE)) {
-		# Prepare data
-		transdat <- m_transform_y(data., ytrans, ytransinv)
-
-		# Fit model
-		mfit <- try(lme4::glmer(y ~ x + (x|r), data = transdat[["d"]][c("x", "y", "r")], family = family), silent = TRUE)
-		#mfit2 <- try(lme4::glmer(y ~ x + (x|r) + (x|c), data = transdat[["d"]][c("x", "y", "r", "c")], family = family), silent = TRUE)
 	
-		if (!inherits(mfit, "try-error")) {
-			# unconditional (level-0 random effect) prediction
-			mpred <- list(fit = predict(mfit, newdata = transdat[["d"]][["newdata"]], re.form = ~ 0, type = "response"))
-			if (transdat[["y_transformed"]]) mpred <- ytransinv(mpred)
+	if (ok_random) {
+		if (requireNamespace("lme4", quietly = TRUE) && requireNamespace("Matrix", quietly = TRUE)) {
+			# Prepare data
+			transdat <- m_transform_y(data., ytrans, ytransinv)
+
+			# Fit model
+			mfit <- try(lme4::glmer(as.formula(paste0("y ~ x + ", random)), data = transdat[["d"]][c("x", "y", "r", "c")], family = family), silent = TRUE)
+	
+			if (!inherits(mfit, "try-error")) {
+				# unconditional (level-0 random effect) prediction
+				mpred <- list(fit = predict(mfit, newdata = transdat[["d"]][["newdata"]], re.form = ~ 0, type = "response"))
+				if (transdat[["y_transformed"]]) mpred <- ytransinv(mpred)
 			
-			quals <- c(isConv = TRUE, edf = attr(logLik(mfit), "df"),
-						lme4::llikAIC(mfit)[["AICtab"]][c("AIC", "logLik", "deviance", "df.resid")])
-			coef1 <- c(beta = as.numeric(lme4::fixef(mfit)[2]),
-						se = sqrt(Matrix::diag(vcov(mfit, use.hessian = TRUE))[2]))
-			if (transdat[["y_transformed"]]) coef1["beta"] <- coef1["beta"] * transdat[["coef1_mult"]]
+				quals <- c(isConv = TRUE, edf = attr(logLik(mfit), "df"),
+							lme4::llikAIC(mfit)[["AICtab"]][c("AIC", "logLik", "deviance", "df.resid")])
+				coef1 <- c(beta = as.numeric(lme4::fixef(mfit)[2]),
+							se = sqrt(Matrix::diag(vcov(mfit, use.hessian = TRUE))[2]))
+				if (transdat[["y_transformed"]]) coef1["beta"] <- coef1["beta"] * transdat[["coef1_mult"]]
 			
-			perf <- if (transdat[["d"]][["is_binary"]]) performance_bernoulli(pred = fitted(mfit), obs = transdat[["d"]][["y"]])
+				perf <- if (transdat[["d"]][["is_binary"]]) performance_bernoulli(pred = fitted(mfit), obs = transdat[["d"]][["y"]])
+			}
+		} else {
+			mfit <- try(stop("ecotoner::m_glmm_lme4(): package 'lme4' and/or 'Matrix' not installed: 'GLMM' not estimated"), silent = FALSE)
 		}
 	} else {
-		mfit <- try(stop("Package 'lme4' and/or 'Matrix' not installed: 'GLMM' not estimated"), silent = TRUE)
+		mfit <- try(stop("ecotoner::m_glmm_lme4(): argument 'random' is incorrectly formulated: ", random), silent = FALSE)
 	}
-	
+		
 	list(m = mfit, preds = mpred, quals = quals, coef1 = coef1, perf = perf)
 }
 
-m_sig <- function(data., ytrans = NULL, ytransinv = NULL) {
+
+m_glmm_PQL <- function(family, data., random = "~ x|r", correlation = "NULL", ytrans = NULL, ytransinv = NULL, ...) {
+	#---Test input
+	ok_random <- TRUE
+	
+	#---Begin function calculations
+	mpred <- list()
+	coef1 <- c(beta = NA_integer_, se = NA_integer_)
+	quals <- c(isConv = FALSE, edf = NA_integer_, AIC = NA_integer_, logLik = NA_integer_, deviance = NA_integer_, df.resid = NA_integer_)
+	perf <- performance_bernoulli()
+	
+	if (ok_random) {
+		if (requireNamespace("nlme", quietly = TRUE) && requireNamespace("MASS", quietly = TRUE)) {
+			# Prepare data
+			transdat <- m_transform_y(data., ytrans, ytransinv)
+			m_data <- as.data.frame(sapply(transdat[["d"]][c("x", "y", "r", "c")],
+											function(it) if (is.factor(it)) as.numeric(levels(it))[it] else it))
+			
+			# Fit model
+			if (is.null(eval(parse(text = correlation)))) {
+				cors <- NULL
+			} else {
+				# correlation <- "nlme::corSpher(form = ~ r + c, nugget = TRUE)"
+				cors <- try(nlme::Initialize(object = eval(parse(text = correlation)), data = m_data), silent = TRUE)
+			}
+			
+			if (!inherits(cors, "try-error")) {
+				mfit <- try(MASS::glmmPQL(fixed = y ~ x, random = as.formula(random),
+											family = family, correlation = cors, data = m_data,
+											verbose = FALSE),
+							silent = TRUE)
+	
+				if (!inherits(mfit, "try-error")) {
+					# unconditional (level-0 random effect) prediction
+					mpred <- list(fit = predict(mfit, newdata = transdat[["d"]][["newdata"]], level = 0, type = "response"))
+					if (transdat[["y_transformed"]]) mpred <- ytransinv(mpred)
+			
+					quals <- c(isConv = TRUE, edf = {temp <- extractAIC(mfit)}[1], AIC = temp[2],
+								logLik = as.numeric(logLik(mfit)), deviance = deviance(mfit), df.resid = df.residual(mfit))
+				
+					temp <- summary(mfit)$tTable
+					coef1 <- c(beta = temp[2, "Value"], se = temp[2, "Std.Error"])
+					if (transdat[["y_transformed"]]) coef1["beta"] <- coef1["beta"] * transdat[["coef1_mult"]]
+			
+					pred <- as.numeric(predict(mfit, newdata = m_data, level = 0, type = "response"))
+					perf <- if (transdat[["d"]][["is_binary"]]) performance_bernoulli(pred = pred, obs = transdat[["d"]][["y"]])
+				}
+			}
+		} else {
+			mfit <- try(stop("ecotoner::m_glmm_PQL(): package 'MASS' and/or 'nlme' not installed: 'GLMM' not estimated"), silent = FALSE)
+		}
+	} else {
+		mfit <- try(stop("ecotoner::m_glmm_PQL(): argument 'random' is incorrectly formulated: ", random), silent = FALSE)
+	}
+		
+	list(m = mfit, preds = mpred, quals = quals, coef1 = coef1, perf = perf)
+}
+
+
+
+m_sig <- function(data., ytrans = NULL, ytransinv = NULL, ...) {
 	# Prepare data
 	transdat <- m_transform_y(data., ytrans, ytransinv)
 

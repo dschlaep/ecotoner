@@ -23,7 +23,7 @@ get_transect_search_points(N, grid_mask1, mywindow = NULL,
 
 \item{initwindowfile}{A filename (and its path) or \code{NA}. If not \code{NA} and if a spatstat::owin object is created for an inhibited random sample, then the generated 'owin' object is stored to disk in \link[=readRDS]{.rds} format.}
 
-\item{seed}{An integer value or \code{NULL} to set the random number generator. \code{NULL} follows the behavior of \code{\link{set.seed}}.}
+\item{seed}{An integer value, \code{NULL}, or \code{NA}. \code{NA} will do nothing; the other two are passed to \code{\link{set.seed}}.}
 
 \item{verbose}{A logical value. If \code{TRUE}, then progress statements are printed out.}
 }
