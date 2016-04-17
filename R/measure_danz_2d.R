@@ -82,6 +82,7 @@ calc_Danz2012_abruptness_2D <- function(doms, use_dims, x1d, z1d, x2d, z2d, seed
 							scaled_scale = attr(x1d_scaled, "scaled:scale")),
 				 '2D' = list(x = as.numeric(x2d_scaled), y = dat2d[, "y"],
 				 			r = factor(dat2d[, "rows"]), c = factor(dat2d[, "cols"]),
+							w = rep(length(unique(dat2d[, "rows"])), nrow(dat2d)),
 				 			newdata = data.frame(x = scale(xt, center = attr(x2d_scaled, "scaled:center"), scale = attr(x2d_scaled, "scaled:scale"))),
 				 			is_binary = is_binary(dat2d[, "y"]),
 							scaled_scale = attr(x2d_scaled, "scaled:scale"))
@@ -115,16 +116,17 @@ calc_Danz2012_abruptness_2D <- function(doms, use_dims, x1d, z1d, x2d, z2d, seed
 				fargs <- c(fargs, list(family = match.fun(doms[[j]][["family"]])(link = doms[[j]][["link"]])))
 			fargs <- c(fargs, list(random = doms[[j]][["random"]],
 									correlation = doms[[j]][["correlation"]],
-									ytrans = doms[[j]][["ytrans"]], ytransinv = doms[[j]][["ytransinv"]],
+									ytrans = doms[[j]][["ytrans"]],
+									ytransinv = doms[[j]][["ytransinv"]],
 									grid = grid))
 			res <- do.call(doms[[j]][["fun"]], args = fargs)
 			if (inherits(res[["m"]], "try-error"))
-				stop("ecotoner::calc_Danz2012_abruptness_2D(): ", res[["m"]])
-
-			# copy result
-			preds[[k]][[doms[[j]][["tag"]]]] <- modifyList(res[["preds"]], list(isConv = res[["quals"]][["isConv"]]))
-			fits[[k]][[doms[[j]][["tag"]]]] <- res[c("quals", "coef1", "perf")]
+				warning("ecotoner::calc_Danz2012_abruptness_2D(): for ", sQuote(paste(names(doms[[j]]), "=", doms[[j]], collapse = "; ")), " with ", dQuote(res[["m"]]), immediate. = TRUE)
 			
+			# copy results
+			preds[[k]][[doms[[j]][["tag"]]]] <- c(res[["preds"]], list(isConv = res[["quals"]][["isConv"]]))
+			fits[[k]][[doms[[j]][["tag"]]]] <- res[c("quals", "coef1", "perf")]
+		
 			# rescale coef1 to original scale
 			cres <- fits[[k]][[doms[[j]][["tag"]]]][["coef1"]]
 			if (length(cres) > 0 && !anyNA(cres)) fits[[k]][[doms[[j]][["tag"]]]][["coef1"]] <- cres / dats[[k]][["scaled_scale"]]

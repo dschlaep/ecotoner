@@ -57,7 +57,7 @@ if (prj_status == "new") {
 	cores_N(esets) <- min(20, parallel::detectCores() - 1) # 0 or 1 will turn off parallelization
 	reproducible(esets) <- TRUE		# If TRUE, then transects set their own unique random seed (this setup is reproducible even after re-starting a parallel function call)
 	neighborhoods(esets) <- 1667
-	stepsHullEdge(esets) <- c(1, 3)
+	stepsHullEdge(esets) <- c(1, 3, 10)
 	clumpAreaClasses_m2(esets) <- c(1e4, 1e6)
 
 
@@ -455,22 +455,10 @@ if (actions["make_map"]){
 									  inhibit_dist = inhibit_dist_m(esets, res_m(specs_grid(egrids))))
 
 
-	if (!exists("resultTransects"))
-		resultTransects <- try(read.csv(file = file_etsummary(esets)), silent = TRUE)
-	
-	if (!inherits(resultTransects, "try-error") && nrow(resultTransects) > 0){
-		cat(format(Sys.time(), format = ""), ": drawing a map with ", nrow(resultTransects), " transects\n", sep = "")
+	cat(format(Sys.time(), format = ""), ": drawing a map of the study area\n", sep = "")
 
-	mtemp <- try(readRDS(file.path(dir_out(esets), "..", "..", "..", "2_Data", "20160126_GADMv28_USA_adm1_AEANAD83.rds")), silent = TRUE)
-	map <- if (inherits(mtemp, "try-error")) NULL else mtemp
-	
-	sp_start <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_StartPoint_WGS84_Long", "TransectLinear_StartPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
-	sp_start <- sp::coordinates(sp::spTransform(sp_start, crs(specs_grid(egrids))))
-	sp_end <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_EndPoint_WGS84_Long", "TransectLinear_EndPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
-	sp_end <- sp::coordinates(sp::spTransform(sp_end, crs(specs_grid(egrids))))
-	
+	id_transect_examples <- 1
 	ext <- raster::union(raster::extent(grid_env(egrids)), raster::extent(grid_veg(egrids)))
-	# ext <- raster::extent(-2500000, 10000, 850000, 3213514)
 
 	# map
 	pdf(width = 7, height = 6, file = file.path(dir_out(esets), paste0("Map_InputData_TransectLocations.pdf")))
@@ -481,7 +469,8 @@ if (actions["make_map"]){
 
 		raster::image(grid_env(egrids), col = gray(25:255/255), add = TRUE)
 		
-		if (!is.null(map))
+		map <- try(readRDS(file.path(dir_out(esets), "..", "..", "..", "2_Data", "20160126_GADMv28_USA_adm1_AEANAD83.rds")), silent = TRUE)
+		if (inherits(map, "SpatialPolygons"))
 			sp::plot(map, border = "white", add = TRUE)
 
 		if (raster::ncell(grid_veg1(egrids)) > 1)
@@ -490,16 +479,35 @@ if (actions["make_map"]){
 			raster::image(grid_veg2(egrids), col = adjustcolor("darkgreen", alpha.f = 0.3), add = TRUE)
 
 		if (!is.null(meta_veg[["initpoints_buffering"]]))
-			sp::plot(meta_veg[["initpoints_buffering"]], col = adjustcolor("royalblue1", alpha.f = 0.3), border = NA, add = TRUE)
+			sp::plot(meta_veg[["initpoints_buffering"]], col = adjustcolor("royalblue1", alpha.f = 0.4), border = NA, add = TRUE)
 		if (raster::ncell(grid_abut(egrids)) > 1) {
 			raster::image(grid_abut(egrids), col = "yellow", add = TRUE)
 			raster::image(grid_abut(egrids), col = "yellow", add = TRUE)
 		}
 
-		if (!inherits(resultTransects, "try-error") && nrow(resultTransects) > 0)
+		if (!exists("resultTransects"))
+			resultTransects <- try(read.csv(file = file_etsummary(esets)), silent = TRUE)
+		if (!inherits(resultTransects, "try-error") && nrow(resultTransects) > 0) {
+			sp_start <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_StartPoint_WGS84_Long", "TransectLinear_StartPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
+			sp_start <- sp::coordinates(sp::spTransform(sp_start, crs(specs_grid(egrids))))
+			sp_end <- sp::SpatialPoints(coords = resultTransects[, c("TransectLinear_EndPoint_WGS84_Long", "TransectLinear_EndPoint_WGS84_Lat")], proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
+			sp_end <- sp::coordinates(sp::spTransform(sp_end, crs(specs_grid(egrids))))
+	
 			segments(x0 = sp_start[, 1], y0 = sp_start[, 2],
 					x1 = sp_end[, 1], y1 = sp_end[, 2],
 					col = "orange", lwd = 1.5)
+			
+			if (length(id_transect_examples) > 0)
+				itemp <- which(resultTransects[, "Transect_ID"] == id_transect_examples)
+			if (length(itemp) > 0) {
+				points(x = apply(cbind(sp_start[itemp, 1], sp_end[itemp, 1]), 1, mean),
+						y = apply(cbind(sp_start[itemp, 2], sp_end[itemp, 2]), 1, mean),
+						col = "black", pch = 1, lwd = 2)
+				segments(x0 = sp_start[itemp, 1], y0 = sp_start[itemp, 2],
+						x1 = sp_end[itemp, 1], y1 = sp_end[itemp, 2],
+						col = "green", lwd = 2)			
+			}		
+		}
 
 	par(op_old)
 	dev.off()

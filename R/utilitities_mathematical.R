@@ -358,14 +358,14 @@ performance_bernoulli <- function(pred = NULL, obs = NULL) {
 	perf
 }
 
-m_transform_y <- function(data., ytrans = NULL, ytransinv = NULL) {
+m_transform_y <- function(data., ytrans = NULL, ytransinv = NULL, tol = sqrt(.Machine$double.eps)) {
 	y_transformed <- FALSE
 	m <- 1
 	
 	if (!is.null(ytrans) && !is.null(ytransinv)) {
 		temp1 <- try(ytrans(data.[["y"]]), silent = TRUE)
 		temp2 <- try(ytransinv(temp1), silent = TRUE)
-		if (!inherits(temp1, "try-error") && !inherits(temp2, "try-error") && isTRUE(all.equal(data.[["y"]], temp2))) {
+		if (!inherits(temp1, "try-error") && !inherits(temp2, "try-error") && isTRUE(all.equal(data.[["y"]], temp2, tolerance = tol))) {
 			data.[["y"]] <- temp1
 			y_transformed <- TRUE
 			m <- sign(cor(temp2, temp1, method = "spearman"))
@@ -377,14 +377,20 @@ m_transform_y <- function(data., ytrans = NULL, ytransinv = NULL) {
 
 m_glm <- function(family, data., ytrans = NULL, ytransinv = NULL, ...) {
 	# Prepare data
-	w <- if (data.[["is_binary"]] || identical(family[["family"]], "gaussian")) NULL else data.[["w"]]
-	transdat <- m_transform_y(data., ytrans, ytransinv)
+	if (data.[["is_binary"]] || identical(family[["family"]], "gaussian")) {
+		w <- NULL
+		tol <- sqrt(.Machine$double.eps)
+	} else {
+		w <- data.[["w"]]
+		tol <- 1e-2
+	}
+	transdat <- m_transform_y(data., ytrans, ytransinv, tol = tol)
 	
 	# Fit model
 	mfit <- try(stats::glm(y ~ x, family = family, weights = w,
 							data = transdat[["d"]][c("x", "y")],
 							model = FALSE, x = FALSE, y = FALSE),
-				silent = FALSE)
+				silent = TRUE)
 	#mfit0 <- try(stats::glm(y ~ 1, data = transdat[["d"]][c("x", "y")], family = family, weights = w), silent = TRUE)
 			
 	if (!inherits(mfit, "try-error")) {
@@ -437,10 +443,27 @@ m_glmm_lme4 <- function(family, data., random = "(x|r)", ytrans = NULL, ytransin
 	if (ok_random) {
 		if (requireNamespace("lme4", quietly = TRUE) && requireNamespace("Matrix", quietly = TRUE)) {
 			# Prepare data
-			transdat <- m_transform_y(data., ytrans, ytransinv)
+			if (data.[["is_binary"]] || identical(family[["family"]], "gaussian")) {
+				w <- NULL
+				tol <- sqrt(.Machine$double.eps)
+			} else {
+				w <- data.[["w"]]
+				tol <- 1e-2
+			}
+			transdat <- m_transform_y(data., ytrans, ytransinv, tol = tol)
 
 			# Fit model
-			mfit <- try(lme4::glmer(as.formula(paste0("y ~ x + ", random)), data = transdat[["d"]][c("x", "y", "r", "c")], family = family), silent = FALSE)
+			mfit <- if (identical(family[["family"]], "gaussian")) {
+						try(lme4::lmer(as.formula(paste0("y ~ x + ", random)),
+										data = transdat[["d"]][c("x", "y", "r", "c")],
+										weights = w),
+							silent = FALSE)
+					} else {
+						try(lme4::glmer(as.formula(paste0("y ~ x + ", random)),
+										data = transdat[["d"]][c("x", "y", "r", "c")],
+										family = family, weights = w),
+							silent = FALSE)
+					}
 	
 			if (!inherits(mfit, "try-error")) {
 				# unconditional (level-0 random effect) prediction
@@ -479,7 +502,14 @@ m_glmm_PQL <- function(family, data., random = "~ x|r", correlation = "NULL", yt
 	if (ok_random) {
 		if (requireNamespace("nlme", quietly = TRUE) && requireNamespace("MASS", quietly = TRUE)) {
 			# Prepare data
-			transdat <- m_transform_y(data., ytrans, ytransinv)
+			if (data.[["is_binary"]] || identical(family[["family"]], "gaussian")) {
+				w <- NULL
+				tol <- sqrt(.Machine$double.eps)
+			} else {
+				w <- data.[["w"]]
+				tol <- 1e-2
+			}
+			transdat <- m_transform_y(data., ytrans, ytransinv, tol = tol)
 			m_data <- as.data.frame(sapply(transdat[["d"]][c("x", "y", "r", "c")],
 											function(it) if (is.factor(it)) as.numeric(levels(it))[it] else it))
 			
@@ -492,10 +522,18 @@ m_glmm_PQL <- function(family, data., random = "~ x|r", correlation = "NULL", yt
 			}
 			
 			if (!inherits(cors, "try-error")) {
-				mfit <- try(MASS::glmmPQL(fixed = y ~ x, random = as.formula(random),
-											family = family, correlation = cors, data = m_data,
-											verbose = FALSE),
-							silent = FALSE)
+				mfit <- if (identical(family[["family"]], "gaussian")) {
+							try(nlme::lme(fixed = y ~ x, random = as.formula(random),
+												correlation = cors, weights = w,
+												data = m_data, verbose = FALSE),
+								silent = FALSE)
+						} else {
+							try(MASS::glmmPQL(fixed = y ~ x, random = as.formula(random),
+												family = family, correlation = cors,
+												weights = w, data = m_data,
+												verbose = FALSE),
+								silent = FALSE)
+						}
 	
 				if (!inherits(mfit, "try-error")) {
 					# unconditional (level-0 random effect) prediction
@@ -547,22 +585,47 @@ m_glmm_RAC <- function(family, data., random = "(x|r)", ytrans = NULL, ytransinv
 	if (ok_random) {
 		if (requireNamespace("lme4", quietly = TRUE) && requireNamespace("Matrix", quietly = TRUE) && requireNamespace("spdep", quietly = TRUE)) {
 			# Prepare data
-			transdat <- m_transform_y(data., ytrans, ytransinv)
+			if (data.[["is_binary"]] || identical(family[["family"]], "gaussian")) {
+				w <- NULL
+				tol <- sqrt(.Machine$double.eps)
+			} else {
+				w <- data.[["w"]]
+				tol <- 1e-2
+			}
+			transdat <- m_transform_y(data., ytrans, ytransinv, tol = tol)
 			m_data <- as.data.frame(sapply(transdat[["d"]][c("x", "y", "r", "c")],
 											function(it) if (is.factor(it)) as.numeric(levels(it))[it] else it))
 
 			# Fit non-spatial model
-			mfit1 <- try(lme4::glmer(as.formula(paste0("y ~ x + ", random)), data = m_data, family = family), silent = FALSE)
+			mfit1 <- if (identical(family[["family"]], "gaussian")) {
+						try(lme4::lmer(as.formula(paste0("y ~ x + ", random)),
+										data = m_data, weights = w),
+							silent = FALSE)
+					} else {
+						try(lme4::glmer(as.formula(paste0("y ~ x + ", random)),
+										data = m_data, 
+										family = family, weights = w),
+							silent = FALSE)
+					}
 			
 			if (!inherits(mfit1, "try-error")) {
 				# Calculate RAC = residual autocovariate
 				grid[] <- residuals(mfit1, type = "response", scale = FALSE)
-				w <- focalWeight_inverse(raster::res(grid), nbs = 5 * raster::xres(grid))
-				rac_focal <- raster::focal(grid, w = w, fun = "sum", na.rm = TRUE, pad = TRUE, padValue = NA)			
+				fw <- focalWeight_inverse(raster::res(grid), nbs = 5 * raster::xres(grid))
+				rac_focal <- raster::focal(grid, w = fw, fun = "sum", na.rm = TRUE, pad = TRUE, padValue = NA)			
 				m_data <- cbind(m_data, rac = raster::rasterToPoints(rac_focal)[, "layer"])
 				
 				# Fit spatial model with RAC
-				mfit <- try(lme4::glmer(as.formula(paste0("y ~ x + rac + ", random)), data = m_data, family = family), silent = FALSE)
+				mfit <- if (identical(family[["family"]], "gaussian")) {
+							try(lme4::lmer(as.formula(paste0("y ~ x + rac + ", random)),
+											data = m_data, weights = w),
+								silent = FALSE)
+						} else {
+							try(lme4::glmer(as.formula(paste0("y ~ x + rac + ", random)),
+												data = m_data, 
+												family = family, weights = w),
+									silent = FALSE)
+						}
 			
 				if (!inherits(mfit, "try-error")) {
 					# unconditional (level-0 random effect) prediction
