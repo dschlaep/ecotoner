@@ -2,6 +2,7 @@
 % Please edit documentation in R/utilitities_grids.R
 \name{focalWeight_inverse}
 \alias{focalWeight_inverse}
+\title{Focal weights matrix}
 \usage{
 focalWeight_inverse(rs, nbs)
 }
@@ -9,5 +10,17 @@ focalWeight_inverse(rs, nbs)
 \item{rs}{A vector of length two. The resolution of a raster object.}
 
 \item{nbs}{A numerical value. The distance of the circular weights matrix in raster units.}
+}
+\value{
+A square matrix. The sum of the values adds up to one.
+}
+\description{
+Calculate focal ("moving window") weight matrix for use in the function \code{\link[raster]{focal}}. The weights are proportional to the inverse of the Euclidean-distances.
+}
+\details{
+Modified from raster:::.circular.weight
+}
+\seealso{
+\code{\link[raster]{focalWeight}} and \code{\link[raster]{focal}}
 }
 

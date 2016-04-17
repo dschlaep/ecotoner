@@ -353,10 +353,18 @@ get_transect_grids_as_df <- function(i, et_desc = NULL, ecotoner_settings, migty
 	} else NULL
 }
 	
-
-# modified from raster:::.circular.weight
+	
+#' Focal weights matrix
+#'
+#' Calculate focal ("moving window") weight matrix for use in the function \code{\link[raster]{focal}}. The weights are proportional to the inverse of the Euclidean-distances.
+#'
+#' Modified from raster:::.circular.weight
+#'
 #' @param rs A vector of length two. The resolution of a raster object.
 #' @param nbs A numerical value. The distance of the circular weights matrix in raster units.
+#' @seealso \code{\link[raster]{focalWeight}} and \code{\link[raster]{focal}}
+#' @return A square matrix. The sum of the values adds up to one.
+#' @export
 focalWeight_inverse <- function (rs, nbs) {
 	nx <- 1 + 2 * floor(nbs / rs[1])
     ny <- 1 + 2 * floor(nbs / rs[2])

@@ -481,7 +481,7 @@ m_glmm_PQL <- function(family, data., random = "~ x|r", correlation = "NULL", yt
 											function(it) if (is.factor(it)) as.numeric(levels(it))[it] else it))
 			
 			# Fit model
-			if (is.null(eval(parse(text = correlation)))) {
+			if (is.null(correlation) || is.null(eval(parse(text = correlation)))) {
 				cors <- NULL
 			} else {
 				# correlation <- "nlme::corSpher(form = ~ r + c, nugget = TRUE)"

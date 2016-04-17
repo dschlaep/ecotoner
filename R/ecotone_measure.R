@@ -17,21 +17,26 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 		names(cur_versions) <- et_methods
 		
 		# Determine measure methods status
-		started_meas <- names(etmeas) %in% et_methods
-		redo_meas <- !started_meas
-		if (any(started_meas)) redo_meas <- redo_meas | sapply(etmeas[started_meas], is.null)
-		if (any(redo_meas)) what_measure[et_methods %in% names(etmeas)[redo_meas], , ] <- TRUE # do those that are only list()
-		what_measure[!(et_methods %in% names(etmeas)), , ] <- TRUE # do those that are not in etmeas yet
-		
-		# Determine if some measure methods have only partially completed or were calculated by an outdated version
-		if (any(!redo_meas)) {
-			todo_neighsXmigs <- sapply(etmeas[!redo_meas], function(x)
+		#	- do those that are not in etmeas yet
+		started_etmeth <- et_methods %in% names(etmeas)
+		what_measure[!started_etmeth, , ] <- TRUE
+		#	- do those that are only list()
+		started_etmeas <- names(etmeas) %in% et_methods
+		if (any(started_etmeas)) redo_etmeas <- sapply(etmeas[started_etmeas], function(x) length(x) == 0L)
+		if (any(redo_etmeas)) what_measure[et_methods %in% names(etmeas)[started_etmeas][redo_etmeas], , ] <- TRUE
+		#	- check if some measure methods have only partially completed or were calculated by an outdated version
+		if (any(started_etmeas)) {
+			todo_neighsXmigs <- sapply(etmeas[started_etmeas], function(x)
 									sapply(x$gETmeas, function(b)
 										sapply(b, function(m)
 											isTRUE(length(m) <= 1) ||
 											is.null(m$meta) ||
 											isTRUE(m$meta$version < cur_versions[[m$meta$method]]))))
-			what_measure[names(etmeas)[!redo_meas], , ] <- t(todo_neighsXmigs)
+			if (length(dim(todo_neighsXmigs)) == 2L && identical(dim(todo_neighsXmigs), dim(what_measure[names(etmeas)[started_etmeas], , ]))) {
+				what_measure[names(etmeas)[started_etmeas], , ] <- t(todo_neighsXmigs)
+			} else {
+				what_measure[names(etmeas)[started_etmeas], , ] <- TRUE
+			}
 		}
 		
 		do_new_etmeas <- FALSE
@@ -105,13 +110,17 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 #					print(which(is.na(object)))}),
 #	at = 3)
 #
-						temp <- try(do.call(what = etm, args = list(i = i, b = b, migtype = migtypes[im], 
-																	ecotoner_settings = ecotoner_settings,
-																	etband = etransect[["etbands"]][[b]],
-																	etmeasure = etmeas[[etm]],
-																	copy_FromMig1_TF = copy_FromMig1_TF,
-																	do_figures = do_figures, dir_fig = dir_fig, flag_bfig = flag_bfig,
-																	seed = NA)), silent = TRUE)
+						temp <- try(do.call(what = etm,
+											args = list(i = i, b = b, migtype = migtypes[im], 
+														ecotoner_settings = ecotoner_settings,
+														etband = etransect[["etbands"]][[b]],
+														etmeasure = etmeas[[etm]],
+														copy_FromMig1_TF = copy_FromMig1_TF,
+														do_figures = do_figures,
+														dir_fig = dir_fig,
+														flag_bfig = flag_bfig,
+														seed = NA)),
+									silent = TRUE)
 				
 						if (inherits(temp, "try-error")) {
 							warning("'measure_ecotone_per_transect': ", temp, immediate. = TRUE)

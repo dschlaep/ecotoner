@@ -141,11 +141,11 @@ add_Danz2012_abruptness_2D_panel <- function(preds, data, end_toLeft, xlab, ylab
 		ncol1 <- min(m_N)
 		ncol2 <- abs(diff(m_N))
 	} else {
-		ncol1 <- floor(m_N / 2)
-		ncol2 <- m_N - 2 * ncol1
+		ncol1 <- floor(m_N / 3)
+		ncol2 <- m_N - 3 * ncol1
 	}
-	m_cols <- list(line = c(rep(c("blue", "black"), each = ncol1), rep("purple", ncol2)),
-					range = c(rep(c("darkgray", "darkgreen"), each = ncol1), rep("orchid", ncol2)))
+	m_cols <- list(line = c(rep(c("blue", "darkgreen", "black"), each = ncol1), rep("purple", ncol2)),
+					range = c(rep(c("dodgerblue", "forestgreen", "darkgray"), each = ncol1), rep("orchid", ncol2)))
 
 	# Start plot and add observed mean data
 	plot(data[["1D"]][["x"]], data[["1D"]][["y"]],
@@ -197,7 +197,7 @@ add_Danz2012_abruptness_2D_panel <- function(preds, data, end_toLeft, xlab, ylab
 					if (end_toLeft) "topleft" else "topright"
 				 }
 		legend(x = x_pos, inset = c(0, 0.025), bty = "n",
-				legend = m_labels, cex = cex * 0.6,
+				legend = m_labels, cex = cex * 0.5,
 				lty = m_ltys, col = m_cols[["line"]],
 				pch = 22, pt.cex = 1.25, pt.lwd = 0, pt.bg = adjustcolor(m_cols[["range"]], alpha.f = 0.3))
 	}
@@ -276,29 +276,29 @@ Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 #						, lGLMMrc = list(tag = "logistic lme4-GLMM with random rows and columns", cond = "!anyNA(dats[[k]][['r']]) && !anyNA(dats[[k]][['c']])", fun = "m_glmm_lme4", family = "binomial", link = "logit", random = "(x|r) + (x|c)")
 						, lGLMMPQLr = list(tag = "logistic PQL-GLMM with random rows", cond = "!anyNA(dats[[k]][['r']])", fun = "m_glmm_PQL", family = "binomial", link = "logit", random = "~ x|r")
 #						, lGLMMPQLrSpher = list(tag = "logistic PQL-GLMM with random rows and spherical correlation in residuals", cond = "!anyNA(dats[[k]][['r']]) && !anyNA(dats[[k]][['c']])", fun = "m_glmm_PQL", family = "binomial", link = "logit", random = "~ x|r", correlation = "nlme::corSpher(form = ~ r + c, nugget = TRUE)")
-						, lGLMMrRAC = list(tag = "logistic GLMM with random rows and RAC", cond = "!anyNA(dats[[k]][['r']])", fun = "m_glmm_RAC", family = "binomial", link = "logit", random = "(x|r)", grid = )
+						, lGLMMrRAC = list(tag = "logistic GLMM with random rows and RAC", cond = "!anyNA(dats[[k]][['r']])", fun = "m_glmm_RAC", family = "binomial", link = "logit", random = "(x|r)")
 					)
 		use_dims <- c('1D' = FALSE, '2D' = TRUE)
 
 		temp1 <- calc_Danz2012_abruptness_2D(doms, use_dims,
-												x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$Veg1$density,
-												x2d = etband$Env$elev$grid, z2d = etband$Veg[[migtype]]$Veg1$grid, seed = seed)
+					x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$Veg1$density,
+					x2d = etband$Env$elev$grid, z2d = etband$Veg[[migtype]]$Veg1$grid, seed = seed)
 		temp2 <- calc_Danz2012_abruptness_2D(doms, use_dims,
-												x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$Veg2$density,
-												x2d = etband$Env$elev$grid, z2d = etband$Veg[[migtype]]$Veg2$grid, seed = seed)
+					x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$Veg2$density,
+					x2d = etband$Env$elev$grid, z2d = etband$Veg[[migtype]]$Veg2$grid, seed = seed)
 		etmeasure$gETmeas[[b]][[migtype]]$Veg1VsElev_2D <- temp1$fits
 		etmeasure$gETmeas[[b]][[migtype]]$Veg2VsElev_2D <- temp2$fits
 		
 		if (do_figures) plot_Danz2012_abruptness_2D(filename = file.path(dir_fig, paste0(flag_bfig, "Danz2012_FittedBoundaryShapes_2D_", migtype, "_VegsVsElev.pdf")),
-													xlab = "Elevation (m)",
-													preds1 = temp1$plot_preds, preds2 = temp2$plot_preds,
-													data1 = temp1$plot_data, data2 = temp2$plot_data,
-													end_toLeft1 = end_to_left(type_veg1(ecotoner_settings)), end_toLeft2 = end_to_left(type_veg2(ecotoner_settings)))
+							xlab = "Elevation (m)",
+							preds1 = temp1$plot_preds, preds2 = temp2$plot_preds,
+							data1 = temp1$plot_data, data2 = temp2$plot_data,
+							end_toLeft1 = end_to_left(type_veg1(ecotoner_settings)), end_toLeft2 = end_to_left(type_veg2(ecotoner_settings)))
 
 	} 
 	
 	etmeasure$etable <- tabulate_Danz2012_abruptness_2D(etable = etmeasure$etable, index = b_migtype,
-														data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) "AllMigration" else migtype]])
+							data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) "AllMigration" else migtype]])
 
 	etmeasure	
 }
