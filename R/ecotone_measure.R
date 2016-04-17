@@ -123,7 +123,7 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 									silent = TRUE)
 				
 						if (inherits(temp, "try-error")) {
-							warning("'measure_ecotone_per_transect': ", temp, immediate. = TRUE)
+							warning("'measure_ecotone_per_transect': tr = ", i, "; neigh = ", b, "; mig-type: ", migtypes[im], "; method: ", etm, , ": ", temp, immediate. = TRUE)
 						} else {
 							etmeas[[etm]] <- temp
 

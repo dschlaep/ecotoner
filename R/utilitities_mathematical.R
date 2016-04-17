@@ -381,7 +381,10 @@ m_glm <- function(family, data., ytrans = NULL, ytransinv = NULL, ...) {
 	transdat <- m_transform_y(data., ytrans, ytransinv)
 	
 	# Fit model
-	mfit <- try(stats::glm(y ~ x, data = transdat[["d"]][c("x", "y")], family = family, weights = w), silent = TRUE)
+	mfit <- try(stats::glm(y ~ x, family = family, weights = w,
+							data = transdat[["d"]][c("x", "y")],
+							model = FALSE, x = FALSE, y = FALSE),
+				silent = FALSE)
 	#mfit0 <- try(stats::glm(y ~ 1, data = transdat[["d"]][c("x", "y")], family = family, weights = w), silent = TRUE)
 			
 	if (!inherits(mfit, "try-error")) {
@@ -437,7 +440,7 @@ m_glmm_lme4 <- function(family, data., random = "(x|r)", ytrans = NULL, ytransin
 			transdat <- m_transform_y(data., ytrans, ytransinv)
 
 			# Fit model
-			mfit <- try(lme4::glmer(as.formula(paste0("y ~ x + ", random)), data = transdat[["d"]][c("x", "y", "r", "c")], family = family), silent = TRUE)
+			mfit <- try(lme4::glmer(as.formula(paste0("y ~ x + ", random)), data = transdat[["d"]][c("x", "y", "r", "c")], family = family), silent = FALSE)
 	
 			if (!inherits(mfit, "try-error")) {
 				# unconditional (level-0 random effect) prediction
@@ -485,14 +488,14 @@ m_glmm_PQL <- function(family, data., random = "~ x|r", correlation = "NULL", yt
 				cors <- NULL
 			} else {
 				# correlation <- "nlme::corSpher(form = ~ r + c, nugget = TRUE)"
-				cors <- try(nlme::Initialize(object = eval(parse(text = correlation)), data = m_data), silent = TRUE)
+				cors <- try(nlme::Initialize(object = eval(parse(text = correlation)), data = m_data), silent = FALSE)
 			}
 			
 			if (!inherits(cors, "try-error")) {
 				mfit <- try(MASS::glmmPQL(fixed = y ~ x, random = as.formula(random),
 											family = family, correlation = cors, data = m_data,
 											verbose = FALSE),
-							silent = TRUE)
+							silent = FALSE)
 	
 				if (!inherits(mfit, "try-error")) {
 					# unconditional (level-0 random effect) prediction
@@ -549,7 +552,7 @@ m_glmm_RAC <- function(family, data., random = "(x|r)", ytrans = NULL, ytransinv
 											function(it) if (is.factor(it)) as.numeric(levels(it))[it] else it))
 
 			# Fit non-spatial model
-			mfit1 <- try(lme4::glmer(as.formula(paste0("y ~ x + ", random)), data = m_data, family = family), silent = TRUE)
+			mfit1 <- try(lme4::glmer(as.formula(paste0("y ~ x + ", random)), data = m_data, family = family), silent = FALSE)
 			
 			if (!inherits(mfit1, "try-error")) {
 				# Calculate RAC = residual autocovariate
@@ -559,7 +562,7 @@ m_glmm_RAC <- function(family, data., random = "(x|r)", ytrans = NULL, ytransinv
 				m_data <- cbind(m_data, rac = raster::rasterToPoints(rac_focal)[, "layer"])
 				
 				# Fit spatial model with RAC
-				mfit <- try(lme4::glmer(as.formula(paste0("y ~ x + rac + ", random)), data = m_data, family = family), silent = TRUE)
+				mfit <- try(lme4::glmer(as.formula(paste0("y ~ x + rac + ", random)), data = m_data, family = family), silent = FALSE)
 			
 				if (!inherits(mfit, "try-error")) {
 					# unconditional (level-0 random effect) prediction
@@ -575,6 +578,8 @@ m_glmm_RAC <- function(family, data., random = "(x|r)", ytrans = NULL, ytransinv
 			
 					perf <- if (transdat[["d"]][["is_binary"]]) performance_bernoulli(pred = fitted(mfit), obs = transdat[["d"]][["y"]])
 				}
+			} else {
+				mfit <- mfit1
 			}
 		} else {
 			mfit <- try(stop("ecotoner::m_glmm_lme4(): package 'lme4', 'Matrix', and/or 'spdep' not installed: 'GLMM' with residual autocovariate not estimated"), silent = FALSE)

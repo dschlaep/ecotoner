@@ -118,7 +118,9 @@ calc_Danz2012_abruptness_2D <- function(doms, use_dims, x1d, z1d, x2d, z2d, seed
 									ytrans = doms[[j]][["ytrans"]], ytransinv = doms[[j]][["ytransinv"]],
 									grid = grid))
 			res <- do.call(doms[[j]][["fun"]], args = fargs)
-			
+			if (inherits(res[["m"]], "try-error"))
+				stop("ecotoner::calc_Danz2012_abruptness_2D(): ", res[["m"]])
+
 			# copy result
 			preds[[k]][[doms[[j]][["tag"]]]] <- modifyList(res[["preds"]], list(isConv = res[["quals"]][["isConv"]]))
 			fits[[k]][[doms[[j]][["tag"]]]] <- res[c("quals", "coef1", "perf")]
