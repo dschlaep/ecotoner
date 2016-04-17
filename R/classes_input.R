@@ -9,14 +9,14 @@
 #' @slot rotation A logical. A flag indicating whether the grids are rotated (TRUE) or not (FALSE).
 #' 
 GridInfo <- setClass("GridInfo",
-						slots = list(crs = structure("CRS", package = "sp"),
-									res_m = "numeric",
-									longlat = "logical",
-									origin = "numeric",
-									rotation = "logical"
-								),
-						prototype = list(crs = sp::CRS(NA_character_), res_m = NA_real_, longlat = NA, origin = c(NA_real_, NA_real_), rotation = NA)
-					)
+	slots = list(crs = structure("CRS", package = "sp"),
+				res_m = "numeric",
+				longlat = "logical",
+				origin = "numeric",
+				rotation = "logical"
+			),
+	prototype = list(crs = sp::CRS(NA_character_), res_m = NA_real_, longlat = NA, origin = c(NA_real_, NA_real_), rotation = NA)
+)
 
 # TODO(drs): validify that units of slot 'res_m' are correct
 
@@ -35,19 +35,19 @@ GridInfo <- setClass("GridInfo",
 #' @export
 ## Can extend and create with new("EcotonerGrids", ...). You can use EcotonerGrids() inside package, but not exported. See http://r-pkgs.had.co.nz/namespace.html
 EcotonerGrids <- setClass("EcotonerGrids", 
-							slots = list(grid_env = structure("RasterLayer", package = "raster"),
-										grid_veg = structure("RasterLayer", package = "raster"),
-										grid_veg1 = structure("RasterLayer", package = "raster"),
-										grid_veg2 = structure("RasterLayer", package = "raster"),
-										grid_flow = structure("RasterLayer", package = "raster"),
-										grid_abut = structure("RasterLayer", package = "raster"),
-										grid_aspect_mean = structure("RasterLayer", package = "raster"),
-										grid_aspect_sd = structure("RasterLayer", package = "raster"),
-										specs_grid = "GridInfo",
-										df_veg = "data.frame"
-									),
-							prototype = list(df_veg = data.frame())
-							)
+	slots = list(grid_env = structure("RasterLayer", package = "raster"),
+				grid_veg = structure("RasterLayer", package = "raster"),
+				grid_veg1 = structure("RasterLayer", package = "raster"),
+				grid_veg2 = structure("RasterLayer", package = "raster"),
+				grid_flow = structure("RasterLayer", package = "raster"),
+				grid_abut = structure("RasterLayer", package = "raster"),
+				grid_aspect_mean = structure("RasterLayer", package = "raster"),
+				grid_aspect_sd = structure("RasterLayer", package = "raster"),
+				specs_grid = "GridInfo",
+				df_veg = "data.frame"
+			),
+	prototype = list(df_veg = data.frame())
+)
 
 setValidity("EcotonerGrids", function(object) {
 	check_grid <- function(grid, specs) {

@@ -49,7 +49,8 @@ calc_Eppinga2013_advancement <- function(veg, end_toLeft, optBoundary_cell) {
 calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_dist_T17_veg2, FR_dist_mean_T17_veg2, seed = NULL) {
 	#assumption that all frontrunners are y-row wise dispersed and do not originate from other sources
 
-	res_names <- c("FrontsAdvBeyondOptBoundary", "FD_mean_T17", "FD_sd_T17", "FD_mean_m",
+	res_names <- c("FrontsAdvBeyondOptBoundary",
+					"FD_mean_T17", "FD_sd_T17", "FD_mean_m",
 					"FD_boots_R",
 					"FD_iidboot_mean", "FD_iidboot_bias", "FD_iidboot_se", "FD_iidboot_ci_type", "FD_iidboot_ci0_p", "FD_iidboot_freq_p",
 					"FD_depboot_mean", "FD_depboot_bias", "FD_depboot_se", "FD_depboot_ci_type", "FD_depboot_ci0_p", "FD_depboot_freq_p", "FD_depboot_bstar", 
@@ -291,29 +292,36 @@ Eppinga2013Ecography <- function(i, b, migtype, ecotoner_settings, etband, etmea
 
 	
 	if (!copy_FromMig1_TF) {
-		etmeasure$gETmeas[[b]][[migtype]]$optim <- calc_Eppinga2013_optpos(Veg1 = etband$Veg[[migtype]]$Veg1$grid,
-																		   Veg2 = etband$Veg[[migtype]]$Veg2$grid)
+		etmeasure$gETmeas[[b]][[migtype]]$optim <- calc_Eppinga2013_optpos(
+			Veg1 = etband$Veg[[migtype]]$Veg1$grid,
+			Veg2 = etband$Veg[[migtype]]$Veg2$grid)
 		
-		etmeasure$gETmeas[[b]][[migtype]]$adv_veg1 <- calc_Eppinga2013_advancement(veg = etband$Veg[[migtype]]$Veg1$grid,
-																		end_toLeft = end_to_left(type_veg1(ecotoner_settings)),
-																		optBoundary_cell = etmeasure$gETmeas[[b]][[migtype]]$optim$pos_cell)
-		etmeasure$gETmeas[[b]][[migtype]]$adv_veg2 <- calc_Eppinga2013_advancement(veg = etband$Veg[[migtype]]$Veg2$grid,
-																		end_toLeft = end_to_left(type_veg2(ecotoner_settings)),
-																		optBoundary_cell = etmeasure$gETmeas[[b]][[migtype]]$optim$pos_cell)
+		etmeasure$gETmeas[[b]][[migtype]]$adv_veg1 <- calc_Eppinga2013_advancement(
+			veg = etband$Veg[[migtype]]$Veg1$grid,
+			end_toLeft = end_to_left(type_veg1(ecotoner_settings)),
+			optBoundary_cell = etmeasure$gETmeas[[b]][[migtype]]$optim$pos_cell)
 		
-		etmeasure$gETmeas[[b]][[migtype]]$adv_stats <- calc_Eppinga2013_stats(FR_dist_T17_veg1 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg1$FR_dist_T17,
-																		FR_dist_mean_T17_veg1 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg1$FR_dist_mean_T17,
-																		FR_dist_T17_veg2 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg2$FR_dist_T17,
-																		FR_dist_mean_T17_veg2 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg2$FR_dist_mean_T17,
-																		seed = seed)
+		etmeasure$gETmeas[[b]][[migtype]]$adv_veg2 <- calc_Eppinga2013_advancement(
+			veg = etband$Veg[[migtype]]$Veg2$grid,
+			end_toLeft = end_to_left(type_veg2(ecotoner_settings)),
+			optBoundary_cell = etmeasure$gETmeas[[b]][[migtype]]$optim$pos_cell)
+		
+		etmeasure$gETmeas[[b]][[migtype]]$adv_stats <- calc_Eppinga2013_stats(
+			FR_dist_T17_veg1 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg1$FR_dist_T17,
+			FR_dist_mean_T17_veg1 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg1$FR_dist_mean_T17,
+			FR_dist_T17_veg2 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg2$FR_dist_T17,
+			FR_dist_mean_T17_veg2 = etmeasure$gETmeas[[b]][[migtype]]$adv_veg2$FR_dist_mean_T17,
+			seed = seed)
 
-		if(do_figures) map_front_runners_Eppinga2013(filename = file.path(dir_fig, paste0(flag_bfig, "Eppinga2013_FittedBoundaryAdvancement_", migtype, ".pdf")),
-													eB_Env = etband$Env, eB_Veg = etband$Veg[[migtype]],
-													datFit = etmeasure$gETmeas[[b]][[migtype]])				
+		if(do_figures) map_front_runners_Eppinga2013(
+			filename = file.path(dir_fig, paste0(flag_bfig, "Eppinga2013_FittedBoundaryAdvancement_", migtype, ".pdf")),
+			eB_Env = etband$Env, eB_Veg = etband$Veg[[migtype]],
+			datFit = etmeasure$gETmeas[[b]][[migtype]])				
 	}
 	
-	etmeasure$etable <- tabulate_Eppinga2013_advance(etable = etmeasure$etable, index = b_migtype,
-													data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) "AllMigration" else migtype]])
+	etmeasure$etable <- tabulate_Eppinga2013_advance(
+		etable = etmeasure$etable, index = b_migtype,
+		data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) "AllMigration" else migtype]])
 		
 	etmeasure
 }

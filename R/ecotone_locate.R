@@ -54,8 +54,7 @@ estimate_transect_homogeneity <- function(ecotoner_settings, ecotoner_grids, etb
 	etband$Env$elev$Elevation_Cellwise_YMeans_MaxAbsError <- max_of_abs(resids2, na.rm = TRUE)
 	
 	#global spatial autocorrelation in elevation residuals from y-means transect elevation gradient
-	mresids <- sp::SpatialPointsDataFrame(coords = sp::coordinates(etband$Env$elev$grid),
-											data = data.frame(layer = as.vector(t(resids2))), proj4string = raster::crs(etband$Env$elev$grid))
+	mresids <- sp::SpatialPointsDataFrame(coords = sp::coordinates(etband$Env$elev$grid), data = data.frame(layer = as.vector(t(resids2))), proj4string = raster::crs(etband$Env$elev$grid))
 	sp::gridded(mresids) <- TRUE #upgrade to SpatialPixelDataFrame
 	if (anyNA(resids2)) mresids <- mresids[!is.na(mresids$layer), ] # Remove NAs for 'moran.mc' and 'calc_variogram_range'
 	
@@ -103,20 +102,21 @@ gap.rat <- df_veg(ecotoner_grids)
 	if (!is.null(tempData) && file.exists(tempData)) {
 		temp_stline_cands <- readRDS(tempData)
 	} else {
-		temp_stline_cands <- locate_candidate_transect_lines(transect_type = transect_type(ecotoner_settings),
-								start = ipoint,
-								neighbors = neighborhoods(ecotoner_settings)[b],
-								max_neighborhood = max(neighborhoods(ecotoner_settings)),
-								grid_gradient = elevCropped,
-								grid_flow = grid_flow(ecotoner_grids),
-								asp201MeanCropped = asp201MeanCropped,
-								asp201SDCropped = asp201SDCropped,
-								bseABUTtfCropped = bseABUTtfCropped,
-								candidate_THA_N = candidate_THAs_N(ecotoner_settings),
-								width_N = bandTransect_width_cellN(ecotoner_settings),
-								max_aspect_sd = Aspect_SDof201Mean_Maximum(ecotoner_settings),
-								max_aspect_diff = Aspect_DeviationAlongCandidateLines_Maximum(ecotoner_settings),
-								seed = seed)
+		temp_stline_cands <- locate_candidate_transect_lines(
+			transect_type = transect_type(ecotoner_settings),
+			start = ipoint,
+			neighbors = neighborhoods(ecotoner_settings)[b],
+			max_neighborhood = max(neighborhoods(ecotoner_settings)),
+			grid_gradient = elevCropped,
+			grid_flow = grid_flow(ecotoner_grids),
+			asp201MeanCropped = asp201MeanCropped,
+			asp201SDCropped = asp201SDCropped,
+			bseABUTtfCropped = bseABUTtfCropped,
+			candidate_THA_N = candidate_THAs_N(ecotoner_settings),
+			width_N = bandTransect_width_cellN(ecotoner_settings),
+			max_aspect_sd = Aspect_SDof201Mean_Maximum(ecotoner_settings),
+			max_aspect_diff = Aspect_DeviationAlongCandidateLines_Maximum(ecotoner_settings),
+			seed = seed)
 		if (!is.null(tempData)) saveRDS(temp_stline_cands, file = tempData)
 	}
 	
@@ -143,14 +143,15 @@ gap.rat <- df_veg(ecotoner_grids)
 			#Calculate outline of maximal band transect along elevation transect
 			# and how to transform from original coordinates to band transect coordinates
 		
-			temp_stband <- locate_candidate_transect_band(stline = temp_stline,
-													width_N = bandTransect_width_cellN(ecotoner_settings),
-													res_rotate_grid = res_rotate_grid(ecotoner_settings),
-													elevCropped = elevCropped,
-													elev = grid_env(ecotoner_grids), gap = grid_veg(ecotoner_grids),
-													bseRatValue = type_ids(type_veg1(ecotoner_settings)),
-													tfRatValue = type_ids(type_veg2(ecotoner_settings)),
-													seed = seed)
+			temp_stband <- locate_candidate_transect_band(
+				stline = temp_stline,
+				width_N = bandTransect_width_cellN(ecotoner_settings),
+				res_rotate_grid = res_rotate_grid(ecotoner_settings),
+				elevCropped = elevCropped,
+				elev = grid_env(ecotoner_grids), gap = grid_veg(ecotoner_grids),
+				bseRatValue = type_ids(type_veg1(ecotoner_settings)),
+				tfRatValue = type_ids(type_veg2(ecotoner_settings)),
+				seed = seed)
 		
 			if (is.null(temp_stband$grids)) {
 				if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
@@ -159,11 +160,12 @@ gap.rat <- df_veg(ecotoner_grids)
 			}				
 
 			#2c. Apply definition of zone of ecological boundary to BSE and TF
-			limits1_ZoneEcolBoundary <- determine_ecotone_linear_extent(dens_BSE=NULL, dens_Veg1=temp_stband$grids$bse_dens, end1_toLeft=end_to_left(type_veg1(ecotoner_settings)),
-																		dens_TF=NULL, dens_Veg2=temp_stband$grids$tf_dens, end2_toLeft=end_to_left(type_veg2(ecotoner_settings)),
-																		veg_density_low = vegDefiningDensityTransect_low(ecotoner_settings),
-																		veg_density_high = vegDefiningDensityTransect_high(ecotoner_settings),
-																		veg_density_extended_min = vegDefiningDensityTransectExtended_min(ecotoner_settings))
+			limits1_ZoneEcolBoundary <- determine_ecotone_linear_extent(
+				dens_BSE = NULL, dens_Veg1 = temp_stband$grids$bse_dens, end1_toLeft = end_to_left(type_veg1(ecotoner_settings)),
+				dens_TF = NULL, dens_Veg2 = temp_stband$grids$tf_dens, end2_toLeft = end_to_left(type_veg2(ecotoner_settings)),
+				veg_density_low = vegDefiningDensityTransect_low(ecotoner_settings),
+				veg_density_high = vegDefiningDensityTransect_high(ecotoner_settings),
+				veg_density_extended_min = vegDefiningDensityTransectExtended_min(ecotoner_settings))
 		
 		
 			if (anyNA(limits1_ZoneEcolBoundary)) {
@@ -176,9 +178,10 @@ gap.rat <- df_veg(ecotoner_grids)
 			}
 
 			#Crop band transect to limits1_ZoneEcolBoundary
-			temp_etband <- trim1_band_to_ecotone(stband_grids = temp_stband$grids,
-													start_icol = limits1_ZoneEcolBoundary[1],
-													end_icol = limits1_ZoneEcolBoundary[2])
+			temp_etband <- trim1_band_to_ecotone(
+				stband_grids = temp_stband$grids,
+				start_icol = limits1_ZoneEcolBoundary[1],
+				end_icol = limits1_ZoneEcolBoundary[2])
 			temp_etband$DistAlongXaxis_m <- res_m(specs_grid(ecotoner_grids)) * ((1:dim(temp_etband$bse)[2]) - 1/2)
 
 			#Determine majority BSE and majority TF types within limits1_ZoneEcolBoundary
@@ -215,11 +218,12 @@ gap.rat <- df_veg(ecotoner_grids)
 			temp_etband$Veg2dens <- count_y_at_each_x(temp_etband$Veg2)
 
 			#2c. Apply definition of zone of ecological boundary to majority of BSE and majority of TF within limits1_ZoneEcolBoundary and make sure there is not too much of remaining BSE or TF types around
-			limits2_ZoneEcolBoundary <- determine_ecotone_linear_extent(dens_BSE=temp_etband$bse_dens, dens_Veg1=temp_etband$Veg1dens, end1_toLeft=end_to_left(type_veg1(ecotoner_settings)),
-																		dens_TF=temp_etband$tf_dens, dens_Veg2=temp_etband$Veg2dens, end2_toLeft=end_to_left(type_veg2(ecotoner_settings)),
-																		veg_density_low = vegDefiningDensityTransect_low(ecotoner_settings),
-																		veg_density_high = vegDefiningDensityTransect_high(ecotoner_settings),
-																		veg_density_extended_min = vegDefiningDensityTransectExtended_min(ecotoner_settings))
+			limits2_ZoneEcolBoundary <- determine_ecotone_linear_extent(
+				dens_BSE = temp_etband$bse_dens, dens_Veg1 = temp_etband$Veg1dens, end1_toLeft = end_to_left(type_veg1(ecotoner_settings)),
+				dens_TF = temp_etband$tf_dens, dens_Veg2 = temp_etband$Veg2dens, end2_toLeft = end_to_left(type_veg2(ecotoner_settings)),
+				veg_density_low = vegDefiningDensityTransect_low(ecotoner_settings),
+				veg_density_high = vegDefiningDensityTransect_high(ecotoner_settings),
+				veg_density_extended_min = vegDefiningDensityTransectExtended_min(ecotoner_settings))
 
 			if (anyNA(limits2_ZoneEcolBoundary)) {
 				if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh, "; cand = ", ic,
@@ -239,14 +243,15 @@ gap.rat <- df_veg(ecotoner_grids)
 			limits2_ZoneEcolBoundary <- limits1_ZoneEcolBoundary[1] + limits2_ZoneEcolBoundary - 1
 
 			#Plot map of density profiles
-			if(do_figures) plot_transect_density_profiles(filename=file.path(dir_fig, paste0(figBasename, "DensityProfiles.pdf")),
-													distX1=distX1 <- temp_stband$grids$DistAlongXaxis_m,
-													distX2=(limits1_ZoneEcolBoundary[1] - 1) * res_m(specs_grid(ecotoner_grids)) + temp_etband$DistAlongXaxis_m,
-													elev=mean_y_at_each_x(temp_stband$grids$grid1),
-													dens_Veg1=temp_etband$Veg1dens, dens_BSE=temp_stband$grids$bse_dens,
-													dens_Veg2=temp_etband$Veg2dens, dens_TF=temp_stband$grids$tf_dens,
-													start1_m=distX1[limits1_ZoneEcolBoundary[1]], end1_m=distX1[limits1_ZoneEcolBoundary[2]],
-													start2_m=distX1[limits2_ZoneEcolBoundary[1]], end2_m=distX1[limits2_ZoneEcolBoundary[2]])
+			if(do_figures) plot_transect_density_profiles(
+				filename=file.path(dir_fig, paste0(figBasename, "DensityProfiles.pdf")),
+				distX1=distX1 <- temp_stband$grids$DistAlongXaxis_m,
+				distX2=(limits1_ZoneEcolBoundary[1] - 1) * res_m(specs_grid(ecotoner_grids)) + temp_etband$DistAlongXaxis_m,
+				elev=mean_y_at_each_x(temp_stband$grids$grid1),
+				dens_Veg1=temp_etband$Veg1dens, dens_BSE=temp_stband$grids$bse_dens,
+				dens_Veg2=temp_etband$Veg2dens, dens_TF=temp_stband$grids$tf_dens,
+				start1_m=distX1[limits1_ZoneEcolBoundary[1]], end1_m=distX1[limits1_ZoneEcolBoundary[2]],
+				start2_m=distX1[limits2_ZoneEcolBoundary[1]], end2_m=distX1[limits2_ZoneEcolBoundary[2]])
 	
 			if(verbose) cat("'ecotoner' establishing: tr = ", i, "; neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
 
@@ -256,12 +261,13 @@ gap.rat <- df_veg(ecotoner_grids)
 
 
 			#2d. Crop the linear transect to the ecological boundary zone
-			temp_etline <- trim_line_to_ecotone(stline_pts = temp_stline$pts,
-												distX = temp_stline$dist_m,
-												start_m = temp_stband$grids$DistAlongXaxis_m[limits2_ZoneEcolBoundary[1]],
-												end_m = temp_stband$grids$DistAlongXaxis_m[limits2_ZoneEcolBoundary[2]],
-												crs = crs(specs_grid(ecotoner_grids)),
-												longlat = longlat(specs_grid(ecotoner_grids)))
+			temp_etline <- trim_line_to_ecotone(
+				stline_pts = temp_stline$pts,
+				distX = temp_stline$dist_m,
+				start_m = temp_stband$grids$DistAlongXaxis_m[limits2_ZoneEcolBoundary[1]],
+				end_m = temp_stband$grids$DistAlongXaxis_m[limits2_ZoneEcolBoundary[2]],
+				crs = crs(specs_grid(ecotoner_grids)),
+				longlat = longlat(specs_grid(ecotoner_grids)))
 
 			#Store linear transect data for analysis
 			etable <- get.LinearTransect_TableData(etable=etable, b=b, data=temp_etline)
@@ -277,37 +283,40 @@ gap.rat <- df_veg(ecotoner_grids)
 			temp.patches1$freq_patches8_Veg1 <- data.frame(raster::freq(temp.patches1$Veg1_patches8, useNA = "no"))
 			temp.patches1$Veg2_patches8 <- raster::clump(Veg2Cropped, directions = 8)
 			temp.patches1$freq_patches8_Veg2 <- data.frame(raster::freq(temp.patches1$Veg2_patches8, useNA = "no"))
-			temp.patches2 <- extract_tband_grids(tpoly_UTM = temp_stband$polygon$tpoly_UTM,
-												width_n = bandTransect_width_cellN(ecotoner_settings),
-												crs_UTM = temp_stband$polygon$crs_UTM,
-												declin = temp_stband$polygon$declin,
-												center = temp_stband$polygon$center,
-												res_rotate_grid = res_rotate_grid(ecotoner_settings),
-												grid1 = temp.patches1$Veg1_patches8,
-												grid2 = temp.patches1$Veg2_patches8,
-												fun1 = function(x, ...) majority(x, seed = seed),
-												fun2 = function(x, ...) majority(x, seed = seed))
+			temp.patches2 <- extract_tband_grids(
+				tpoly_UTM = temp_stband$polygon$tpoly_UTM,
+				width_n = bandTransect_width_cellN(ecotoner_settings),
+				crs_UTM = temp_stband$polygon$crs_UTM,
+				declin = temp_stband$polygon$declin,
+				center = temp_stband$polygon$center,
+				res_rotate_grid = res_rotate_grid(ecotoner_settings),
+				grid1 = temp.patches1$Veg1_patches8,
+				grid2 = temp.patches1$Veg2_patches8,
+				fun1 = function(x, ...) majority(x, seed = seed),
+				fun2 = function(x, ...) majority(x, seed = seed))
 
 			#Human impacts
 			HumanCropped <- raster::calc(gapCropped, fun = function(x) ifelse(x %in% type_ids(type_excl(ecotoner_settings)), 1, NA))
-			temp.human <- extract_tband_grids(tpoly_UTM = temp_stband$polygon$tpoly_UTM,
-												width_n = bandTransect_width_cellN(ecotoner_settings),
-												crs_UTM = temp_stband$polygon$crs_UTM,
-												declin = temp_stband$polygon$declin,
-												center = temp_stband$polygon$center,
-												res_rotate_grid = res_rotate_grid(ecotoner_settings),
-												grid1 = HumanCropped,
-												fun1 = function(x, ...) majority(x, seed = seed))
+			temp.human <- extract_tband_grids(
+				tpoly_UTM = temp_stband$polygon$tpoly_UTM,
+				width_n = bandTransect_width_cellN(ecotoner_settings),
+				crs_UTM = temp_stband$polygon$crs_UTM,
+				declin = temp_stband$polygon$declin,
+				center = temp_stband$polygon$center,
+				res_rotate_grid = res_rotate_grid(ecotoner_settings),
+				grid1 = HumanCropped,
+				fun1 = function(x, ...) majority(x, seed = seed))
 
 			#2e1. Crop band transect to zone of ecol boundary and set start of 'my' coordinate system
-			temp_band4 <- trim2_band_to_ecotone(tempBand1 = temp_stband$polygon,
-													tempBand2 = temp_stband$grids,
-													tempBand3 = temp_etband,
-													tempPatches = temp.patches2,
-													tempHuman = temp.human$grid1,
-													start1_icol = limits1_ZoneEcolBoundary[1],
-													start2_icol = limits2_ZoneEcolBoundary[1],
-													end2_icol = limits2_ZoneEcolBoundary[2])
+			temp_band4 <- trim2_band_to_ecotone(
+				tempBand1 = temp_stband$polygon,
+				tempBand2 = temp_stband$grids,
+				tempBand3 = temp_etband,
+				tempPatches = temp.patches2,
+				tempHuman = temp.human$grid1,
+				start1_icol = limits1_ZoneEcolBoundary[1],
+				start2_icol = limits2_ZoneEcolBoundary[1],
+				end2_icol = limits2_ZoneEcolBoundary[2])
 
 
 			#2e2. Environmental gradient along transect
@@ -335,19 +344,21 @@ gap.rat <- df_veg(ecotoner_grids)
 			etband <- estimate_transect_homogeneity(ecotoner_settings, ecotoner_grids, etband, temp_band4, aspC, aspL)
 
 			#Plot map of linear and band transect
-			if(do_figures) map_transect(filename = file.path(dir_fig, paste0(figBasename, "TransectMap_v1.pdf")),
-									stline_pts = temp_stline$pts, etline_pts = temp_etline$pts, gB_Env = etband$Env, 
-									elevCropped = elevCropped,
-									bse = bseCropped <- raster::calc(gapCropped, fun = function(x) ifelse(x %in% type_ids(type_veg1(ecotoner_settings)), x, NA)),
-									tf = tfCropped <- raster::calc(gapCropped, fun = function(x) ifelse(x %in% type_ids(type_veg2(ecotoner_settings)), x, NA)),
-									Veg1 = Veg1Cropped, Veg2 = Veg2Cropped,
-									human = HumanCropped)
-			if(do_figures) map_transect(filename = file.path(dir_fig, paste0(figBasename, "TransectMap_v2.pdf")),
-									stline_pts = temp_stline$pts, etline_pts = temp_etline$pts, gB_Env = etband$Env, 
-									elevCropped = raster::crop(grid_env(ecotoner_grids), temp_stband$ext),
-									bse = raster::crop(bseCropped, temp_stband$ext), tf = raster::crop(tfCropped, temp_stband$ext),
-									Veg1 = raster::crop(Veg1Cropped, temp_stband$ext), Veg2 = raster::crop(Veg2Cropped, temp_stband$ext),
-									human = raster::crop(HumanCropped, temp_stband$ext))
+			if(do_figures) map_transect(
+				filename = file.path(dir_fig, paste0(figBasename, "TransectMap_v1.pdf")),
+				stline_pts = temp_stline$pts, etline_pts = temp_etline$pts, gB_Env = etband$Env, 
+				elevCropped = elevCropped,
+				bse = bseCropped <- raster::calc(gapCropped, fun = function(x) ifelse(x %in% type_ids(type_veg1(ecotoner_settings)), x, NA)),
+				tf = tfCropped <- raster::calc(gapCropped, fun = function(x) ifelse(x %in% type_ids(type_veg2(ecotoner_settings)), x, NA)),
+				Veg1 = Veg1Cropped, Veg2 = Veg2Cropped,
+				human = HumanCropped)
+			if(do_figures) map_transect(
+				filename = file.path(dir_fig, paste0(figBasename, "TransectMap_v2.pdf")),
+				stline_pts = temp_stline$pts, etline_pts = temp_etline$pts, gB_Env = etband$Env, 
+				elevCropped = raster::crop(grid_env(ecotoner_grids), temp_stband$ext),
+				bse = raster::crop(bseCropped, temp_stband$ext), tf = raster::crop(tfCropped, temp_stband$ext),
+				Veg1 = raster::crop(Veg1Cropped, temp_stband$ext), Veg2 = raster::crop(Veg2Cropped, temp_stband$ext),
+				human = raster::crop(HumanCropped, temp_stband$ext))
 			#rm(Veg1Cropped, Veg2Cropped, HumanCropped, bseCropped, tfCropped)
 	
 			#Store environmental band transect data for analysis
@@ -423,19 +434,26 @@ identify_migration_patches <- function(i, b, ecotoner_settings, etband, etable, 
 		if(verbose) cat("'ecotoner' migrating: tr = ", i, "; neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
 		
 		type_veg <- if (iveg == "Veg1") type_veg1(ecotoner_settings) else type_veg2(ecotoner_settings)
-		migration <- calc.MigrationRoutes_EstimateFlowpaths(elev = etband$Env$elev$grid, flowdir = flowdir,
-														patches = etband$Veg$AllMigration[[iveg]]$patches4,
-														end_toLeft = end_to_left(type_veg), seed = seed)
+		migration <- calc.MigrationRoutes_EstimateFlowpaths(
+			elev = etband$Env$elev$grid,
+			flowdir = flowdir,
+			patches = etband$Veg$AllMigration[[iveg]]$patches4,
+			end_toLeft = end_to_left(type_veg),
+			seed = seed)
 
 		#Identify x vs y migration
-		migration$direction <- calc.Identify_GoodvsBadMigration(patches4 = etband$Veg$AllMigration[[iveg]]$patches4,
-												tally = migration$tally, paths = migration$paths,
-												paths_success_TF = migration$paths_success_TF, end_toLeft = end_to_left(type_veg))
+		migration$direction <- calc.Identify_GoodvsBadMigration(
+			patches4 = etband$Veg$AllMigration[[iveg]]$patches4,
+			tally = migration$tally,
+			paths = migration$paths,
+			paths_success_TF = migration$paths_success_TF,
+			end_toLeft = end_to_left(type_veg))
 
 		#Get grid, patches4, patches8, and patchID_removed (patchID_removed == NULL if no patch removed)
-		etband$Veg$OnlyGoodMigration[[iveg]] <- calc.RemoveBadMigration_fromVeg(patches4 = etband$Veg$AllMigration[[iveg]]$patches4,
-																				patches8 = etband$Veg$AllMigration[[iveg]]$patches8,
-																				patch4IDs_remove = migration$direction$patchIDs_GoodMigration)
+		etband$Veg$OnlyGoodMigration[[iveg]] <- calc.RemoveBadMigration_fromVeg(
+			patches4 = etband$Veg$AllMigration[[iveg]]$patches4,
+			patches8 = etband$Veg$AllMigration[[iveg]]$patches8,
+			patch4IDs_remove = migration$direction$patchIDs_GoodMigration)
 		etband$Veg$OnlyGoodMigration[[iveg]]$Migration_Tally <- migration
 		#rm(flowdir, migration)
 
@@ -451,10 +469,15 @@ identify_migration_patches <- function(i, b, ecotoner_settings, etband, etable, 
 	
 	if(verbose) cat("'ecotoner' migrating: tr = ", i, "; neigh = ", b, "; prog: ", idh <- idh + 1, "\n", sep = "")
 
-	if(do_figures) map_flowpaths(filename=file.path(dir_fig, paste0(figBasename, "FlowpathsApproximatingMigration.pdf")),
-							elev=etband$Env$elev$grid, 
-							bse=etband$Veg$AllMigration$Veg1$grid, bse_remain=etband$Veg$OnlyGoodMigration$Veg1$grid, paths_bse=etband$Veg$OnlyGoodMigration$Veg1$Migration_Tally$paths,
-							tf=etband$Veg$AllMigration$Veg2$grid, tf_remain=etband$Veg$OnlyGoodMigration$Veg2$grid, paths_tf=etband$Veg$OnlyGoodMigration$Veg2$Migration_Tally$paths)
+	if(do_figures) map_flowpaths(
+		filename = file.path(dir_fig, paste0(figBasename, "FlowpathsApproximatingMigration.pdf")),
+		elev = etband$Env$elev$grid, 
+		bse = etband$Veg$AllMigration$Veg1$grid,
+		bse_remain = etband$Veg$OnlyGoodMigration$Veg1$grid,
+		paths_bse = etband$Veg$OnlyGoodMigration$Veg1$Migration_Tally$paths,
+		tf = etband$Veg$AllMigration$Veg2$grid,
+		tf_remain = etband$Veg$OnlyGoodMigration$Veg2$grid,
+		paths_tf = etband$Veg$OnlyGoodMigration$Veg2$Migration_Tally$paths)
 	
 	list(etband = etband, etable = etable)
 }
@@ -504,14 +527,15 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 		if(verbose) cat("'ecotoner' detecting: tr = ", i, "; prog: ", idh <- idh + 1, "\n", sep = "")
 		
 		#Crop rasters around ipoint to define linear transect: account for largest neighborhood
-		temp <- crop_to_neighborhood(pt_start = ipoint,
-									neighbor_n = max(neighborhoods(ecotoner_settings)),
-									grid_gradient = grid_env(ecotoner_grids),
-									grid_veg = grid_veg(ecotoner_grids),
-									grid_veg_abut12 = grid_abut(ecotoner_grids),
-									grid_aspect_mean = grid_aspect_mean(ecotoner_grids),
-									grid_aspect_sd = grid_aspect_sd(ecotoner_grids),
-									transect_type = transect_type(ecotoner_settings))
+		temp <- crop_to_neighborhood(
+			pt_start = ipoint,
+			neighbor_n = max(neighborhoods(ecotoner_settings)),
+			grid_gradient = grid_env(ecotoner_grids),
+			grid_veg = grid_veg(ecotoner_grids),
+			grid_veg_abut12 = grid_abut(ecotoner_grids),
+			grid_aspect_mean = grid_aspect_mean(ecotoner_grids),
+			grid_aspect_sd = grid_aspect_sd(ecotoner_grids),
+			transect_type = transect_type(ecotoner_settings))
 		
 		elevCropped <- temp$grid_elev_cropped
 		
@@ -562,14 +586,15 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 						set_RNG_stream(etransect[["seeds"]][[b]])
 					
 						temp <- try(establish_ecotone_transect(i, b, 
-													etband = etransect[["etbands"]][[b]],
-													etable = etransect[["etable"]],
-													ipoint, ecotoner_settings, ecotoner_grids,
-													elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped,
-													tempData = if (do_interim) tempData0 else NULL,
-													dir_fig, figBasename = flag_bfig,
-													verbose, do_figures,
-													seed = NA), silent = TRUE)
+										etband = etransect[["etbands"]][[b]],
+										etable = etransect[["etable"]],
+										ipoint, ecotoner_settings, ecotoner_grids,
+										elevCropped, gapCropped, bseABUTtfCropped, asp201MeanCropped, asp201SDCropped,
+										tempData = if (do_interim) tempData0 else NULL,
+										dir_fig, figBasename = flag_bfig,
+										verbose, do_figures,
+										seed = NA),
+									silent = TRUE)
 					
 						if (!inherits(temp, "try-error")) {
 							etransect[["status"]][b] <- temp[["status"]]
@@ -598,10 +623,11 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 						set_RNG_stream(etransect[["seeds"]][[b]])
 					
 						temp <- try(identify_migration_patches(i, b, ecotoner_settings,
-																etband = etransect[["etbands"]][[b]],
-																etable = etransect[["etable"]],
-																dir_fig, flag_bfig, verbose, do_figures,
-																seed = NA), silent = TRUE)
+										etband = etransect[["etbands"]][[b]],
+										etable = etransect[["etable"]],
+										dir_fig, flag_bfig, verbose, do_figures,
+										seed = NA),
+									silent = TRUE)
 				
 						if (!inherits(temp, "try-error")) {
 							etransect[["etbands"]][[b]] <- temp[["etband"]]
@@ -627,8 +653,11 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 					
 						if (!copy_FromMig1_TF) {
 							#Extract abutting cells between Veg1 and Veg2
-							etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$grid <- calc_abutting(Veg1=etransect$etbands[[b]]$Veg[[migtype]]$Veg1$grid, Veg2=etransect$etbands[[b]]$Veg[[migtype]]$Veg2$grid)
-							etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$density <- count_y_at_each_x(etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$grid)
+							etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$grid <- calc_abutting(
+								Veg1 = etransect$etbands[[b]]$Veg[[migtype]]$Veg1$grid,
+								Veg2 = etransect$etbands[[b]]$Veg[[migtype]]$Veg2$grid)
+							etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$density <- count_y_at_each_x(
+								etransect$etbands[[b]]$Veg[[migtype]]$Veg1ABUTVeg2$grid)
 
 							#Store vegetation band transect data for analysis
 							etransect$etable <- get.BandTransect_TableDataVeg(etable=etransect$etable, b=b, data=etransect$etbands[[b]]$Veg[[migtype]], flag_migtype = migtype)
@@ -638,10 +667,11 @@ detect_ecotone_transects_from_searchpoint <- function(i, initpoints, ecotoner_se
 					}#end loop through migtypes
 
 					#Temporarily save data to disk file
-					temp <- write_ecotoner_row(data_row = etransect$etable[b, ],
-												filename = file_etsummary_temp(ecotoner_settings),
-												tag_fun = 'detect_ecotone_transects_from_searchpoint',
-												tag_id = paste0(i, " 'etransect$etable[", b, ", ]'"))
+					temp <- write_ecotoner_row(
+						data_row = etransect$etable[b, ],
+						filename = file_etsummary_temp(ecotoner_settings),
+						tag_fun = 'detect_ecotone_transects_from_searchpoint',
+						tag_id = paste0(i, " 'etransect$etable[", b, ", ]'"))
 					if (identical(temp, "error")) etransect[["status"]][b] <- "error"
 					
 					if(verbose) cat("'ecotoner' detecting: tr = ", i, "; neigh = ", b, ": prog: ", idh <- idh + 1, "\n", sep = "")

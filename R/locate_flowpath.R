@@ -322,7 +322,8 @@ calc.Identify_GoodvsBadMigration <- function(patches4, tally, paths, paths_succe
 				candidates_2ndPatchInPath_addPatchIDs <- get.2ndPatchInPaths(pathsYDone, pathsTemp)
 				if (!is.null(candidates_2ndPatchInPath_addPatchIDs)) candidates_2ndPatchInPath_addPatchIDs <- na.exclude(candidates_2ndPatchInPath_addPatchIDs)
 				if (length(candidates_2ndPatchInPath_addPatchIDs) > 0) {
-					addPatchIDs <- candidates_2ndPatchInPath_addPatchIDs[!(candidates_2ndPatchInPath_addPatchIDs %in% patchIDs_BadMigration)]
+					itemp <- !(candidates_2ndPatchInPath_addPatchIDs %in% patchIDs_BadMigration)
+					addPatchIDs <- candidates_2ndPatchInPath_addPatchIDs[itemp]
 					pathsTemp <- remove.targetPatchIDsFromPaths(pathsTemp, patchIDs_GoodMigration)
 					patchIDs_GoodMigration <- unique(c(patchIDs_GoodMigration, addPatchIDs))
 					lpatch1 <- lpatch1[!(lpatch1 %in% ilps)]

@@ -238,11 +238,12 @@ calc_Gastner2010_hulledge_DistanceToStruggleZone <- function(vegOther, mat_hullE
 tabulate_Gastner2010_hulledge <- function(etable, index, data, steplength, width_N) {
 
 	place_veg <- function(etable, index, data, steplength, vegno, width_N) {
-		colnamesAdd <- paste0("Gastner2009_HullEdge_Step", steplength, "_Veg", vegno, "_", 
+		colnamesAdd <- paste0("Gastner2009_HullEdge_Step",
+						steplength, "_Veg", vegno, "_", 
 						c("Location_m", "Width_m", "Length_m", "Elev_Mean_m", "Elev_SD_m", 
-						"Slope_Mean_rad", "Slope_SD_rad", "LargestPatch_isSpanning_TF", "LargestPatch_Area_fractionOfTransect",
-						"VegDensity_atMeanHullPosition",
-						"MeanDistanceHullEdgeToOtherVegFrontRunners_m", "RowsOtherVegFrontRunnersCloserToLargestPatchOfHullEdge_Fraction", "HullEdgeAffectedByOtherVeg_TF"))
+							"Slope_Mean_rad", "Slope_SD_rad", "LargestPatch_isSpanning_TF", "LargestPatch_Area_fractionOfTransect",
+							"VegDensity_atMeanHullPosition",
+							"MeanDistanceHullEdgeToOtherVegFrontRunners_m", "RowsOtherVegFrontRunnersCloserToLargestPatchOfHullEdge_Fraction", "HullEdgeAffectedByOtherVeg_TF"))
 		res <- as.data.frame(t(rep(NA_real_, length(colnamesAdd))))
 		colnames(res) <- colnamesAdd
 
@@ -353,36 +354,50 @@ Gastner2010AmNat <- function(i, b, migtype, ecotoner_settings, etband, etmeasure
 			for (iveg in c("Veg1", "Veg2")) {
 				iother <- setdiff(c("Veg1", "Veg2"), iveg)
 				type_veg <- if (iveg == "Veg1") type_veg1(ecotoner_settings) else if (iveg == "Veg2") type_veg2(ecotoner_settings) else NULL
-			
-				etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]] <- calc_Gastner2010_hulledge(i,
-																steplength = step_lengths[i_step],
-																veg = etband$Veg[[migtype]][[iveg]]$grid,
-																end_toLeft = end_to_left(type_veg))
-				etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]]$Hull_density <- count_y_at_each_x(etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]]$grid_hullEdge)
-				etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]]$stats <- calc_Gastner2010_hulledge_Statistics(etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]]$mat_hullEdge,
-																etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]]$spLine_hullEdge,
-																res_m = raster::xres(etband$Env$elev$grid))
-				etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]]$VegDensity_atMeanHullPosition <- etband$Veg[[migtype]][[iveg]]$density[round(etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]]$stats$position_cells)]
-				etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]]$grad <- calc_Gastner2010_hulledge_Gradient(etband$Env$elev$grid,
-																etband$Env$slope$grid,
-																etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]]$grid_hullEdge)
-				etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]]$HullEdgeDistToOtherVeg_m <- calc_Gastner2010_hulledge_DistanceToStruggleZone(vegOther = etband$Veg[[migtype]][[iother]]$grid,
-																mat_hullEdge = etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]]$mat_hullEdge,
-																end_toLeft = end_to_left(type_veg),
-																width_N = bandTransect_width_cellN(ecotoner_settings))
+				
+				lvar <- calc_Gastner2010_hulledge(i,
+						steplength = step_lengths[i_step],
+						veg = etband$Veg[[migtype]][[iveg]]$grid,
+						end_toLeft = end_to_left(type_veg))
+				
+				lvar$Hull_density <- count_y_at_each_x(lvar$grid_hullEdge)
+				
+				lvar$stats <- calc_Gastner2010_hulledge_Statistics(
+						lvar$mat_hullEdge,
+						lvar$spLine_hullEdge,
+						res_m = raster::xres(etband$Env$elev$grid))
+				
+				lvar$VegDensity_atMeanHullPosition <- 
+					etband$Veg[[migtype]][[iveg]]$density[round(lvar$stats$position_cells)]
+				
+				lvar$grad <- calc_Gastner2010_hulledge_Gradient(
+						etband$Env$elev$grid,
+						etband$Env$slope$grid,
+						lvar$grid_hullEdge)
+				
+				lvar$HullEdgeDistToOtherVeg_m <- 
+					calc_Gastner2010_hulledge_DistanceToStruggleZone(
+						vegOther = etband$Veg[[migtype]][[iother]]$grid,
+						mat_hullEdge = lvar$mat_hullEdge,
+						end_toLeft = end_to_left(type_veg),
+						width_N = bandTransect_width_cellN(ecotoner_settings))
+						
+				etmeasure$gETmeas[[b]][[migtype]][[istep]][[iveg]] <- lvar
 			}
 
 
-			if (do_figures) plot_Gastner2010_hulledge(filename = file.path(dir_fig, paste0(flag_bfig, "Gastner2009_FittedHullEdge_step", step_lengths[i_step], "_", migtype, ".pdf")),
-													eB_Env = etband$Env,
-													eB_Veg = etband$Veg[[migtype]],
-													datFit = etmeasure$gETmeas[[b]][[migtype]][[istep]])
+			if (do_figures) plot_Gastner2010_hulledge(
+				filename = file.path(dir_fig, paste0(flag_bfig, "Gastner2009_FittedHullEdge_step", step_lengths[i_step], "_", migtype, ".pdf")),
+				eB_Env = etband$Env,
+				eB_Veg = etband$Veg[[migtype]],
+				datFit = etmeasure$gETmeas[[b]][[migtype]][[istep]])
 		} 
 		
-		etmeasure$etable <- tabulate_Gastner2010_hulledge(etable = etmeasure$etable, index = b_migtype,
-															data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) "AllMigration" else migtype]][[istep]],
-															steplength = step_lengths[i_step],
-															width_N = bandTransect_width_cellN(ecotoner_settings))
+		etmeasure$etable <- tabulate_Gastner2010_hulledge(
+			etable = etmeasure$etable, index = b_migtype,
+			data = etmeasure$gETmeas[[b]][[if (copy_FromMig1_TF) "AllMigration" else migtype]][[istep]],
+			steplength = step_lengths[i_step],
+			width_N = bandTransect_width_cellN(ecotoner_settings))
 	}
 	
 	etmeasure

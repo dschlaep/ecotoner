@@ -26,15 +26,15 @@ mosaic_tiles <- function(dir_tiles, chunksize = 10L, fname_grid_ned, format, ...
 	#---Begin function calculations
 	# Read the individual tiles to a list of RasterLayer objects
 	grid_tiles <- lapply(list.dirs(path = dir_tiles, full.names = TRUE, recursive = FALSE), function(x) {
-						ftemp1 <- file.path(x, paste0("grd", basename(x), "_1"))
-						if (file.exists(ftemp1)) {
-							raster::raster(ftemp1)
-						} else {
-							# Sometimes the grids don't have the "_1" appended
-							ftemp2 <- file.path(x, paste0("grd", basename(x)))
-							if (file.exists(ftemp2)) raster::raster(ftemp2) else NULL
-						}
-					})
+			ftemp1 <- file.path(x, paste0("grd", basename(x), "_1"))
+			if (file.exists(ftemp1)) {
+				raster::raster(ftemp1)
+			} else {
+				# Sometimes the grids don't have the "_1" appended
+				ftemp2 <- file.path(x, paste0("grd", basename(x)))
+				if (file.exists(ftemp2)) raster::raster(ftemp2) else NULL
+			}
+		})
 	
 	# Subset to only those tiles that have the same origin, resolution, and coordinate reference system as the first tile
 	if (length(grid_tiles) > 0) {
@@ -78,11 +78,12 @@ mosaic_tiles <- function(dir_tiles, chunksize = 10L, fname_grid_ned, format, ...
 			ftemp2 <- c(ftemp2[2], file.path(dir_temp, paste0(format.POSIXct(Sys.time(), "%Y%m%d_%H%M"), "_temp_raster.tif")))
 			
 			if (length(todos[[i]]) > 0) {
-				args_to_mosaic <- if (length(todos[[i]]) > 1) {
-										c(list(x = grid_ned, y = grid_tiles[[todos[[i]][1]]]), c(grid_tiles[todos[[i]][-1]], list(...)), list(fun = mean, filename = ftemp2[2]))
-									} else {
-										list(x = grid_ned, y = grid_tiles[[todos[[i]][1]]], fun = mean, filename = ftemp2[2], ...)
-									}
+				args_to_mosaic <- 
+					if (length(todos[[i]]) > 1) {
+						c(list(x = grid_ned, y = grid_tiles[[todos[[i]][1]]]), c(grid_tiles[todos[[i]][-1]], list(...)), list(fun = mean, filename = ftemp2[2]))
+					} else {
+						list(x = grid_ned, y = grid_tiles[[todos[[i]][1]]], fun = mean, filename = ftemp2[2], ...)
+					}
 
 				grid_ned <- do.call(getFromNamespace("mosaic", "raster"), args = args_to_mosaic)
 			
@@ -188,11 +189,12 @@ terrain_aspect <- function(grid_elev, grid_slope, min_slope, parallel_N, filenam
 
 	grid_temp <- raster::terrain(x = grid_elev, opt = 'aspect', unit = 'radians', neighbors = 8, ...) 
 
-	fun_asp_smin <- if (parallel_N > 1) {
-						compiler::cmpfun(function(x) ifelse(x[2] >= min_slope, x[1], NA))
-					} else {
-						compiler::cmpfun(function(x, y) ifelse(y >= min_slope, x, NA))
-					}
+	fun_asp_smin <- 
+		if (parallel_N > 1) {
+			compiler::cmpfun(function(x) ifelse(x[2] >= min_slope, x[1], NA))
+		} else {
+			compiler::cmpfun(function(x, y) ifelse(y >= min_slope, x, NA))
+		}
 	
 	if (parallel_N > 1) {
 		raster::beginCluster(n = parallel_N)
@@ -245,11 +247,11 @@ characterize_veg_data <- function(ecotoner_settings, ecotoner_grids, initpoints,
 
 		# grid prevalence
 		lgrids <- list(veg = grid_veg(ecotoner_grids), veg1 = grid_veg1(ecotoner_grids), veg2 = grid_veg2(ecotoner_grids), abut = grid_abut(ecotoner_grids))
-		dat_grids <- sapply(lgrids, FUN = function(x)
-								c(	ncell_total = temp <- raster::ncell(x), 
-									ncell_narm = temp -  raster::cellStats(x, "countNA"),
-									sum_values = raster::cellStats(x, "sum"),
-									fsize_GB = 1e-9 * file.size(x@file@name)))
+		dat_grids <- sapply(lgrids, FUN = 
+			function(x) c(	ncell_total = temp <- raster::ncell(x), 
+							ncell_narm = temp -  raster::cellStats(x, "countNA"),
+							sum_values = raster::cellStats(x, "sum"),
+							fsize_GB = 1e-9 * file.size(x@file@name)))
 								
 		prevalence <- dat_grids["ncell_narm", ] / dat_grids["ncell_narm", "veg"]
 	
@@ -265,8 +267,10 @@ characterize_veg_data <- function(ecotoner_settings, ecotoner_grids, initpoints,
 
 		# method with extract(buffer): seems to be less accurate and slightly more inclusive
 		if (FALSE) {
-			cells_buffering2 <- raster::extract(grid_abut(ecotoner_grids), y = initpoints,
-												buffer = inhibit_dist / 2, fun = sum, na.rm = TRUE, df = TRUE)
+			cells_buffering2 <- raster::extract(
+				grid_abut(ecotoner_grids),
+				y = initpoints,
+				buffer = inhibit_dist / 2, fun = sum, na.rm = TRUE, df = TRUE)
 			plot(cells_buffering2[, "gapv2_bseABUTtf"], cells_buffering[, "gapv2_bseABUTtf"])
 		
 			tau_packing2 <- sum(cells_buffering2[, "gapv2_bseABUTtf"]) / cells_total

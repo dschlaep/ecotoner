@@ -221,14 +221,15 @@ rasterToPoints <- function(x, fun = NULL, spatial = FALSE, not_convertible = lis
 		res <- raster::rasterToPoints(x, fun = fun, spatial = spatial, ...)
 	} else {
 		keep_NA <- FALSE
-		temp_grid <- if (!anyNA(not_convertible) && raster::cellStats(x, "countNA") > 0) {
-							# we want cells with NA values to be converted to points
-							# find a placeholder value
-							x_vals <- sort(raster::unique(x))
-							val_for_NA <- min(x_vals, na.rm = TRUE) - 1
-							keep_NA <- TRUE
-							raster::calc(x, function(x) ifelse(is.na(x), val_for_NA, x))
-						} else x
+		temp_grid <- 
+			if (!anyNA(not_convertible) && raster::cellStats(x, "countNA") > 0) {
+				# we want cells with NA values to be converted to points
+				# find a placeholder value
+				x_vals <- sort(raster::unique(x))
+				val_for_NA <- min(x_vals, na.rm = TRUE) - 1
+				keep_NA <- TRUE
+				raster::calc(x, function(x) ifelse(is.na(x), val_for_NA, x))
+			} else x
 		
 		res <- raster::rasterToPoints(temp_grid, fun = fun, spatial = spatial, ...)
 		
@@ -259,13 +260,19 @@ transect_to_long <- function(x, y, na.rm = TRUE) {
 	
 	if (inherits(x, "matrix") && inherits(y, "matrix") && nrow(x) == nrow(y) && ncol(x) >= 3 && ncol(y) >= 3) {
 		isnotna <- if (na.rm) !(is.na(x[, 3]) | is.na(y[, 3])) else rep(TRUE, nrow(x))
-		res <- matrix(NA, nrow = sum(isnotna), ncol = 4, dimnames = list(NULL, c("x", "y", "cols", "rows")))
+		res <- matrix(NA, 
+					nrow = sum(isnotna),
+					ncol = 4,
+					dimnames = list(NULL, c("x", "y", "cols", "rows")))
 		res[, "x"] <- x[isnotna, 3] # values of first raster
 		res[, "y"] <- y[isnotna, 3] # values of second raster
 		res[, "cols"] <- x[isnotna, 1] # coordinates along length of transect
 		res[, "rows"] <- x[isnotna, 2] # coordinates along width of transect
 	} else {
-		res <- matrix(NA, nrow = 0, ncol = 4, dimnames = list(NULL, c("x", "y", "cols", "rows")))
+		res <- matrix(NA,
+					nrow = 0,
+					ncol = 4,
+					dimnames = list(NULL, c("x", "y", "cols", "rows")))
 	}
 	
 	res
@@ -323,7 +330,9 @@ get_transect_grids_as_df <- function(i, et_desc = NULL, ecotoner_settings, migty
 			for (im in seq_along(migtypes)) {
 				for (iveg in seq_along(veg_types)) {
 					# Interpret NAs as absences of iveg
-					y <- raster::calc(etransect[["etbands"]][[b]]$Veg[[migtypes[im]]][[veg_types[iveg]]]$grid, function(x) ifelse(is.na(x), 0, x))
+					y <- raster::calc(
+							etransect[["etbands"]][[b]]$Veg[[migtypes[im]]][[veg_types[iveg]]]$grid,
+							function(x) ifelse(is.na(x), 0, x))
 					temp <- transect_to_long(x = etransect[["etbands"]][[b]]$Env$elev$grid, y = y)
 				
 					if (im == 1 && iveg == 1) {
@@ -335,18 +344,19 @@ get_transect_grids_as_df <- function(i, et_desc = NULL, ecotoner_settings, migty
 				}
 			}
 			
-			res[[b]] <- if (is.null(et_desc)) {
-							data.frame(Transect_ID = i,
-										Neighbor_Cells = neighborhoods(ecotoner_settings)[b],
-										mat,
-										row.names = NULL)
-						} else {
-							data.frame(Transect_ID = i,
-										Neighbor_Cells = neighborhoods(ecotoner_settings)[b],
-										mat,
-										et_desc[et_desc[, "Transect_ID"] == i & et_desc[, "Neighbor_Cells"] == neighborhoods(ecotoner_settings)[b], -idesc_remove],
-										row.names = NULL)
-						}
+			res[[b]] <- 
+				if (is.null(et_desc)) {
+					data.frame(Transect_ID = i,
+								Neighbor_Cells = neighborhoods(ecotoner_settings)[b],
+								mat,
+								row.names = NULL)
+				} else {
+					data.frame(Transect_ID = i,
+								Neighbor_Cells = neighborhoods(ecotoner_settings)[b],
+								mat,
+								et_desc[et_desc[, "Transect_ID"] == i & et_desc[, "Neighbor_Cells"] == neighborhoods(ecotoner_settings)[b], -idesc_remove],
+								row.names = NULL)
+				}
 		}
 		
 		do.call(rbind, res)

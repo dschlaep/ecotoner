@@ -7,12 +7,12 @@
 #' @slot end_to_left A logical. If \code{TRUE}, then this vegetation (type) is on the 'left' side of the ecotone/ecological boundary.
 #'
 TypeInfo <- setClass("TypeInfo",
-						slots = list(ids = "integer",
-									field = "character",
-									end_to_left = "logical"
-								),
-						prototype = list(ids = NA_integer_, field = NA_character_, end_to_left = NA)
-					)
+	slots = list(ids = "integer",
+				field = "character",
+				end_to_left = "logical"
+			),
+	prototype = list(ids = NA_integer_, field = NA_character_, end_to_left = NA)
+)
 
 
 setClass("EcotonerPath", slots = list(path = "character"), prototype = list(path = NA_character_))
@@ -101,85 +101,85 @@ setValidity("EcotonerFile", function(object) {
 #' @export
 ## Can extend and create with new("EcotonerSettings", ...). You can use EcotonerSettings() inside package, but not exported. See http://r-pkgs.had.co.nz/namespace.html
 EcotonerSettings <- setClass("EcotonerSettings", 
-							slots = list(transect_type = "integer",
-										 transect_type_desc = "character",
-										 
-										 candidate_THAs_N = "integer",
-										 transect_azimuth = "numeric",
-										 cores_N = "integer",
-										 rng_seed = "integer",
-										 reproducible = "logical",
-										 searchpoints_N = "integer",
-										 transect_N = "integer",
-										 inhibit_searchpoints = "logical",
-										 neighborhoods = "integer",
-										 neighbors_N = "integer",
-										 stepsHullEdge = "integer",
-										 clumpAreaClasses_m2 = "numeric",
-										 
-										 res_rotate_grid = "integer",
-										 Aspect_SDof201Mean_Maximum = "numeric",
-										 Aspect_DeviationAlongCandidateLines_Maximum = "numeric",
+	slots = list(transect_type = "integer",
+				 transect_type_desc = "character",
+				 
+				 candidate_THAs_N = "integer",
+				 transect_azimuth = "numeric",
+				 cores_N = "integer",
+				 rng_seed = "integer",
+				 reproducible = "logical",
+				 searchpoints_N = "integer",
+				 transect_N = "integer",
+				 inhibit_searchpoints = "logical",
+				 neighborhoods = "integer",
+				 neighbors_N = "integer",
+				 stepsHullEdge = "integer",
+				 clumpAreaClasses_m2 = "numeric",
+				 
+				 res_rotate_grid = "integer",
+				 Aspect_SDof201Mean_Maximum = "numeric",
+				 Aspect_DeviationAlongCandidateLines_Maximum = "numeric",
 
-										 vegDefiningDensityTransect_low = "numeric",
-										 vegDefiningDensityTransect_high = "numeric",
-										 vegDefiningDensityTransectExtended_min = "numeric",
-										 
-										 bandTransect_width_cellN = "integer",
-										 min_slope_with_aspect = "numeric",
-										
-										 type_excl = "TypeInfo",
-										 type_veg1 = "TypeInfo",
-										 type_veg2 = "TypeInfo",
-										 
-										 dir_prj = "EcotonerPath",
-										 dir_big = "EcotonerPath",
-										 dir_init = "EcotonerPath",
-										 dir_out = "EcotonerPath",
-										 dir_out_fig = "EcotonerPath",
-										 dir_out_dat = "EcotonerPath",
-										 
-										 dir_env = "EcotonerPath",
-										 dir_veg = "EcotonerPath",
-										 dir_veg1 = "EcotonerPath",
-										 dir_veg2 = "EcotonerPath",
-										 dir_flow = "EcotonerPath",
-										 dir_abut = "EcotonerPath",
-										 dir_aspect_mean = "EcotonerPath",
-										 dir_aspect_sd = "EcotonerPath",
-										 										 
-										 file_searchpoints = "EcotonerFile",
-										 file_initwindow = "EcotonerFile",
-										 file_timing_locate = "EcotonerFile",
-										 file_etsummary = "EcotonerFile",
-										 file_etsummary_temp = "EcotonerFile",
-										 file_etmeasure_base = "EcotonerFile"
-										),
-							prototype = list(transect_type = 4L,
-											 transect_type_desc = "HomogeneousAspect",
-											 vegDefiningDensityTransect_low = 0.05,
-											 vegDefiningDensityTransect_high = 0.75,
-											 vegDefiningDensityTransectExtended_min = 0.5,
-											 Aspect_SDof201Mean_Maximum = 90 * pi/180,
-											 Aspect_DeviationAlongCandidateLines_Maximum = 60 * pi/180,
-											 bandTransect_width_cellN = 200L,
-											 res_rotate_grid = 8L,
-											 min_slope_with_aspect = 2 * pi / 180,
-											 transect_azimuth = 3 / 2 * pi,
-											 candidate_THAs_N = 20L,
-											 cores_N = 1L,
+				 vegDefiningDensityTransect_low = "numeric",
+				 vegDefiningDensityTransect_high = "numeric",
+				 vegDefiningDensityTransectExtended_min = "numeric",
+				 
+				 bandTransect_width_cellN = "integer",
+				 min_slope_with_aspect = "numeric",
+				
+				 type_excl = "TypeInfo",
+				 type_veg1 = "TypeInfo",
+				 type_veg2 = "TypeInfo",
+				 
+				 dir_prj = "EcotonerPath",
+				 dir_big = "EcotonerPath",
+				 dir_init = "EcotonerPath",
+				 dir_out = "EcotonerPath",
+				 dir_out_fig = "EcotonerPath",
+				 dir_out_dat = "EcotonerPath",
+				 
+				 dir_env = "EcotonerPath",
+				 dir_veg = "EcotonerPath",
+				 dir_veg1 = "EcotonerPath",
+				 dir_veg2 = "EcotonerPath",
+				 dir_flow = "EcotonerPath",
+				 dir_abut = "EcotonerPath",
+				 dir_aspect_mean = "EcotonerPath",
+				 dir_aspect_sd = "EcotonerPath",
+														 
+				 file_searchpoints = "EcotonerFile",
+				 file_initwindow = "EcotonerFile",
+				 file_timing_locate = "EcotonerFile",
+				 file_etsummary = "EcotonerFile",
+				 file_etsummary_temp = "EcotonerFile",
+				 file_etmeasure_base = "EcotonerFile"
+				),
+	prototype = list(transect_type = 4L,
+					 transect_type_desc = "HomogeneousAspect",
+					 vegDefiningDensityTransect_low = 0.05,
+					 vegDefiningDensityTransect_high = 0.75,
+					 vegDefiningDensityTransectExtended_min = 0.5,
+					 Aspect_SDof201Mean_Maximum = 90 * pi/180,
+					 Aspect_DeviationAlongCandidateLines_Maximum = 60 * pi/180,
+					 bandTransect_width_cellN = 200L,
+					 res_rotate_grid = 8L,
+					 min_slope_with_aspect = 2 * pi / 180,
+					 transect_azimuth = 3 / 2 * pi,
+					 candidate_THAs_N = 20L,
+					 cores_N = 1L,
 
-											 rng_seed = 123L,
-											 reproducible = TRUE,
-											 searchpoints_N = 6L,
-											 transect_N = 6L,
-											 inhibit_searchpoints = FALSE,
-											 neighborhoods = c(1667L, 999L),
-											 neighbors_N = 2L,
-											 stepsHullEdge = c(1L, 3L),
-											 clumpAreaClasses_m2 = c(1e4, 1e6)
-										)
-							)
+					 rng_seed = 123L,
+					 reproducible = TRUE,
+					 searchpoints_N = 6L,
+					 transect_N = 6L,
+					 inhibit_searchpoints = FALSE,
+					 neighborhoods = c(1667L, 999L),
+					 neighbors_N = 2L,
+					 stepsHullEdge = c(1L, 3L),
+					 clumpAreaClasses_m2 = c(1e4, 1e6)
+				)
+)
 
 
 setValidity("EcotonerSettings", function(object) {
@@ -212,23 +212,28 @@ setValidity("EcotonerSettings", function(object) {
 											object@clumpAreaClasses_m2[1] < object@clumpAreaClasses_m2[2])
 	tests[["res_rotate_grid"]] <- all(length(object@res_rotate_grid) == 1,
 										object@res_rotate_grid > 0)
-	tests[["Aspect_SDof201Mean_Maximum"]] <- all(length(object@Aspect_SDof201Mean_Maximum) == 1,
-												object@Aspect_SDof201Mean_Maximum > 0)
-	tests[["Aspect_DeviationAlongCandidateLines_Maximum"]] <- all(length(object@Aspect_DeviationAlongCandidateLines_Maximum) == 1,
-																	object@Aspect_DeviationAlongCandidateLines_Maximum > 0)
-	tests[["vegDefiningDensityTransect_low"]] <- all(length(object@vegDefiningDensityTransect_low) == 1,
-													object@vegDefiningDensityTransect_low > 0,
-													object@vegDefiningDensityTransect_low < 1,
-													object@vegDefiningDensityTransect_low < object@vegDefiningDensityTransect_high)
-	tests[["vegDefiningDensityTransect_high"]] <- all(length(object@vegDefiningDensityTransect_high) == 1,
-														object@vegDefiningDensityTransect_high > 0,
-														object@vegDefiningDensityTransect_high < 1,
-														object@vegDefiningDensityTransect_high > object@vegDefiningDensityTransect_low)
-	tests[["vegDefiningDensityTransectExtended_min"]] <- all(length(object@vegDefiningDensityTransectExtended_min) == 1,
-																object@vegDefiningDensityTransectExtended_min > 0,
-																object@vegDefiningDensityTransectExtended_min < 1,
-																object@vegDefiningDensityTransectExtended_min < object@vegDefiningDensityTransect_high,
-																object@vegDefiningDensityTransectExtended_min > object@vegDefiningDensityTransect_low)
+	tests[["Aspect_SDof201Mean_Maximum"]] <- 
+		all(length(object@Aspect_SDof201Mean_Maximum) == 1,
+			object@Aspect_SDof201Mean_Maximum > 0)
+	tests[["Aspect_DeviationAlongCandidateLines_Maximum"]] <- 
+		all(length(object@Aspect_DeviationAlongCandidateLines_Maximum) == 1,
+			object@Aspect_DeviationAlongCandidateLines_Maximum > 0)
+	tests[["vegDefiningDensityTransect_low"]] <- 
+		all(length(object@vegDefiningDensityTransect_low) == 1,
+			object@vegDefiningDensityTransect_low > 0,
+			object@vegDefiningDensityTransect_low < 1,
+			object@vegDefiningDensityTransect_low < object@vegDefiningDensityTransect_high)
+	tests[["vegDefiningDensityTransect_high"]] <-
+		all(length(object@vegDefiningDensityTransect_high) == 1,
+			object@vegDefiningDensityTransect_high > 0,
+			object@vegDefiningDensityTransect_high < 1,
+			object@vegDefiningDensityTransect_high > object@vegDefiningDensityTransect_low)
+	tests[["vegDefiningDensityTransectExtended_min"]] <- 
+		all(length(object@vegDefiningDensityTransectExtended_min) == 1,
+			object@vegDefiningDensityTransectExtended_min > 0,
+			object@vegDefiningDensityTransectExtended_min < 1,
+			object@vegDefiningDensityTransectExtended_min < object@vegDefiningDensityTransect_high,
+			object@vegDefiningDensityTransectExtended_min > object@vegDefiningDensityTransect_low)
 	tests[["bandTransect_width_cellN"]] <- all(length(object@bandTransect_width_cellN) == 1, object@bandTransect_width_cellN >= 200L)
 	tests[["min_slope_with_aspect"]] <- all(length(object@min_slope_with_aspect) == 1, object@min_slope_with_aspect > 0)
 	
@@ -561,20 +566,20 @@ setReplaceMethod("file_initwindow", "EcotonerSettings", function(x, value) initi
 setMethod("file_timing_locate", "EcotonerSettings", function(x) slot(slot(x, "file_timing_locate"), "path"))
 setMethod("file_etsummary", "EcotonerSettings", function(x) slot(slot(x, "file_etsummary"), "path"))
 setReplaceMethod("file_etsummary", "EcotonerSettings", function(x, value) {
-			x <- initialize(x, file_etsummary = new("EcotonerFile", path = file.path(dir_out(x), basename(value))))
+	x <- initialize(x, file_etsummary = new("EcotonerFile", path = file.path(dir_out(x), basename(value))))
 
-			temp <- strsplit(basename(file_etsummary(x)), split = ".", fixed = TRUE)[[1]]
-			temp <- paste0(paste(head(temp, n = -1), collapse = ""), "_temp.", tail(temp, n = 1))
-			initialize(x, file_etsummary_temp = new("EcotonerFile", path = file.path(dir_out(x), temp)))
-		})
+	temp <- strsplit(basename(file_etsummary(x)), split = ".", fixed = TRUE)[[1]]
+	temp <- paste0(paste(head(temp, n = -1), collapse = ""), "_temp.", tail(temp, n = 1))
+	initialize(x, file_etsummary_temp = new("EcotonerFile", path = file.path(dir_out(x), temp)))
+})
 setMethod("file_etsummary_temp", "EcotonerSettings", function(x) slot(slot(x, "file_etsummary_temp"), "path"))
 setReplaceMethod("file_etmeasure_base", "EcotonerSettings", function(x, value) initialize(x, file_etmeasure_base = new("EcotonerFile", path = file.path(dir_out(x), basename(value)))))
 setMethod("file_etmeasure_base", "EcotonerSettings", function(x, value) {
-			x <- slot(slot(x, "file_etmeasure_base"), "path")
-			temp <- strsplit(basename(x), split = ".", fixed = TRUE)[[1]]
-			temp <- paste0(paste(head(temp, n = -1), collapse = ""), "_", value, ".", tail(temp, n = 1))
-			file.path(dirname(x), temp)
-		})
+	x <- slot(slot(x, "file_etmeasure_base"), "path")
+	temp <- strsplit(basename(x), split = ".", fixed = TRUE)[[1]]
+	temp <- paste0(paste(head(temp, n = -1), collapse = ""), "_", value, ".", tail(temp, n = 1))
+	file.path(dirname(x), temp)
+})
 
 
 ## Paths

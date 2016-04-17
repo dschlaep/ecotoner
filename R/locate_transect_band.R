@@ -108,11 +108,12 @@ extract_tband_grids <- function(tpoly_UTM, width_n, crs_UTM, declin, center, res
 
 #' @export
 locate_candidate_transect_band <- function(stline, width_N, res_rotate_grid, elevCropped, elev, gap, bseRatValue, tfRatValue, seed = NULL) {	
-	stband_polygon <- set_stband_polygon(start = stline$endPoints[1, ],
-						end = stline$endPoints[2, ],
-						width_n = width_N,
-						res_m = raster::xres(elev),
-						Longitude_WGS84 = sp::coordinates(stline$endPoints_WGS84[1, ])[1])
+	stband_polygon <- set_stband_polygon(
+		start = stline$endPoints[1, ],
+		end = stline$endPoints[2, ],
+		width_n = width_N,
+		res_m = raster::xres(elev),
+		Longitude_WGS84 = sp::coordinates(stline$endPoints_WGS84[1, ])[1])
 
 	#Guarantee that band transect is contained by grid_gradient
 	stband_ext <- raster::extent(stband_polygon$tpoly_orig)
@@ -121,14 +122,15 @@ locate_candidate_transect_band <- function(stline, width_N, res_rotate_grid, ele
 	if (identical(raster::union(temp, stband_ext), temp)) {
 
 		#Extract a maximal band transect along elevation transect
-		stband_grids <- extract_tband_grids(tpoly_UTM = stband_polygon$tpoly_UTM,
-											width_n = width_N,
-											crs_UTM = stband_polygon$crs_UTM,
-											declin = stband_polygon$declin,
-											center = stband_polygon$center,
-											res_rotate_grid = res_rotate_grid,
-											grid1 = raster::crop(elev, stband_ext), grid2 = raster::crop(gap, stband_ext),
-											fun1 = mean, fun2 = function(x, ...) majority(x, seed = seed))
+		stband_grids <- extract_tband_grids(
+			tpoly_UTM = stband_polygon$tpoly_UTM,
+			width_n = width_N,
+			crs_UTM = stband_polygon$crs_UTM,
+			declin = stband_polygon$declin,
+			center = stband_polygon$center,
+			res_rotate_grid = res_rotate_grid,
+			grid1 = raster::crop(elev, stband_ext), grid2 = raster::crop(gap, stband_ext),
+			fun1 = mean, fun2 = function(x, ...) majority(x, seed = seed))
 	
 		stband_grids$DistAlongXaxis_m <- raster::xres(stband_grids$grid1) * ((1:dim(stband_grids$grid1)[2]) - 1/2)
 		#Note: identical(	[clump(extract_tband_grids(gap) %in% valList)],

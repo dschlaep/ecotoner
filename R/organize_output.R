@@ -2,29 +2,34 @@
 #Functions writing data in temporary table
 
 get.ElevationTransect_tempTableData <- function(temp_Table, data) {
-	temp_Table$Transect_Azimuth_deg <- if (requireNamespace("geosphere", quietly = TRUE)) {
-											geosphere::bearing(data$endPoints_WGS84[1,], data$endPoints_WGS84[2,])
-										} else {
-											warning("Package 'geosphere' not installed: the azimuth of the transect will not be calculated by the function 'get.ElevationTransect_tempTableData'")
-											NA
-										}
+	temp_Table$Transect_Azimuth_deg <- 
+		if (requireNamespace("geosphere", quietly = TRUE)) {
+			geosphere::bearing(data$endPoints_WGS84[1,], data$endPoints_WGS84[2,])
+		} else {
+			warning("Package 'geosphere' not installed: the azimuth of the transect will not be calculated by the function 'get.ElevationTransect_tempTableData'")
+			NA
+		}
 	temp_Table$Transect_DirectionAEA_deg <- 180 / pi * atan2((temp <- sp::coordinates(data$endPoints))[1,2]-temp[2,2], temp[1,1]-temp[2,1])
 	temp_Table$TransectElevation_Length_m <- 1000 * sp::spDists(data$endPoints_WGS84[1,], data$endPoints_WGS84[2,], longlat = TRUE)
 
 
 	temp_Table[c("TransectElevation_StartPoint_X",
 				"TransectElevation_StartPoint_Y",
-				"TransectElevation_StartPoint_Elev_m")] <- get_xyz(data$endPoints[1, ], "elev")
+				"TransectElevation_StartPoint_Elev_m")] <- 
+					get_xyz(data$endPoints[1, ], "elev")
 	temp_Table[c("TransectElevation_EndPoint_X",
 				"TransectElevation_EndPoint_Y",
-				"TransectElevation_EndPoint_Elev_m")] <- get_xyz(data$endPoints[2, ], "elev")
+				"TransectElevation_EndPoint_Elev_m")] <- 
+					get_xyz(data$endPoints[2, ], "elev")
 
 	temp_Table[c("TransectElevation_StartPoint_WGS84_Long",
 				"TransectElevation_StartPoint_WGS84_Lat",
-				"TransectElevation_StartPoint_WGS84_Elev_m")] <- get_xyz(data$endPoints_WGS84[1, ], "elev")
+				"TransectElevation_StartPoint_WGS84_Elev_m")] <- 
+					get_xyz(data$endPoints_WGS84[1, ], "elev")
 	temp_Table[c("TransectElevation_EndPoint_WGS84_Long",
 				"TransectElevation_EndPoint_WGS84_Lat",
-				"TransectElevation_EndPoint_WGS84_Elev_m")] <- get_xyz(data$endPoints_WGS84[2, ], "elev")
+				"TransectElevation_EndPoint_WGS84_Elev_m")] <- 
+					get_xyz(data$endPoints_WGS84[2, ], "elev")
 	
 	return(temp_Table)
 }

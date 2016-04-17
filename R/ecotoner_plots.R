@@ -70,7 +70,19 @@ map_transect <- function(filename, stline_pts, etline_pts, gB_Env, elevCropped, 
 	points(stline_pts, pch = ".", col = "blue")
 	points(etline_pts, pch = ".", col = "yellow")
 
-	raster::plot(sp::SpatialPolygons(list(sp::Polygons(list(sp::Polygon(sp::rbind.SpatialPoints(gB_Env$band.pts, gB_Env$band.pts[1, ]))), ID=0)), proj4string=raster::crs(gB_Env$elev$grid)), pch = 16, border = "yellow", add = TRUE)
+	trs <- sp::SpatialPolygons(list(
+				sp::Polygons(list(
+					sp::Polygon(
+						sp::rbind.SpatialPoints(
+							gB_Env$band.pts,
+							gB_Env$band.pts[1, ]
+						)
+					)
+				),
+				ID = 0)
+			), 
+			proj4string = raster::crs(gB_Env$elev$grid))
+	raster::plot(trs, pch = 16, border = "yellow", add = TRUE)
 	
 	invisible()
 }

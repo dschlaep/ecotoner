@@ -16,8 +16,10 @@ simplify2result <- function(x, showWarnings = TRUE) {
 		dims <- sapply(x, function(d) if (inherits(d, "data.frame") || inherits(d, "matrix")) dim(d) else c(1, length(d)))
 		if (all(diff(dims[2, ]) == 0)) { # all must have same number of columns
 			cumrows <- c(0, cumsum(dims[1, ]))
-			res <- as.data.frame(matrix(NA, nrow = cumrows[1 + length(x)], ncol = dims[2, 1],
-										dimnames = list(NULL, colnames(x[[1]]))))
+			res <- as.data.frame(matrix(NA, 
+						nrow = cumrows[1 + length(x)],
+						ncol = dims[2, 1],
+						dimnames = list(NULL, colnames(x[[1]]))))
 			for (i in seq_along(x)) res[cumrows[i] + seq_len(dims[1, i]), ] <- x[[i]]
 			x <- res
 		}

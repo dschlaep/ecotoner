@@ -78,11 +78,12 @@ elongate_linear_transect <- function(x, point1, point2, efac = 1, extend.dir12 =
 		point4 <- point1
 	}
 	temp_crs <- raster::crs(point2)
-	tpoints <- sp::rbind.SpatialPoints(sp::SpatialPoints(point3, proj4string=temp_crs),
-										sp::SpatialPoints(point1, proj4string=temp_crs),
-										point2,
-										sp::SpatialPoints(point4, proj4string=temp_crs))
-	tline <- sp::SpatialLines(list(sp::Lines(sp::Line(tpoints), ID=1)), proj4string=temp_crs)
+	tpoints <- sp::rbind.SpatialPoints(
+		sp::SpatialPoints(point3, proj4string = temp_crs),
+		sp::SpatialPoints(point1, proj4string = temp_crs),
+		point2,
+		sp::SpatialPoints(point4, proj4string = temp_crs))
+	tline <- sp::SpatialLines(list(sp::Lines(sp::Line(tpoints), ID = 1)), proj4string = temp_crs)
 	
 	temp <- raster::rasterize(x = tline, y = x)
 	path <- raster::rasterToPoints(x = temp, spatial = TRUE)
@@ -151,9 +152,10 @@ locate_candidate_THAs <- function(n, grid_gradient, max_neighborhood, asp201Mean
 		good_lines <- which(sapply(runs, function(r) length(r$isegments) > 0 && max(r$lengths[r$isegments]) > width_N))
 
 		if (length(good_lines) > 0) for(i in seq_along(good_lines)) {
-			candidates[[i]] <- subset_candidate_THA(grid_gradient = grid_gradient,
-													init_spLine = extLinesAspm_spLine[good_lines[i], ],
-													init_rle = runs[[good_lines[i]]])
+			candidates[[i]] <- subset_candidate_THA(
+				grid_gradient = grid_gradient,
+				init_spLine = extLinesAspm_spLine[good_lines[i], ],
+				init_rle = runs[[good_lines[i]]])
 		}
 	}
 		
@@ -182,33 +184,37 @@ locate_candidate_transect_lines <- function(transect_type, start, neighbors, max
 		#Get a second point within neighborhood
 		if (transect_type == 1 || transect_type == 3) { 
 			# Get the highest point within neighborhood
-			highLoc <- locate_max_value(x = grid_gradient,
-										point = start,
-										neighbors = neighbors)
+			highLoc <- locate_max_value(
+				x = grid_gradient,
+				point = start,
+				neighbors = neighbors)
 		} else if(transect_type == 2) {
-			highLoc <- locate_steepest_slope(x = grid_gradient,
-											point = start,
-											neighbors_max = neighbors,
-											neighbors_min = width_N)
+			highLoc <- locate_steepest_slope(
+				x = grid_gradient,
+				point = start,
+				neighbors_max = neighbors,
+				neighbors_min = width_N)
 		}
 		
 		if (!is.null(highLoc)) {
 			if (transect_type == 1) {
 				# Approach: transect = direct route between highLoc and ipoint and extend straight by factor x, cut out section between highest and lowest elevation
-				candidates[[1]] <- elongate_linear_transect(x = grid_gradient,
-														point1 = start,
-														point2 = highLoc,
-														efac = 2,
-														extend.dir12 = FALSE,
-														extend.dir21 = TRUE)
+				candidates[[1]] <- elongate_linear_transect(
+					x = grid_gradient,
+					point1 = start,
+					point2 = highLoc,
+					efac = 2,
+					extend.dir12 = FALSE,
+					extend.dir21 = TRUE)
 			} else if (transect_type == 2) {
 				# Approach: transect = direct route between highLoc and ipoint and extend straight in both directions by factor x, cut out section between highest and lowest elevation
-				candidates[[1]] <- elongate_linear_transect(x = grid_gradient,
-														point1 = start,
-														point2 = highLoc,
-														efac = 2,
-														extend.dir12 = TRUE,
-														extend.dir21 = TRUE)
+				candidates[[1]] <- elongate_linear_transect(
+					x = grid_gradient,
+					point1 = start,
+					point2 = highLoc,
+					efac = 2,
+					extend.dir12 = TRUE,
+					extend.dir21 = TRUE)
 			} else if (transect_type == 3) {
 				# Approach: transect = flowpath, but calc_flow_path gets stuck easily on flat areas or in small bowls
 				temp <- calc_flow_path(flowdir = grid_flow, point = highLoc)
@@ -217,16 +223,17 @@ locate_candidate_transect_lines <- function(transect_type, start, neighbors, max
 		}
 	} else if (transect_type == 4) {
 		# Approach: transect: sufficient length along homogeneous aspect
-		candidates <- locate_candidate_THAs(n = candidate_THA_N,
-									grid_gradient = grid_gradient,
-									max_neighborhood = max_neighborhood,
-									asp201Mean = asp201MeanCropped,
-									asp201SD = asp201SDCropped,
-									abuts = bseABUTtfCropped,
-									max_aspect_sd = max_aspect_sd,
-									max_aspect_diff = max_aspect_diff,
-									width_N = width_N,
-									seed = seed)
+		candidates <- locate_candidate_THAs(
+			n = candidate_THA_N,
+			grid_gradient = grid_gradient,
+			max_neighborhood = max_neighborhood,
+			asp201Mean = asp201MeanCropped,
+			asp201SD = asp201SDCropped,
+			abuts = bseABUTtfCropped,
+			max_aspect_sd = max_aspect_sd,
+			max_aspect_diff = max_aspect_diff,
+			width_N = width_N,
+			seed = seed)
 	}
 	
 	list(lines = candidates, line_N = length(candidates))
