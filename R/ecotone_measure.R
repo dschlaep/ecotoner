@@ -22,18 +22,25 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 		what_measure[!started_etmeth, , ] <- TRUE
 		#	- do those that are only list()
 		started_etmeas <- names(etmeas) %in% et_methods
-		if (any(started_etmeas)) redo_etmeas <- sapply(etmeas[started_etmeas], function(x) length(x) == 0L)
-		if (any(redo_etmeas)) what_measure[et_methods %in% names(etmeas)[started_etmeas][redo_etmeas], , ] <- TRUE
+		if (any(started_etmeas)) {
+			redo_etmeas <- sapply(etmeas[started_etmeas], function(x) length(x) == 0L)
+			if (any(redo_etmeas)) {
+				what_measure[et_methods %in% names(etmeas)[started_etmeas][redo_etmeas], , ] <- TRUE
+			}
+		}
 		#	- check if some measure methods have only partially completed or were calculated by an outdated version
 		if (any(started_etmeas)) {
 			todo_neighsXmigs <- sapply(etmeas[started_etmeas], function(x)
 									sapply(x$gETmeas, function(b)
 										sapply(b, function(m)
-											isTRUE(length(m) <= 1) ||
-											is.null(m$meta) ||
-											isTRUE(m$meta$version < cur_versions[[m$meta$method]]))))
-			if (length(dim(todo_neighsXmigs)) == 2L && identical(dim(todo_neighsXmigs), dim(what_measure[names(etmeas)[started_etmeas], , ]))) {
-				what_measure[names(etmeas)[started_etmeas], , ] <- t(todo_neighsXmigs)
+													isTRUE(length(m) <= 1) ||
+													is.null(m$meta) ||
+													isTRUE(m$meta$version < cur_versions[[m$meta$method]]))),
+									simplify = "array")
+			todo_neighsXmigs <- aperm(todo_neighsXmigs, perm = rev(seq_along(dim(todo_neighsXmigs))))
+			if (length(dim(todo_neighsXmigs)) == 3L &&
+				identical(dim(todo_neighsXmigs), dim(what_measure[names(etmeas)[started_etmeas], , , drop = FALSE]))) {
+				what_measure[names(etmeas)[started_etmeas], , ] <- todo_neighsXmigs
 			} else {
 				what_measure[names(etmeas)[started_etmeas], , ] <- TRUE
 			}
@@ -75,8 +82,6 @@ measure_ecotone_per_transect <- function(i, et_methods, ecotoner_settings, seed_
 		
 		for (b in seq_len(neighbors_N(ecotoner_settings))) {
 			flag_bfig <- flag_basename(ecotoner_settings, iflag, b)
-
-#TODO(drs):	eB_InterZone <- eB_PatchSizeDist <- template_etobs	#ecological boundaries
 
 			#----3. Loop through both versions of vegetation for applying the methods : Veg$AllMigration and Veg$OnlyGoodMigration
 			for (im in seq_along(migtypes)) {

@@ -1,7 +1,7 @@
 #TODO(drs): pass 'doms' etc via an option method to Danz2012; same approach to set options from user for other methods too; account for options in 'what_measure'
 #TODO(drs): create S4 class for measure methods
 
-version_Danz2012JVegSci_2D <- function() numeric_version("0.2.1")
+version_Danz2012JVegSci_2D <- function() numeric_version("0.2.4")
 
 #' Estimation of the abruptness of the change of outcome z along the \sQuote{rows} of 1- and 2-dimensional x
 #'
@@ -18,6 +18,7 @@ version_Danz2012JVegSci_2D <- function() numeric_version("0.2.1")
 #'		\code{ytrans}: optional - a function applied to outcome z before model fitting; 
 #'		\code{ytransinv}: optional - the backtransformation of \code{ytrans} applied after model fitting.
 #'
+#' @param i An integer value. The transect ID (only used for informative warning messages).
 #' @param doms A named list of named options as a list that defines models which are applied to the data. See details.
 #' @param use_dims A logical vector of length 2. Value of first/second element indicates if 1/2-dimensional models are estimated.
 #' @param x1d A numeric vector. The 1-dimensional predictor along the ecotone transect from left-right. The length of x has to correspond to the ecotone transect. For instance, distance along the transect.
@@ -31,7 +32,7 @@ version_Danz2012JVegSci_2D <- function() numeric_version("0.2.1")
 #' @seealso \code{\link{Danz2012JVegSci_2D}}, and the possible model functions \code{\link[ecotoner]{m_glm}}, \code{\link[ecotoner]{m_glmm_lme4}}, and \code{\link[ecotoner]{m_sig}}
 #' @return A named list with three items \sQuote{fits}, \sQuote{plot_preds}, and \sQuote{plot_data}
 #' @export
-calc_Danz2012_abruptness_2D <- function(doms, use_dims, x1d, z1d, x2d, z2d, seed = NULL, include_lm = FALSE) {
+calc_Danz2012_abruptness_2D <- function(i, doms, use_dims, x1d, z1d, x2d, z2d, seed = NULL, include_lm = FALSE) {
 	# logistic regression on z ~ x with repeated 'rows' along the transect
 	# idea by ld; implementation by drs
 
@@ -120,12 +121,19 @@ calc_Danz2012_abruptness_2D <- function(doms, use_dims, x1d, z1d, x2d, z2d, seed
 									ytransinv = doms[[j]][["ytransinv"]],
 									grid = grid))
 			res <- do.call(doms[[j]][["fun"]], args = fargs)
-			if (inherits(res[["m"]], "try-error"))
-				warning("ecotoner::calc_Danz2012_abruptness_2D(): for ", sQuote(paste(names(doms[[j]]), "=", doms[[j]], collapse = "; ")), " with ", dQuote(res[["m"]]), immediate. = TRUE)
+			if (inherits(res[["m"]], "try-error")) {
+				# attributes of try-error class contain the call with all the data which can in these cases be large objects
+				mess <- paste0("tr = ", i, ": ", as.character(res[["m"]]))
+				mess <- gsub("\n", ":", mess)
+				# print warning to console and continue
+				warning("ecotoner::calc_Danz2012_abruptness_2D(): for ", sQuote(paste(names(doms[[j]]), "=", doms[[j]], collapse = "; ")), " with ", dQuote(mess), immediate. = TRUE)
+			} else {
+				mess <- NA
+			}
 			
 			# copy results
 			preds[[k]][[doms[[j]][["tag"]]]] <- c(res[["preds"]], list(isConv = res[["quals"]][["isConv"]]))
-			fits[[k]][[doms[[j]][["tag"]]]] <- res[c("quals", "coef1", "perf")]
+			fits[[k]][[doms[[j]][["tag"]]]] <- c(res[c("quals", "coef1", "perf")], list(errors = mess))
 		
 			# rescale coef1 to original scale
 			cres <- fits[[k]][[doms[[j]][["tag"]]]][["coef1"]]
@@ -284,10 +292,10 @@ Danz2012JVegSci_2D <- function(i, b, migtype, ecotoner_settings, etband, etmeasu
 					)
 		use_dims <- c('1D' = FALSE, '2D' = TRUE)
 
-		temp1 <- calc_Danz2012_abruptness_2D(doms, use_dims,
+		temp1 <- calc_Danz2012_abruptness_2D(i, doms, use_dims,
 					x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$Veg1$density,
 					x2d = etband$Env$elev$grid, z2d = etband$Veg[[migtype]]$Veg1$grid, seed = seed)
-		temp2 <- calc_Danz2012_abruptness_2D(doms, use_dims,
+		temp2 <- calc_Danz2012_abruptness_2D(i, doms, use_dims,
 					x1d = etband$Env$elev$YMeans_ForEachX, z1d = etband$Veg[[migtype]]$Veg2$density,
 					x2d = etband$Env$elev$grid, z2d = etband$Veg[[migtype]]$Veg2$grid, seed = seed)
 		etmeasure$gETmeas[[b]][[migtype]]$Veg1VsElev_2D <- temp1$fits

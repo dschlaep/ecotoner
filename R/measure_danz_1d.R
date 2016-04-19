@@ -25,10 +25,10 @@ calc_Danz2012_abruptness_1D <- function(x, z, seed = NULL) {
 	z <- c(scale(z, center = ymin, scale = ymax - ymin))
 	
 	#choice between linear vs sigmoidal only reflects how transect is defined and not necessarily how abrupt it is, i.e., whether 'shoulders' of vegetation density at low and high values are included in transect or not
-	ms <- try(nls(z ~ sigmoidal(x, b, c), start = list(b = 1, c = 0.5)), silent = TRUE)
+	ms <- try(nls(z ~ sigmoidal(x, c, b), start = list(b = 1, c = 0.5)), silent = TRUE)
 	reps <- 0
 	while (inherits(ms, "try-error") && reps <= 50) {
-		ms <- try(nls(z ~ sigmoidal(x, b, c), start = list(b = runif(1), c = runif(1))), silent = TRUE)
+		ms <- try(nls(z ~ sigmoidal(x, c, b), start = list(b = runif(1), c = runif(1))), silent = TRUE)
 		reps <- reps + 1
 	}
 	

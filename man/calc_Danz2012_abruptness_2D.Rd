@@ -4,10 +4,12 @@
 \alias{calc_Danz2012_abruptness_2D}
 \title{Estimation of the abruptness of the change of outcome z along the \sQuote{rows} of 1- and 2-dimensional x}
 \usage{
-calc_Danz2012_abruptness_2D(doms, use_dims, x1d, z1d, x2d, z2d, seed = NULL,
-  include_lm = FALSE)
+calc_Danz2012_abruptness_2D(i, doms, use_dims, x1d, z1d, x2d, z2d,
+  seed = NULL, include_lm = FALSE)
 }
 \arguments{
+\item{i}{An integer value. The transect ID (only used for informative warning messages).}
+
 \item{doms}{A named list of named options as a list that defines models which are applied to the data. See details.}
 
 \item{use_dims}{A logical vector of length 2. Value of first/second element indicates if 1/2-dimensional models are estimated.}

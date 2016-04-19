@@ -254,12 +254,12 @@ majority <- function(x, use_mode = TRUE, return_single = TRUE, na.rm = FALSE, se
 
 
 #---Danz et al. 2012: 'Spatial change in vegetation across the boundary'
-sigmoidal <- function(x, b, c) {
-	1 / (exp(-b * (x - c)) + 1)
+sigmoidal <- function(x, b0, b1) {
+	1 / (exp(-b1 * (x - b0)) + 1)
 }
 
-sigmoidal_inv <- function(y, b, c) {
-	c - 1 / b * log(1 / y - 1, base = exp(1))
+sigmoidal_inv <- function(y, b0, b1) {
+	b0 - 1 / b1 * log(1 / y - 1, base = exp(1))
 }
 
 is_binary <- function(x) {
@@ -397,8 +397,11 @@ m_glm <- function(family, data., ytrans = NULL, ytransinv = NULL, ...) {
 		mpred <- predict(mfit, newdata = transdat[["d"]][["newdata"]], type = "response", se.fit = TRUE)
 		if (transdat[["y_transformed"]]) mpred$fit <- ytransinv(mpred$fit)
 		
-		quals <- c(isConv = mfit$converged, edf = {temp <- extractAIC(mfit)}[1], AIC = temp[2],
-					logLik = logLik(mfit), deviance = deviance(mfit), df.resid = df.residual(mfit))
+		quals <- c(isConv = mfit$converged,
+					edf = {temp <- extractAIC(mfit)}[1], AIC = temp[2],
+					logLik = logLik(mfit),
+					deviance = deviance(mfit),
+					df.resid = df.residual(mfit))
 					
 		# deviance-based Likelihood-Ratio-Test
 		#anova(mfit0, mfit, test = "F", dispersion = quals["deviance"] / quals["df.resid"])
@@ -530,7 +533,7 @@ m_glmm_PQL <- function(family, data., random = "~ x|r", correlation = "NULL", yt
 						} else {
 							try(MASS::glmmPQL(fixed = y ~ x, random = as.formula(random),
 												family = family, correlation = cors,
-												weights = w, data = m_data,
+												weights = w, data = m_data, niter = 50, # there appear to be frequent convergence problems
 												verbose = FALSE),
 								silent = FALSE)
 						}
@@ -540,8 +543,11 @@ m_glmm_PQL <- function(family, data., random = "~ x|r", correlation = "NULL", yt
 					mpred <- list(fit = predict(mfit, newdata = transdat[["d"]][["newdata"]], level = 0, type = "response"))
 					if (transdat[["y_transformed"]]) mpred <- ytransinv(mpred)
 			
-					quals <- c(isConv = TRUE, edf = {temp <- extractAIC(mfit)}[1], AIC = temp[2],
-								logLik = as.numeric(logLik(mfit)), deviance = deviance(mfit), df.resid = df.residual(mfit))
+					quals <- c(isConv = TRUE,
+								edf = {temp <- extractAIC(mfit)}[1], AIC = temp[2],
+								logLik = as.numeric(logLik(mfit)),
+								deviance = NA_integer_,
+								df.resid = NA_integer_)
 				
 					temp <- summary(mfit)$tTable
 					coef1 <- c(beta = temp[2, "Value"], se = temp[2, "Std.Error"])
@@ -610,10 +616,13 @@ m_glmm_RAC <- function(family, data., random = "(x|r)", ytrans = NULL, ytransinv
 			
 			if (!inherits(mfit1, "try-error")) {
 				# Calculate RAC = residual autocovariate
-				grid[] <- residuals(mfit1, type = "response", scale = FALSE)
+				i_gridcell <- raster::cellFromXY(grid, m_data[, c("c", "r")])
+				grid[i_gridcell] <- residuals(mfit1, type = "response", scale = FALSE)	# assignment to cells via 'cellFromXY' is required in case 'm_data' does not contain rows for each cell of 'grid'
+				
 				fw <- focalWeight_inverse(raster::res(grid), nbs = 5 * raster::xres(grid))
-				rac_focal <- raster::focal(grid, w = fw, fun = "sum", na.rm = TRUE, pad = TRUE, padValue = NA)			
-				m_data <- cbind(m_data, rac = raster::rasterToPoints(rac_focal)[, "layer"])
+				rac_focal <- raster::focal(grid, w = fw, fun = "sum",
+											na.rm = TRUE, pad = TRUE, padValue = NA)			
+				m_data <- cbind(m_data, rac = raster::rasterToPoints(rac_focal)[i_gridcell, "layer"])
 				
 				# Fit spatial model with RAC
 				mfit <- if (identical(family[["family"]], "gaussian")) {
@@ -662,24 +671,32 @@ m_sig <- function(data., ytrans = NULL, ytransinv = NULL, ...) {
 	transdat <- m_transform_y(data., ytrans, ytransinv)
 
 	# Fit model
-	mfit <- {i <- 1
+	mfit <- {	l <- 1
 				repeat {
-					fit <- try(nls(y ~ sigmoidal(x, b, c), data = transdat[["d"]], start = list(b = runif(1, -1, 1), c = runif(1, -1, 1))), silent = TRUE)
-					if (i > 50 || !inherits(fit, "try-error")) break
-					i <- i + 1
+					fit <- try(nls(y ~ sigmoidal(x, b0, b1),
+									data = transdat[["d"]][c("x", "y")],
+									start = list(b0 = runif(1, -1, 1),
+												b1 = runif(1, -1, 1))),
+							silent = TRUE)
+					if (l > 50 || !inherits(fit, "try-error")) break
+					l <- l + 1
 				}
-			fit}
+				fit
+			}
 	
 	if (!inherits(mfit, "try-error")) {
 		mpred <- list(fit = predict(mfit, newdata = transdat[["d"]][["newdata"]], type = "response"))
 		if (transdat[["y_transformed"]]) mpred <- ytransinv(mpred)
 		
 		temp <- logLik(mfit)
-		quals <- c(isConv = mfit[["convInfo"]][["isConv"]], edf = attr(temp, "df"), AIC = AIC(mfit),
-					logLik = temp, deviance = deviance(mfit), df.resid = df.residual(mfit))
+		quals <- c(isConv = mfit[["convInfo"]][["isConv"]],
+					edf = attr(temp, "df"), AIC = AIC(mfit),
+					logLik = temp,
+					deviance = deviance(mfit),
+					df.resid = df.residual(mfit))
 		
 		temp <- coef(summary(mfit))
-		coef1 <- c(beta = temp["b", "Estimate"], se = temp["b", "Std. Error"])
+		coef1 <- c(beta = temp["b1", "Estimate"], se = temp["b1", "Std. Error"])
 		if (transdat[["y_transformed"]]) coef1["beta"] <- coef1["beta"] * transdat[["coef1_mult"]]
 
 		perf <- if (transdat[["d"]][["is_binary"]]) performance_bernoulli(pred = as.numeric(fitted(mfit)), obs = transdat[["d"]][["y"]]) else performance_bernoulli()
