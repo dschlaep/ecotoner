@@ -1,6 +1,6 @@
 #------Eppinga, M.B., Pucko, C.A., Baudena, M., Beckage, B. & Molofsky, J. (2013) A new method to infer vegetation boundary movement from 'snapshot' data. Ecography, 36, 622-635.
 
-version_Eppinga2013Ecography <- function() numeric_version("0.2.2")
+version_Eppinga2013Ecography <- function() numeric_version("0.2.3")
 
 
 #---Eppinga et al. 2013: 'Analytical analysis of vegetation boundary movement' (Fig. 1)
@@ -13,7 +13,7 @@ calc_Eppinga2013_optpos <- function(Veg1, Veg2){
 	covT <- raster::cellStats(VegT, "sum")
 	
 	# find location where veg1 would end if all of veg1 were arranged to the left and if transect width was reduced according to empty cells
-	opt <- cov1 * raster::ncol(VegT)/ covT
+	opt <- cov1 * raster::ncol(VegT) / covT
 	
 	list(pos_cell = round(opt), pos_m = raster::xres(Veg1) * opt,
 		dr1 = cov1 / covT, dr2 = 1 - cov1 / covT, totd = covT / ncells)
@@ -86,7 +86,7 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 										  sim = "ordinary", stype = "i",
 										  parallel = "no")
 			
-			# adjusted bootstrap percentile (BCa) interval
+			# bias corrected and accelerated bootstrap (BCa) interval
 			bmds[["iid"]][["ci"]] <- boot::boot.ci(bmds[["iid"]][["boot"]],
 										conf = c(0.95, 0.99, 0.999), type = "bca")
 		} else {
@@ -154,7 +154,7 @@ calc_Eppinga2013_stats <- function(FR_dist_T17_veg1, FR_dist_mean_T17_veg1, FR_d
 		if (requireNamespace("coin", quietly = TRUE)) {
 			# Test approach 2: exact Wilcoxon signed rank test (with Pratt correction of zeros)
 			wsrt <- coin::wilcoxsign_test(FR_dist_T17_veg1 ~ FR_dist_T17_veg2, distribution = "exact", alternative = "two.sided")
-			res[["FD_WSRT_Z"]] <- coin::statistic(wsrt, type = "test")
+			res[["FD_WSRT_Z"]] <- as.numeric(coin::statistic(wsrt, type = "test"))
 			res[["FD_WSRT_p"]] <- coin::pvalue(wsrt)
 			res[["FD_WSRT_midp"]] <- coin::midpvalue(wsrt)
 		} else {
