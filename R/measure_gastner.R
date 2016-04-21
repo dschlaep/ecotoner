@@ -74,6 +74,7 @@ calc_Gastner2010_hulledge <- function(i, steplength, veg, end_toLeft) {
 	rm(vegclumps_largestID)
 	
 	#---2. Identify cells to start and end biased walk
+	# Note: start_col, end_col, start_row, end_row are in matrix coordinates
 	runners <- calc_Eppinga2013_frontrunners(vegclumps_largest, end_toLeft)
 	if (end_toLeft) { #left biased walk and from grid bottom to top 
 		start_row <- max(which(!is.na(runners)))
