@@ -272,52 +272,80 @@ tabulate_Gastner2010_hulledge <- function(etable, index, data, steplength, width
 	etable
 }
 
-#' @export
-plot_Gastner2010_hulledge <- function(filename, eB_Env, eB_Veg, datFit) {
-	pdf(width=7, height=10, file=filename)
-	par_old <- par(mfrow=c(nr <- 2, 1), mar=c(0, 0.1, 1, 1), mgp=c(1.5, 0.5, 0), cex=cex <- 1.5)
-	on.exit({par(par_old); dev.off()}, add = TRUE)
 
-
-	#Panel a: map
-	ext1 <- raster::extent(eB_Env$elev$grid)
+plot_Gastner2010_panel_map <- function(eB_Env, eB_Veg, datFit, ext1, col1 = "orange", col2 = "green", xann = TRUE, yann = TRUE) {
 	xlim <- c(-1000, ext1@xmax)
 	ylim <- c(-1000, ext1@ymax)
 	
-	raster::image(eB_Env$elev$grid, col=gray(0:255/255), xlim=xlim, ylim=ylim, main="", xlab="", ylab="", asp=1, axes=FALSE)
-	raster::image(eB_Veg$Veg1$grid, col=adjustcolor("red", alpha.f = 0.3), add=TRUE)
-	raster::image(datFit$Veg1$grid_LargestPatch, col=adjustcolor("red", alpha.f = 0.3), add=TRUE)
-	raster::image(eB_Veg$Veg2$grid, col=adjustcolor("darkgreen", alpha.f = 0.3), add=TRUE)
-	raster::image(datFit$Veg2$grid_LargestPatch, col=adjustcolor("darkgreen", alpha.f = 0.3), add=TRUE)
+	raster::image(eB_Env$elev$grid, col = gray(0:255/255), xlim = xlim, ylim = ylim, main = "", xlab = "", ylab = "", asp = 1, axes = FALSE)
+	raster::image(eB_Veg$Veg1$grid, col = adjustcolor("red", alpha.f = 0.3), add = TRUE)
+	raster::image(datFit$Veg1$grid_LargestPatch, col = adjustcolor("red", alpha.f = 0.3), add = TRUE)
+	raster::image(eB_Veg$Veg2$grid, col = adjustcolor("darkgreen", alpha.f = 0.3), add = TRUE)
+	raster::image(datFit$Veg2$grid_LargestPatch, col = adjustcolor("darkgreen", alpha.f = 0.3), add = TRUE)
 	atx <- c((atx <- axTicks(1))[atx >= 0 & atx < ext1@xmax], ext1@xmax)
-	axis(1, pos=0, at=atx)
-	axis(2, pos=0, at=c(0, 2000, 4000, 6000))
-	text(x=ext1@xmax/2, y=-strheight("0", units="user", cex=cex)*(0.5+2), labels="Transect length (m)", xpd=NA)
-	text(x=-strwidth("0", units="user", cex=cex)*(0.5+2.5), y=ext1@ymax/2, labels="Transect width (m)", srt=90)
+	axis(1, pos = 0, at = atx, labels = xann)
+	axis(2, pos = 0, at = c(0, 2000, 4000, 6000), labels = yann)
+	if (xann) text(x = ext1@xmax/2, y = -strheight("0", units = "user", cex = cex)*(0.5+2), labels = "Transect length (m)", xpd = NA)
+	if (yann) text(x = -strwidth("0", units = "user", cex = cex)*(0.5+2.5), y = ext1@ymax/2, labels = "Transect width (m)", srt = 90, xpd = NA)
 
-	lines(x=sp::coordinates(datFit$Veg1$spLine_hullEdge)[[1]][[1]], col="orange")
-	lines(x=sp::coordinates(datFit$Veg2$spLine_hullEdge)[[1]][[1]], col="green")
-	mtext(text="(a)", line=-1, cex=cex, adj=0.01)
+	lines(x = sp::coordinates(datFit$Veg1$spLine_hullEdge)[[1]][[1]], col = col1)
+	lines(x = sp::coordinates(datFit$Veg2$spLine_hullEdge)[[1]][[1]], col = col2)
 
-	#Panel b: densities
-	par(mar=c(2.5, 2.5, 1, 1.5))
+	invisible()
+}
+
+add_loc_width <- function(datFit, iveg, yoffset = NULL, color = "orange", lty = 1, lwd = 2, nr = 2) {
+	xpos <- datFit[[iveg]]$stats$position_m
+	if (is.null(yoffset)) yoffset <- if (iveg == "Veg1") 0 else 0.01
+	ytemp <- 1 - yoffset
+	arrows(x0 = xpos, y0 = ytemp, x1 = xpos, y1 = 0,
+			lty = lty, lwd = lwd, col = color, length = 0.03 * par()$pin[1] / nr)
+	arrows(x0 = xpos - datFit[[iveg]]$stats$width_m, y0 = ytemp,
+			x1 = xpos + datFit[[iveg]]$stats$width_m, y1 = ytemp,
+			lty = lty, lwd = lwd, col = color, length = 0.03 * par()$pin[1] / nr, code = 3)
+	invisible()
+}
+
+
+plot_Gastner2010_panel_position <- function(eB_Env, eB_Veg, datFit, ext1, nr = 2, xann = TRUE, yann = TRUE) {
 	#Veg1
-	plot(eB_Env$DistAlongXaxis_m, eB_Veg$Veg1$density, lty=1, col="red", type="l", xlim=c(0, ext1@xmax), ylim=c(0, 1), xlab="Transect length (m)", ylab="Density", xaxs="i", axes=FALSE)
+	plot(eB_Env$DistAlongXaxis_m, eB_Veg$Veg1$density, lty = 1, col = "red", type = "l", xlim = c(0, ext1@xmax), ylim = c(0, 1),
+		xlab = if (xann) "Transect length (m)" else "",
+		ylab = if (xann) "Density" else "",
+		xaxs = "i", axes = FALSE)
 	atx <- c((atx <- axTicks(1))[atx >= 0 & atx < ext1@xmax], ext1@xmax)
-	axis(1, pos=0, at=atx)
-	axis(2, pos=0)
+	axis(1, pos = 0, at = atx, labels = xann)
+	axis(2, pos = 0, labels = yann)
 	include <- datFit$Veg1$density > 0
-	lines(eB_Env$DistAlongXaxis_m[include], datFit$Veg1$density[include], col="red", lwd=2)
-	arrows(x0=pos <- datFit$Veg1$stats$position_m, y0=ytemp <- 1, x1=pos, y1=0, lwd=2, col="orange", length=0.03*par()$pin[1]/nr)
-	arrows(x0=pos - datFit$Veg1$stats$width_m, y0=ytemp, x1=pos + datFit$Veg1$stats$width_m, y1=ytemp, lwd=2, col="orange", length=0.03*par()$pin[1]/nr, code=3)
-	#Veg2
-	lines(eB_Env$DistAlongXaxis_m, eB_Veg$Veg2$density, lty=1, col="darkgreen")
-	include <- datFit$Veg2$density > 0
-	lines(eB_Env$DistAlongXaxis_m[include], datFit$Veg2$density[include], col="darkgreen", lwd=2)
-	arrows(x0=pos <- datFit$Veg2$stats$position_m, y0=ytemp-0.01, x1=pos, y1=0, lwd=2, col="green", length=0.03*par()$pin[1]/nr)
-	arrows(x0=pos - datFit$Veg2$stats$width_m, y0=ytemp-0.01, x1=pos + datFit$Veg2$stats$width_m, y1=ytemp-0.01, lwd=2, col="green", length=0.03*par()$pin[1]/nr, code=3)
+	lines(eB_Env$DistAlongXaxis_m[include], datFit$Veg1$density[include], col = "red", lwd = 2)
+	add_loc_width(datFit, iveg = "Veg1", color = "orange", nr = nr)
 
-	mtext(text="(b)", line=-0.5, cex=cex, adj=0.01)
+	#Veg2
+	lines(eB_Env$DistAlongXaxis_m, eB_Veg$Veg2$density, lty = 1, col = "darkgreen")
+	include <- datFit$Veg2$density > 0
+	lines(eB_Env$DistAlongXaxis_m[include], datFit$Veg2$density[include], col = "darkgreen", lwd = 2)
+	add_loc_width(datFit, iveg = "Veg2", color = "green", nr = nr)
+
+	invisible()
+}
+
+
+#' @export
+plot_Gastner2010_hulledge <- function(filename, eB_Env, eB_Veg, datFit) {
+	ext1 <- raster::extent(eB_Env$elev$grid)
+
+	pdf(width = 7, height = 10, file = filename)
+	par_old <- par(mfrow = c(nr <- 2, 1), mar = c(0, 0.1, 1, 1), mgp = c(1.5, 0.5, 0), cex = cex <- 1.5)
+	on.exit({par(par_old); dev.off()}, add = TRUE)
+
+	#Panel a: map
+	plot_Gastner2010_panel_map(eB_Env, eB_Veg, datFit, ext1)
+	mtext(text = "(a)", line = -1, cex = cex, adj = 0.01)
+	
+	#Panel b: densities
+	par(mar = c(2.5, 2.5, 1, 1.5))
+	plot_Gastner2010_panel_position(eB_Env, eB_Veg, datFit, ext1, nr = nr)
+	mtext(text = "(b)", line = -0.5, cex = cex, adj = 0.01)
 
 	invisible()
 }

@@ -5,6 +5,7 @@ get.ElevationTransect_tempTableData <- function(temp_Table, data) {
 	temp_Table$Transect_Azimuth_deg <- 
 		if (requireNamespace("geosphere", quietly = TRUE)) {
 			geosphere::bearing(data$endPoints_WGS84[1,], data$endPoints_WGS84[2,])
+			# units = ]-180, +180] arcdegrees from North (0 deg), East (90 deg), South (180 deg), to West (-90 deg)
 		} else {
 			warning("Package 'geosphere' not installed: the azimuth of the transect will not be calculated by the function 'get.ElevationTransect_tempTableData'")
 			NA
