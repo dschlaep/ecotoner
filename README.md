@@ -1,4 +1,4 @@
-# Ecotoner
+# Ecotoner -- locates ecotones and extracts geographic and geometric measures of ecotones
 
 We haven’t really published the code yet nor prepared it for sharing (though through our use of github made it openly accessible), it is actively and gradually being developed by the Schlaepfer lab, and there is no manual - we cannot give you individual support in setting up and running the code except if we agreed on a collaboration or similar agreement.
 
@@ -9,8 +9,11 @@ There is no graphical user interface, help pages and available documentation may
 If you make use of this model, please cite appropriate references, and we would like to hear about your particular study (especially a copy of any published paper).
 
 
-Some recent references
-* 
+Some references of the implemented methods
+* Danz, N.P., Frelich, L.E., Reich, P.B. & Niemi, G.J. (2012) Do vegetation boundaries display smooth or abrupt spatial transitions along environmental gradients? Evidence from the prairie–forest biome boundary of historic Minnesota, USA. Journal of Vegetation Science, 24, 1129-1140.
+* Eppinga, M.B., Pucko, C.A., Baudena, M., Beckage, B. & Molofsky, J. (2013) A new method to infer vegetation boundary movement from ‘snapshot’ data. Ecography, 36, 622-635.
+* Gastner, M., Oborny, B., Zimmermann, D.K. & Pruessner, G. (2009) Transition from connected to fragmented vegetation across an environmental gradient: scaling laws in ecotone geometry. The American Naturalist, 174, E23-E39.
+
 
 
 
@@ -28,12 +31,12 @@ help(package = "ecotoner")	# The index page with some of the functions (which ar
 ### Using the package
 I added the main code which I use to locate and measure my transects (producing the data for later analysis), as demo to the package. I also added data so that it can run  as a small contained demo ‘example’ (if the flag do.demo is set to TRUE). You could run this code directly with the demo() function, but this is probably not convenient:
 ```
-demo("BSE-TF_EcotonesAtSlope_v10", package = "ecotoner")
+demo("BSE-TF_ecotoner_LocateAndMeasure", package = "ecotoner")
 ```
 
 Instead, the following command should open my main code in your text editor (at least on unix-alike systems) for easier inspection:
 ```
-system2("open", file.path(system.file("demo", package = "ecotoner"), "BSE-TF_EcotonesAtSlope_v10.R"))
+system2("open", file.path(system.file("demo", package = "ecotoner"), "BSE-TF_ecotoner_LocateAndMeasure.R"))
 ```
 
 

@@ -260,7 +260,6 @@ calc.Identify_GoodvsBadMigration <- function(patches4, tally, paths, paths_succe
 	patchIDs_crossedByPaths <- lapply(paths, FUN = function(p) unique(na.omit(raster::extract(patches4, p)))) #entries in order of downstream patches4 crossed
 	#patches4 that connect directly with the x-border
 	patchIDs_BadMigration <- tally[tally[, "PatchCoversGoodBorder_TF"] == 1 | (tally[, "SuccessfulFlowpaths_N"] > 0 & tally[, "GoodMigration_N"] > 0 & tally[, "BadMigration_N"] == 0), "PatchID"]
-#TODO(drs): shouldn't this be 'patchIDs_GoodMigration'??
 		
 	if (end_toLeft) {
 		#Check network of flowpaths (originating from every y-border cell) and decide for each patch whether to be excluded or not

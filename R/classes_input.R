@@ -18,7 +18,7 @@ GridInfo <- setClass("GridInfo",
 	prototype = list(crs = sp::CRS(NA_character_), res_m = NA_real_, longlat = NA, origin = c(NA_real_, NA_real_), rotation = NA)
 )
 
-# TODO(drs): validify that units of slot 'res_m' are correct
+# TODO(drs): validate that units of slot 'res_m' are correct
 
 #' An S4-class to represent the information of the input raster grids
 #'

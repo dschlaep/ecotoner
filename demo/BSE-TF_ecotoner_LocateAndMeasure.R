@@ -7,8 +7,8 @@
 #------------------------------------------------------------#
 ##------PROJECT NEW/CONTD
 prj_status <- "contd"		# one of "new" and "contd"; if "contd" then bname_settings (and bname_grids if locate_transects) must exist on disk
-bname_settings <- "20160323_1759_ecotoner_settings.rds"
-bname_grids <- "20160323_1759_ecotoner_grids.rds"
+bname_settings <- "myproject_ecotoner_settings.rds"
+bname_grids <- "myproject_ecotoner_grids.rds"
 time_stamp <- Sys.time()
 
 
@@ -18,7 +18,7 @@ do.demo <- TRUE		# If TRUE, then code uses the example data from the ecotoner pa
 
 
 actions <- c(	preprocess_data = FALSE,		# mosaic NED tiles; project NED to crs(GAP); determine BSE-TF abutting; calculate smoothed aspect
-				sample_searchpoints = FALSE,	# samples locations to initiate the location of transects
+				sample_searchpoints = TRUE,		# samples locations to initiate the location of transects
 				locate_transects = TRUE,		# call the transect functions detect_ecotone_transects_from_searchpoint()
 				make_map = TRUE,				# draw a map of all transects
 				measure_transects = TRUE		# use methods to extract information about the located transects
@@ -30,21 +30,16 @@ interactions <- c(	verbose = TRUE,		# prints progress statements
 				)
 			
 
-
 #------------------------------------------------------------#
 ##------SETUP R PACKAGES
-#libraries  <- c("rgdal", "akima", "RANN") TODO(drs): Where are these packages used? Are they still needed?
-libraries  <- c("ecotoner", "parallel", "foreign")
-l <- lapply(libraries, function(lib) stopifnot(require(lib, character.only = TRUE, quietly = FALSE)))
-
-#options(warn=2, error=quote({dump.frames(to.file=TRUE); q()}))	#turns all warnings into errors, dumps all to a file, and quits
-#NOTE: raster(<=v2.2.5)::overlay() [testing fun] and pdf() can cause an error that normally is caught with try() or similar, but code fails if error=q()
+pkg_reqd  <- c("ecotoner", "parallel", "foreign")
+l <- lapply(pkg_reqd, function(lib) stopifnot(require(lib, character.only = TRUE, quietly = FALSE)))
 
 
 
 ##------PROJECT SETTINGS
 # Set path dir.prj according to your own project and system
-dir.prj <- "~/Dropbox/Work_Stuff/2_Research/200907_UofWyoming_PostDoc/Product17_EcotoneGradients/3_EcotoneGradient/4_Intermountain_v6"
+dir.prj <- "~"
 setwd(dir.prj)
 
 if (prj_status == "new") {
@@ -63,13 +58,13 @@ if (prj_status == "new") {
 
 	# Paths
 	dir_prj(esets) <- dir.prj
-	dir_big(esets) <- "/Volumes/BookDuo_12TB/BigData/Product17_EcotoneGradients/3_EcotoneGradient/4_Intermountain_v6"
+	dir_big(esets) <- dir.prj
 
 	fname_settings <- file.path(dir_init(esets), paste0(format(time_stamp, format = "%Y%m%d_%H%M"), "_ecotoner_settings.rds"))
 	bname_searchpoints <- paste0("SearchPoints_",
-									if (inhibit_searchpoints(esets)) paste0(inhibit_dist_m(esets, 1), "cells_inhibited") else "Poisson", "_",
-									searchpoints_N(esets), "N_",
-									"Veg1and2Abut.rds")
+		if (inhibit_searchpoints(esets)) paste0(inhibit_dist_m(esets, 1), "cells_inhibited") else "Poisson", "_",
+		searchpoints_N(esets), "N_",
+		"Veg1and2Abut.rds")
 
 	if (do.debug || do.demo) {
 		interactions[seq_along(interactions)] <- TRUE
@@ -81,9 +76,9 @@ if (prj_status == "new") {
 			candidate_THAs_N(esets) <- 20
 			dir_big(esets) <- NA_character_
 			bname_searchpoints <- paste0("SearchPoints_",
-										if (inhibit_searchpoints(esets)) paste0(inhibit_dist_m(esets, 1), "cells_inhibited") else "Poisson", "_",
-										searchpoints_N(esets), "N_",
-										"Veg1and2Abut.rds")
+				if (inhibit_searchpoints(esets)) paste0(inhibit_dist_m(esets, 1), "cells_inhibited") else "Poisson", "_",
+				searchpoints_N(esets), "N_",
+				"Veg1and2Abut.rds")
 		}
 		
 	}
@@ -104,7 +99,6 @@ if (prj_status == "new") {
 		stop("Requested file ", fname_settings, " was not found: 'ecotoner' cannot continue")
 	}
 }
-
 
 
 ##------RASTER GRIDS
@@ -175,15 +169,19 @@ if (actions["locate_transects"] || actions["make_map"]) {
 		}
 		
 		#--- Vegetation types
-		#TODO(drs): use them by the code
 		fveg1 <- if (!do.demo) {
 						file.path(dir_veg1(esets), "gapv2_bse_W97.tif")
 					} else {
 						file.path(dir_veg1(esets), "veg1_bse_eg.grd")
 					}
 		if (actions["preprocess_data"] && !file.exists(fveg1)) {
-			grid_veg1(egrids) <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg1(esets)), filename = fveg1,
-											parallel_N = cores_N(esets), dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+			grid_veg1(egrids) <- extract_vegetation(
+				grid_veg(egrids),
+				ids = type_ids(type_veg1(esets)),
+				filename = fveg1,
+				parallel_N = cores_N(esets),
+				dataType = "INT1S",
+				options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
 		} else {
 			grid_veg1(egrids) <- raster::raster(fveg1)
 		}
@@ -194,8 +192,13 @@ if (actions["locate_transects"] || actions["make_map"]) {
 						file.path(dir_veg2(esets), "veg2_tf_eg.grd")
 					}
 		if (actions["preprocess_data"] && !file.exists(fveg2)) {
-			grid_veg2(egrids) <- extract_vegetation(grid_veg(egrids), ids = type_ids(type_veg2(esets)), filename = fveg2,
-											parallel_N = cores_N(esets), dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+			grid_veg2(egrids) <- extract_vegetation(
+				grid_veg(egrids),
+				ids = type_ids(type_veg2(esets)),
+				filename = fveg2,
+				parallel_N = cores_N(esets),
+				dataType = "INT1S",
+				options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
 		} else {
 			grid_veg2(egrids) <- raster::raster(fveg2)
 		}
@@ -209,8 +212,13 @@ if (actions["locate_transects"] || actions["make_map"]) {
 						file.path(dir_veg(esets), "abutt_eg.grd")
 					}
 			if (actions["preprocess_data"] && !file.exists(fabut)) {
-				grid_abut(egrids) <- determine_abutters(grid_veg(egrids), grid_veg1 = grid_veg1, grid_veg2 = grid_veg2,
-														filename = fabut, dataType = "INT1S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+				grid_abut(egrids) <- determine_abutters(
+					grid_veg(egrids),
+					grid_veg1 = grid_veg1,
+					grid_veg2 = grid_veg2,
+					filename = fabut,
+					dataType = "INT1S",
+					options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
 			} else {
 				grid_abut(egrids) <- raster::raster(fabut)
 			}
@@ -227,13 +235,22 @@ if (actions["locate_transects"] || actions["make_map"]) {
 				grid_env_temp <- mosaic_tiles(dir_tiles = file.path(dir_env(esets), "grid_tiles"), chunksize = 10L, fname_grid_ned = fenv)
 				raster::crs(grid_env_temp) <- sp::CRS(paste(raster::crs(grid_env_temp, asText = TRUE), "+datum=NAD83 +vunits=m"))
 				
-				grid_env_temp2 <- project_raster(grid_from = grid_env_temp, fname_grid_to = fenv_temp2, res_to = raster::res(gap), crs_to = raster::crs(gap),
-													parallel_N = cores_N(esets), chunksize = 1e+05, maxmemory = 1e+06,
-													options = c("COMPRESS=NONE", "TFW=YES", "TILED=YES"))
+				grid_env_temp2 <- project_raster(
+					grid_from = grid_env_temp,
+					fname_grid_to = fenv_temp2,
+					res_to = raster::res(gap),
+					crs_to = raster::crs(gap),
+					parallel_N = cores_N(esets),
+					chunksize = 1e+05, maxmemory = 1e+06,
+					options = c("COMPRESS=NONE", "TFW=YES", "TILED=YES"))
 
 				grid_env_temp3 <- raster::extend(raster::crop(grid_env_temp2, raster::extent(grid_veg(egrids))), raster::extent(grid_veg(egrids)))
-				grid_env(egrids) <- raster::overlay(grid_env_temp3, grid_veg(egrids), fun = function(x, y) ifelse(is.na(x) | is.na(y), NA, x),
-												filename = fenv, dataype = "FLT4S", options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+				grid_env(egrids) <- raster::overlay(
+					grid_env_temp3, grid_veg(egrids),
+					fun = function(x, y) ifelse(is.na(x) | is.na(y), NA, x),
+					filename = fenv,
+					dataype = "FLT4S",
+					options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
 
 				rm(fenv_temp, grid_env_temp, grid_env_temp2, grid_env_temp3)
 			} else {
@@ -252,8 +269,10 @@ if (actions["locate_transects"] || actions["make_map"]) {
 						file.path(dir_aspect_mean(esets), "slope_eg.grd")
 					}
 			if (actions["preprocess_data"] && !file.exists(fslope)) {
-				grid_slope <- terrain_slope(grid_env(egrids),
-											filename = fslope, options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+				grid_slope <- terrain_slope(
+					grid_env(egrids),
+					filename = fslope,
+					options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
 			} else {
 				grid_slope <- raster::raster(fslope)
 			}
@@ -264,9 +283,13 @@ if (actions["locate_transects"] || actions["make_map"]) {
 						file.path(dir_aspect_mean(esets), "aspect_eg.grd")
 					}
 			if (actions["preprocess_data"] && !file.exists(faspect)) {
-				grid_aspect <- terrain_aspect(grid_env(egrids), grid_slope,
-											min_slope = min_slope_with_aspect(esets), parallel_N = cores_N(esets),
-											filename = faspect, options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+				grid_aspect <- terrain_aspect(
+					grid_env(egrids),
+					grid_slope,
+					min_slope = min_slope_with_aspect(esets),
+					parallel_N = cores_N(esets),
+					filename = faspect,
+					options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
 			} else {
 				# This rasters was calculated with: min_slope_with_aspect == 2 * pi/180
 				stopifnot(min_slope_with_aspect(esets) == 2 * pi/180)
@@ -279,9 +302,12 @@ if (actions["locate_transects"] || actions["make_map"]) {
 						file.path(dir_aspect_mean(esets), "asp201Mean_eg.grd")
 					}
 			if (actions["preprocess_data"] && !file.exists(fasp_m)) {
-				grid_aspect_mean(egrids) <- homogenous_aspect(grid_aspect, fun = "mean",
-														window_N = bandTransect_width_cellN(esets),
-														filename = fasp_m, options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+				grid_aspect_mean(egrids) <- homogenous_aspect(
+					grid_aspect,
+					fun = "mean",
+					window_N = bandTransect_width_cellN(esets),
+					filename = fasp_m,
+					options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
 			} else {
 				# This rasters was calculated with: bandTransect_width_cellN == 200
 				stopifnot(bandTransect_width_cellN(esets) == 200)
@@ -294,9 +320,12 @@ if (actions["locate_transects"] || actions["make_map"]) {
 						file.path(dir_aspect_sd(esets), "asp201SD_eg.grd")
 					}
 			if (actions["preprocess_data"] && !file.exists(fasp_sd)) {
-				grid_aspect_sd(egrids) <- homogenous_aspect(grid_aspect, fun = "sd",
-														window_N = bandTransect_width_cellN(esets),
-														filename = fasp_sd, options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
+				grid_aspect_sd(egrids) <- homogenous_aspect(
+					grid_aspect,
+					fun = "sd",
+					window_N = bandTransect_width_cellN(esets),
+					filename = fasp_sd,
+					options = c("COMPRESS=LWZ", "TFW=YES", "TILED=YES"))
 			} else {
 				# This rasters was calculated with: bandTransect_width_cellN == 200
 				stopifnot(bandTransect_width_cellN(esets) == 200)
@@ -319,7 +348,11 @@ if (actions["locate_transects"] || actions["make_map"]) {
 				grid_flow(egrids) <- raster::raster(ftemp2)	#Flowpath generated with raster::terrain
 			} else {
 				message(paste0(Sys.time(), ": 'raster::terrain' will calculate a flow path grid; this may take a moment."))
-				grid_flow(egrids) <- raster::terrain(grid_env(egrids), opt = 'flowdir', filename = ftemp2, overwrite = FALSE)
+				grid_flow(egrids) <- raster::terrain(
+					grid_env(egrids),
+					opt = 'flowdir',
+					filename = ftemp2,
+					overwrite = FALSE)
 			}
 		}
 	} else {
@@ -335,7 +368,6 @@ if (actions["locate_transects"] || actions["make_map"]) {
 	stopifnot(valid_grid(grid_veg(egrids)), valid_grid(grid_env(egrids)))
 	if (prj_status == "new") saveRDS(egrids, file = fname_grids)
 }
-
 
 
 #------------------------------------------------------------#
@@ -394,19 +426,21 @@ if (actions["sample_searchpoints"] || actions["locate_transects"] || actions["ma
 	cat(format(Sys.time(), format = ""), ": using 'ecotoner' to sample search locations from where to initiate the location of ecotone transects\n", sep = "")
 
 	cat(format(Sys.time(), format = ""), ": sampling ", searchpoints_N(esets), " search points/locations\n", sep = "")
-	initpoints <- if (prj_status == "new" || !file.exists(file_searchpoints(esets))) {
-						get_transect_search_points(N = searchpoints_N(esets),
-													grid_mask1 = if (valid_grid(grid_abut(egrids))) grid_abut(egrids) else grid_veg(egrids),
-													inhibit_dist = inhibit_dist_m(esets, res_m(specs_grid(egrids))), 
-													mywindow = if (inhibit_searchpoints(esets) && file.exists(file_initwindow(esets))) readRDS(file_initwindow(esets)) else NULL,
-													grid_maskNA = grid_env(egrids),
-													initfile = file_searchpoints(esets),
-													initwindowfile = file_initwindow(esets),
-													seed = if (reproducible(esets)) get_global_seed(esets) else NULL,
-													verbose = interactions["verbose"])
-					} else {
-						readRDS(file_searchpoints(esets))
-					}
+	initpoints <-
+		if (prj_status == "new" || !file.exists(file_searchpoints(esets))) {
+			get_transect_search_points(
+				N = searchpoints_N(esets),
+				grid_mask1 = if (valid_grid(grid_abut(egrids))) grid_abut(egrids) else grid_veg(egrids),
+				inhibit_dist = inhibit_dist_m(esets, res_m(specs_grid(egrids))), 
+				mywindow = if (inhibit_searchpoints(esets) && file.exists(file_initwindow(esets))) readRDS(file_initwindow(esets)) else NULL,
+				grid_maskNA = grid_env(egrids),
+				initfile = file_searchpoints(esets),
+				initwindowfile = file_initwindow(esets),
+				seed = if (reproducible(esets)) get_global_seed(esets) else NULL,
+				verbose = interactions["verbose"])
+		} else {
+			readRDS(file_searchpoints(esets))
+		}
 	
 	if (!identical(transect_N(esets), length(initpoints))) {
 		transect_N(esets) <- length(initpoints)
@@ -425,11 +459,13 @@ if (actions["locate_transects"]) {
 	cat(format(Sys.time(), format = ""), ": sending ", transect_N(esets), " calls to the function 'detect_ecotone_transects_from_searchpoint'\n", sep = "")
 
 	seeds_locate <- if (reproducible(esets)) {
-							prepare_RNG_streams(N = N_of_location_calls(esets), iseed = get_global_seed(esets))
+							prepare_RNG_streams(N = N_of_location_calls(esets),
+												iseed = get_global_seed(esets))
 					} else NULL
 	
 	.Last <- function() raster::removeTmpFiles(h = 0)
-	resultTransects <- pfun(seq_len(transect_N(esets)), detect_ecotone_transects_from_searchpoint,
+	resultTransects <- pfun(seq_len(transect_N(esets)),
+							detect_ecotone_transects_from_searchpoint,
 							initpoints = initpoints,
 							ecotoner_settings = esets,
 							ecotoner_grids = egrids,
@@ -449,10 +485,11 @@ if (actions["locate_transects"]) {
 if (actions["make_map"]){
 	cat(format(Sys.time(), format = ""), ": calculating vegetation meta-data\n", sep = "")
 	
-	meta_veg <- characterize_veg_data(ecotoner_settings = esets,
-									  ecotoner_grids = egrids,
-									  initpoints = initpoints,
-									  inhibit_dist = inhibit_dist_m(esets, res_m(specs_grid(egrids))))
+	meta_veg <- characterize_veg_data(
+		ecotoner_settings = esets,
+		ecotoner_grids = egrids,
+		initpoints = initpoints,
+		inhibit_dist = inhibit_dist_m(esets, res_m(specs_grid(egrids))))
 
 
 	cat(format(Sys.time(), format = ""), ": drawing a map of the study area\n", sep = "")
@@ -529,11 +566,13 @@ if (actions["measure_transects"]) {
 	cat(format(Sys.time(), format = ""), ": sending ", transect_N(esets), " calls to the function 'measure_ecotone_per_transect'\n", sep = "")
 
 	seeds_measure1 <- if (reproducible(esets)) {
-							prepare_RNG_streams(N = N_of_measure_calls(esets), iseed = get_global_seed(esets))
+							prepare_RNG_streams(N = N_of_measure_calls(esets),
+												iseed = get_global_seed(esets))
 					  } else NULL					
 
-	measureTransects1 <- pfun(seq_len(transect_N(esets)), measure_ecotone_per_transect,
-								et_methods = et_methods_options[2:4],
+	measureTransects1 <- pfun(seq_len(transect_N(esets)),
+								measure_ecotone_per_transect,
+								et_methods = et_methods_options[4],
 								ecotoner_settings = esets,
 								seed_streams = seeds_measure1,
 								verbose = interactions["verbose"],
@@ -541,23 +580,23 @@ if (actions["measure_transects"]) {
 
 
 
-stop("TODO(drs): not implemented")	
-et_methods2 <- c("InterZoneLocation", "InterZonePatchDistr")
+	warning("TODO(drs): code not further implemented")	
+	if (FALSE) {
+	et_methods2 <- c("InterZoneLocation", "InterZonePatchDistr")
 
 	if (!exists("resultTransects")) resultTransects <- read.csv(file = file_etsummary(esets), header = TRUE, row.names = 1)
 
-	measureTransects2 <- measure_ecotones_all_transects(pfun, seq_len(transect_N(esets)),
+	measureTransects2 <- measure_ecotones_all_transects(pfun,
+								seq_len(transect_N(esets)),
 								et_methods = c("Danz2012JVegSci_global_2D"),
 								et_desc = resultTransects,
 								ecotoner_settings = esets,
 								verbose = interactions["verbose"],
 								do_figures = interactions["figures"])
-
+	}
 }
 
 print(sessionInfo())
-
-
 
 
 
@@ -566,4 +605,3 @@ print(sessionInfo())
 	parallel::stopCluster(cl)
 	unlink(ftemp_cl)
 	RNGkind(kind = RNGkind_old[1], normal.kind = RNGkind_old[2])
-
